@@ -6,3 +6,4 @@ uploads
 .pnpm-store
 node_modules
 pnpm-lock.yaml
+docs-site/.vitepress/dist

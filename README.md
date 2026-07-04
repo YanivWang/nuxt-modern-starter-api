@@ -33,6 +33,7 @@ pnpm build
 pnpm test
 pnpm run check
 pnpm openapi:generate
+pnpm docs:dev
 pnpm db:migrate
 pnpm db:migrate:pending
 pnpm db:drop-create
@@ -41,6 +42,14 @@ pnpm docker:prod
 ```
 
 Swagger: `http://localhost:3000/api-docs`，OpenAPI: `http://localhost:3000/openapi.yaml`。
+
+VitePress 架构文档位于 `docs-site/`，面向新人系统介绍项目架构、技术栈、功能模块、部署设计和运维边界：
+
+```bash
+pnpm docs:dev     # 本地阅读/编辑文档
+pnpm docs:build   # 构建静态文档站
+pnpm docs:preview # 预览构建产物
+```
 
 ## 架构总览
 

@@ -9,3 +9,4 @@ uploads/
 .DS_Store
 coverage/
 .pnpm-store/
+docs-site/.vitepress/dist/

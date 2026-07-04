@@ -10,3 +10,4 @@ uploads
 .env.production
 .env.*.local
 coverage
+docs-site/.vitepress/dist

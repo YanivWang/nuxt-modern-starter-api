@@ -14,7 +14,16 @@ const typeCheckedConfigs = tseslint.configs.recommendedTypeChecked.map((config) 
 
 export default tseslint.config(
   {
-    ignores: ["dist/**", "coverage/**", "logs/**", "uploads/**", ".data/**", ".pnpm-store/**", "node_modules/**"],
+    ignores: [
+      "dist/**",
+      "coverage/**",
+      "logs/**",
+      "uploads/**",
+      ".data/**",
+      ".pnpm-store/**",
+      "node_modules/**",
+      "docs-site/.vitepress/dist/**",
+    ],
   },
   {
     ...js.configs.recommended,
@@ -32,7 +41,7 @@ export default tseslint.config(
     languageOptions: {
       parserOptions: {
         projectService: {
-          allowDefaultProject: ["*.config.ts"],
+          allowDefaultProject: ["*.config.ts", "docs-site/.vitepress/config.ts"],
         },
         tsconfigRootDir: import.meta.dirname,
       },
