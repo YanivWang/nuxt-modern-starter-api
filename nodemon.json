@@ -1,0 +1,27 @@
+{
+  "delay": 1500,
+  "signal": "SIGTERM",
+  "ignore": [
+    "node_modules/**",
+    "public/**",
+    "dist/**",
+    "*.test.ts",
+    "*.spec.ts",
+    "**/*.d.ts",
+    "logs/**",
+    ".git/**",
+    ".DS_Store",
+    "tmp/**",
+    "coverage/**",
+    ".gitignore",
+    "pnpm-lock.yaml",
+    "scripts/**"
+  ],
+  "events": {
+    "start": "echo 'Starting app...'",
+    "restart": "echo 'App restarted due to file changes'",
+    "crash": "echo 'Application crashed!'",
+    "exit": "echo 'Application exited cleanly'",
+    "config:update": "echo 'nodemon config updated'"
+  }
+}

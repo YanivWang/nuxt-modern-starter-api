@@ -1,0 +1,53 @@
+name: express-modern-starter-dev
+
+services:
+  mysql:
+    container_name: express-modern-starter-mysql-dev
+    volumes:
+      - mysql_dev_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+
+  redis:
+    container_name: express-modern-starter-redis-dev
+    volumes:
+      - redis_dev_data:/data
+    ports:
+      - "6379:6379"
+
+  gateway:
+    image: nginx:alpine
+    container_name: express-modern-starter-gateway-dev
+    volumes:
+      - ./nginx/gateway.docker.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "${GATEWAY_HOST_PORT:-2026}:2026"
+    depends_on:
+      rest-api:
+        condition: service_started
+    restart: unless-stopped
+
+  rest-api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev
+    container_name: express-modern-starter-rest-api-dev
+    env_file:
+      - ../.env.development
+    environment:
+      APP_ENV: development
+      NODE_ENV: development
+      HUSKY: "0"
+      PORT: "3000"
+      TRUST_PROXY: "1"
+    ports:
+      - "9229:9229"
+    volumes:
+      - ..:/app
+      - app_node_modules:/app/node_modules
+    command: ["sh", "-c", "CI=true pnpm install --frozen-lockfile && pnpm dev"]
+
+volumes:
+  mysql_dev_data:
+  redis_dev_data:
+  app_node_modules:

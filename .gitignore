@@ -1,0 +1,9 @@
+node_modules/
+dist/
+logs/
+uploads/
+.data/
+.env.*.local
+.DS_Store
+coverage/
+.pnpm-store/

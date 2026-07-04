@@ -1,0 +1,38 @@
+name: express-modern-starter-prod
+
+services:
+  mysql:
+    container_name: express-modern-starter-mysql
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  redis:
+    container_name: express-modern-starter-redis
+    volumes:
+      - redis_data:/data
+
+  gateway:
+    image: nginx:alpine
+    container_name: express-modern-starter-gateway
+    volumes:
+      - ./nginx/gateway.docker.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "${GATEWAY_HOST_PORT:-2026}:2026"
+    depends_on:
+      rest-api:
+        condition: service_started
+    restart: unless-stopped
+
+  rest-api:
+    container_name: express-modern-starter-rest-api
+    env_file:
+      - ../.env.production
+    environment:
+      APP_ENV: production
+      NODE_ENV: production
+      PORT: "3000"
+      TRUST_PROXY: "1"
+
+volumes:
+  mysql_data:
+  redis_data:
