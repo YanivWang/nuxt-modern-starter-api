@@ -3,9 +3,9 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import jwt from "jsonwebtoken";
 import { Op } from "sequelize";
 
-import { User, UserRefreshToken } from "../db.js";
-import { ACCESS_TOKEN_TTL_SECONDS, JWT_SECRET, REFRESH_TOKEN_TTL_SECONDS } from "../env.js";
-import { createHttpError } from "../middlewares/error.middleware.js";
+import { User, UserRefreshToken } from "../../db.js";
+import { ACCESS_TOKEN_TTL_SECONDS, JWT_SECRET, REFRESH_TOKEN_TTL_SECONDS } from "../../env.js";
+import { createHttpError } from "../../middlewares/error.middleware.js";
 
 type TokenContext = {
   userAgent?: string;

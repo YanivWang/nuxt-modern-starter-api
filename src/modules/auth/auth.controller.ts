@@ -1,18 +1,18 @@
-import { createHttpError } from "../middlewares/error.middleware.js";
-import { revokeRefreshToken, rotateRefreshToken, type AuthTokenPair } from "../services/auth-session.service.js";
-import { blacklistJwt } from "../services/auth-token.service.js";
-import { loginUser, registerUser } from "../services/auth.service.js";
-import { clearAuthCookies, readRefreshTokenCookie, setAuthCookies } from "../utils/authCookie.js";
-import { getValidated } from "../utils/getValidated.js";
-import { success } from "../utils/response.js";
+import { createHttpError } from "../../middlewares/error.middleware.js";
+import { revokeRefreshToken, rotateRefreshToken, type AuthTokenPair } from "./auth-session.service.js";
+import { blacklistJwt } from "./auth-token.service.js";
+import { loginUser, registerUser } from "./auth.service.js";
+import { clearAuthCookies, readRefreshTokenCookie, setAuthCookies } from "./authCookie.js";
+import { getValidated } from "../../utils/getValidated.js";
+import { success } from "../../utils/response.js";
 
 import type {
   ValidatedLoginSchema,
   ValidatedLogoutSchema,
   ValidatedRefreshSchema,
   ValidatedRegisterSchema,
-} from "../schema/auth.schema.js";
-import type { AppJwtUser } from "../types/jwt-user.js";
+} from "./auth.schema.js";
+import type { AppJwtUser } from "../../types/jwt-user.js";
 import type { Request, Response } from "express";
 
 function authContext(req: Request) {

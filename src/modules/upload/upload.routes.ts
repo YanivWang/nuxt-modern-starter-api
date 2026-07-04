@@ -1,23 +1,23 @@
 import express from "express";
 
-import { largeUploadChunkMulter } from "../config/large-upload.multer.js";
-import { uploadImagesMiddleware, uploadProfileImagesMiddleware } from "../config/upload.config.js";
+import { largeUploadChunkMulter } from "./large-upload.multer.js";
+import { uploadImagesMiddleware, uploadProfileImagesMiddleware } from "./upload.config.js";
 import {
   deleteLargeUpload,
   getLargeUploadStatusHandler,
   postLargeUploadInit,
   postLargeUploadMerge,
   putLargeUploadChunk,
-} from "../controllers/large-upload.controller.js";
-import { uploadImages } from "../controllers/upload.controller.js";
-import { asyncHandler } from "../middlewares/asyncHandler.js";
-import { authMiddleware } from "../middlewares/auth.middleware.js";
-import { validate } from "../middlewares/validate.middleware.js";
+} from "./large-upload.controller.js";
+import { uploadImages } from "./upload.controller.js";
+import { asyncHandler } from "../../middlewares/asyncHandler.js";
+import { authMiddleware } from "../../middlewares/auth.middleware.js";
+import { validate } from "../../middlewares/validate.middleware.js";
 import {
   largeUploadChunkParamsSchema,
   largeUploadIdParamsSchema,
   largeUploadInitSchema,
-} from "../schema/large-upload.schema.js";
+} from "./large-upload.schema.js";
 
 const router = express.Router();
 

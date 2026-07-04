@@ -1,9 +1,9 @@
 import bcrypt from "bcrypt";
 
-import { User } from "../db.js";
-import { createHttpError } from "../middlewares/error.middleware.js";
-import { logger } from "../utils/logger.js";
-import { trimmedStringFromUnknown } from "../utils/trimmedStringFromUnknown.js";
+import { User } from "../../db.js";
+import { createHttpError } from "../../middlewares/error.middleware.js";
+import { logger } from "../../utils/logger.js";
+import { trimmedStringFromUnknown } from "../../utils/trimmedStringFromUnknown.js";
 
 import { createAuthTokenPair } from "./auth-session.service.js";
 

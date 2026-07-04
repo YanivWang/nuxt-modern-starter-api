@@ -1,6 +1,6 @@
-import { AUTH_COOKIE_SECURE } from "../env.js";
+import { AUTH_COOKIE_SECURE } from "../../env.js";
 
-import type { AuthTokenPair } from "../services/auth-session.service.js";
+import type { AuthTokenPair } from "./auth-session.service.js";
 import type { Request, Response } from "express";
 
 const ACCESS_COOKIE = "access_token";

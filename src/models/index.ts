@@ -1,6 +1,6 @@
-import { defineUserProfileModel } from "./user-profile.model.js";
-import { defineUserRefreshTokenModel } from "./user-refresh-token.model.js";
-import { defineUserModel } from "./user.model.js";
+import { defineUserProfileModel } from "../modules/user/user-profile.model.js";
+import { defineUserRefreshTokenModel } from "../modules/auth/user-refresh-token.model.js";
+import { defineUserModel } from "../modules/user/user.model.js";
 
 import type { Sequelize } from "sequelize";
 

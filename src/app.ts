@@ -2,17 +2,17 @@ import cors from "cors";
 import express, { type RequestHandler } from "express";
 import helmet from "helmet";
 
-import { uploadsRoot } from "./config/upload.config.js";
+import { uploadsRoot } from "./modules/upload/upload.config.js";
 import { TRUST_PROXY, getCorsOriginOption } from "./env.js";
 import { compressionMiddleware } from "./middlewares/compression.middleware.js";
 import { createHttpError, errorMiddleware } from "./middlewares/error.middleware.js";
 import { httpRequestLogMiddleware } from "./middlewares/httpRequestLog.middleware.js";
 import { globalRateLimitMiddleware } from "./middlewares/rateLimit.middleware.js";
 import { requestIdMiddleware } from "./middlewares/requestId.middleware.js";
-import authRoutes from "./routes/auth.routes.js";
+import authRoutes from "./modules/auth/auth.routes.js";
 import healthRoutes from "./routes/health.routes.js";
-import uploadRoutes from "./routes/upload.routes.js";
-import userRoutes from "./routes/user.routes.js";
+import uploadRoutes from "./modules/upload/upload.routes.js";
+import userRoutes from "./modules/user/user.routes.js";
 import { setupSwagger } from "./swagger.js";
 
 const app = express();

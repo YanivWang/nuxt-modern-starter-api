@@ -1,4 +1,4 @@
-import { redis } from "../redis.js";
+import { redis } from "../../redis.js";
 
 const JWT_BLACKLIST_KEY_PREFIX = "jwt:blacklist:";
 

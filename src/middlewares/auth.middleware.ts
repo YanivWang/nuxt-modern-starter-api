@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 
-import { requireJwtUser } from "../services/jwt-verify.service.js";
-import { readAccessTokenCookie } from "../utils/authCookie.js";
+import { requireJwtUser } from "../modules/auth/jwt-verify.service.js";
+import { readAccessTokenCookie } from "../modules/auth/authCookie.js";
 
 import { createHttpError } from "./error.middleware.js";
 

@@ -1,5 +1,5 @@
 import app from "./app.js";
-import { ensureUploadsRoot } from "./config/upload.config.js";
+import { ensureUploadsRoot } from "./modules/upload/upload.config.js";
 import { connectDatabase, sequelize } from "./db.js";
 import { APP_ENV, PORT } from "./env.js";
 import { connectRedis, disconnectRedis } from "./redis.js";

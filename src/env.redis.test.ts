@@ -62,7 +62,7 @@ describe("redis env configuration", () => {
       AUTH_TOKEN_BLACKLIST_ENABLED: "false",
     });
 
-    const { blacklistJwt, isJwtBlacklisted } = await import("./services/auth-token.service.js");
+    const { blacklistJwt, isJwtBlacklisted } = await import("./modules/auth/auth-token.service.js");
 
     await expect(blacklistJwt("token-id", 60)).resolves.toBeUndefined();
     await expect(isJwtBlacklisted("token-id")).resolves.toBe(false);

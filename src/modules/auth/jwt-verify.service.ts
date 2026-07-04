@@ -1,10 +1,10 @@
 import jwt from "jsonwebtoken";
 
-import { JWT_SECRET } from "../env.js";
+import { JWT_SECRET } from "../../env.js";
 
 import { isJwtBlacklisted } from "./auth-token.service.js";
 
-import type { AppJwtUser } from "../types/jwt-user.js";
+import type { AppJwtUser } from "../../types/jwt-user.js";
 
 /** 校验 JWT；无效、过期、缺 jti、已拉黑 → null（不抛错） */
 export async function resolveJwtUser(token: string): Promise<AppJwtUser | null> {

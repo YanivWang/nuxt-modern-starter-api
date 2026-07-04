@@ -1,6 +1,6 @@
-import { filePathToPublicUrl } from "../config/upload.config.js";
-import { createHttpError } from "../middlewares/error.middleware.js";
-import { success } from "../utils/response.js";
+import { filePathToPublicUrl } from "./upload.config.js";
+import { createHttpError } from "../../middlewares/error.middleware.js";
+import { success } from "../../utils/response.js";
 
 import type { Request, Response } from "express";
 

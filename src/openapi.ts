@@ -5,9 +5,9 @@ import {
   MAX_LARGE_UPLOAD_CHUNKS,
   largeUploadIdParamsSchema,
   largeUploadInitSchema,
-} from "./schema/large-upload.schema.js";
-import { loginSchema, logoutSchema, refreshSchema, registerSchema } from "./schema/auth.schema.js";
-import { patchMyProfileSchema } from "./schema/user-profile.schema.js";
+} from "./modules/upload/large-upload.schema.js";
+import { loginSchema, logoutSchema, refreshSchema, registerSchema } from "./modules/auth/auth.schema.js";
+import { patchMyProfileSchema } from "./modules/user/user-profile.schema.js";
 
 type OpenApiSchema = Record<string, unknown> & {
   properties?: Record<string, OpenApiSchema>;

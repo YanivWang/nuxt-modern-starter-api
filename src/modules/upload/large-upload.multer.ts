@@ -1,6 +1,6 @@
 import multer, { diskStorage } from "multer";
 
-import { partFileName, syncResolveLargeUploadChunkDir } from "../services/large-upload.service.js";
+import { partFileName, syncResolveLargeUploadChunkDir } from "./large-upload.service.js";
 
 import type { Request } from "express";
 

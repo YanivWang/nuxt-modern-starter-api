@@ -4,11 +4,11 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { finished } from "node:stream/promises";
 
-import { filePathToPublicUrl, uploadsRoot } from "../config/upload.config.js";
-import { createHttpError } from "../middlewares/error.middleware.js";
-import { projectRoot } from "../utils/projectRoot.js";
+import { filePathToPublicUrl, uploadsRoot } from "./upload.config.js";
+import { createHttpError } from "../../middlewares/error.middleware.js";
+import { projectRoot } from "../../utils/projectRoot.js";
 
-import type { LargeUploadInitBody } from "../schema/large-upload.schema.js";
+import type { LargeUploadInitBody } from "./large-upload.schema.js";
 
 /** 临时分片目录（相对 uploadsRoot） */
 export const LARGE_CHUNKS_TEMP_SEGMENT = "chunks-temp";

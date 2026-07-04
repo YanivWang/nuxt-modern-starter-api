@@ -1,14 +1,14 @@
-import { createHttpError } from "../middlewares/error.middleware.js";
+import { createHttpError } from "../../middlewares/error.middleware.js";
 import {
   abortLargeUpload,
   finalizeChunkWrite,
   getLargeUploadStatus,
   initLargeUpload,
   mergeLargeUpload,
-} from "../services/large-upload.service.js";
-import { success } from "../utils/response.js";
+} from "./large-upload.service.js";
+import { success } from "../../utils/response.js";
 
-import type { LargeUploadInitBody } from "../schema/large-upload.schema.js";
+import type { LargeUploadInitBody } from "./large-upload.schema.js";
 import type { Request, Response } from "express";
 
 export async function postLargeUploadInit(req: Request, res: Response) {

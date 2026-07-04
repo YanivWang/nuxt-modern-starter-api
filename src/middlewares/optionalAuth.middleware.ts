@@ -1,4 +1,4 @@
-import { resolveJwtUser } from "../services/jwt-verify.service.js";
+import { resolveJwtUser } from "../modules/auth/jwt-verify.service.js";
 
 import type { NextFunction, Request, Response } from "express";
 

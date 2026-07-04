@@ -1,11 +1,11 @@
 import express from "express";
 
-import { getMe, getMyProfile, patchMyProfile } from "../controllers/user.controller.js";
-import { asyncHandler } from "../middlewares/asyncHandler.js";
-import { authMiddleware } from "../middlewares/auth.middleware.js";
-import { validate } from "../middlewares/validate.middleware.js";
-import { getMyProfileSchema, patchMyProfileSchema } from "../schema/user-profile.schema.js";
-import { getMeSchema } from "../schema/user.schema.js";
+import { getMe, getMyProfile, patchMyProfile } from "./user.controller.js";
+import { asyncHandler } from "../../middlewares/asyncHandler.js";
+import { authMiddleware } from "../../middlewares/auth.middleware.js";
+import { validate } from "../../middlewares/validate.middleware.js";
+import { getMyProfileSchema, patchMyProfileSchema } from "./user-profile.schema.js";
+import { getMeSchema } from "./user.schema.js";
 
 const router = express.Router();
 

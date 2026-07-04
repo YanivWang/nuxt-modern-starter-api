@@ -1,4 +1,4 @@
-import { User, UserProfile } from "../db.js";
+import { User, UserProfile } from "../../db.js";
 
 import type { Model } from "sequelize";
 

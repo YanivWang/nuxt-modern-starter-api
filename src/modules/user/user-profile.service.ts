@@ -1,8 +1,8 @@
 import { Transaction } from "sequelize";
 
-import { sequelize, User, UserProfile } from "../db.js";
-import { createHttpError } from "../middlewares/error.middleware.js";
-import { trimmedStringFromUnknown } from "../utils/trimmedStringFromUnknown.js";
+import { sequelize, User, UserProfile } from "../../db.js";
+import { createHttpError } from "../../middlewares/error.middleware.js";
+import { trimmedStringFromUnknown } from "../../utils/trimmedStringFromUnknown.js";
 
 import type { Model } from "sequelize";
 

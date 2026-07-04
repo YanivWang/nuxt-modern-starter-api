@@ -4,7 +4,7 @@ import path from "node:path";
 
 import multer from "multer";
 
-import { projectRoot } from "../utils/projectRoot.js";
+import { projectRoot } from "../../utils/projectRoot.js";
 
 /** 上传根目录：当前仓库根 `uploads/` */
 export const uploadsRoot = path.join(projectRoot, "uploads");

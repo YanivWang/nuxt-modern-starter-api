@@ -1,11 +1,11 @@
 import express from "express";
 
-import { login, logout, refresh, register } from "../controllers/auth.controller.js";
-import { asyncHandler } from "../middlewares/asyncHandler.js";
-import { authMiddleware } from "../middlewares/auth.middleware.js";
-import { authRateLimitMiddleware } from "../middlewares/rateLimit.middleware.js";
-import { validate } from "../middlewares/validate.middleware.js";
-import { loginSchema, logoutSchema, refreshSchema, registerSchema } from "../schema/auth.schema.js";
+import { login, logout, refresh, register } from "./auth.controller.js";
+import { asyncHandler } from "../../middlewares/asyncHandler.js";
+import { authMiddleware } from "../../middlewares/auth.middleware.js";
+import { authRateLimitMiddleware } from "../../middlewares/rateLimit.middleware.js";
+import { validate } from "../../middlewares/validate.middleware.js";
+import { loginSchema, logoutSchema, refreshSchema, registerSchema } from "./auth.schema.js";
 
 const router = express.Router();
 

@@ -1,9 +1,9 @@
-import { createHttpError } from "../middlewares/error.middleware.js";
-import { findUserProfileByUserId, upsertUserProfileForUser } from "../services/user-profile.service.js";
-import { findPublicProfileById } from "../services/user.service.js";
-import { success } from "../utils/response.js";
+import { createHttpError } from "../../middlewares/error.middleware.js";
+import { findUserProfileByUserId, upsertUserProfileForUser } from "./user-profile.service.js";
+import { findPublicProfileById } from "./user.service.js";
+import { success } from "../../utils/response.js";
 
-import type { ValidatedPatchMyProfileSchema } from "../schema/user-profile.schema.js";
+import type { ValidatedPatchMyProfileSchema } from "./user-profile.schema.js";
 import type { Request, Response } from "express";
 
 export async function getMe(req: Request, res: Response) {
