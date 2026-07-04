@@ -1,10 +1,11 @@
 import { sequelize } from "../src/db.js";
+import { migrator } from "../src/migrator.js";
 import { disconnectRedis } from "../src/redis.js";
 
 async function main() {
   await sequelize.drop();
-  await sequelize.sync();
-  console.log("数据库已重建");
+  await migrator.up();
+  console.log("数据库已通过迁移重建");
 }
 
 main()

@@ -68,6 +68,17 @@ function requirePortLike(name: string, fallback: number): number {
   return n;
 }
 
+function optionalPositiveInt(name: string, fallback: number): number {
+  const raw = trimUnset(process.env[name]);
+  if (raw === undefined) return fallback;
+  const n = Number.parseInt(raw, 10);
+  if (!Number.isInteger(n) || n < 1) {
+    console.error(`[env] ${name} 必须是正整数`);
+    process.exit(1);
+  }
+  return n;
+}
+
 function rejectProductionPlaceholder(name: string, value: string) {
   if (appEnv !== "production") return;
   const lower = value.toLowerCase();
@@ -117,6 +128,10 @@ export const DB_PWD = (() => {
 export const DB_NAME = requireEnv("DB_NAME");
 export const APP_ENV = appEnv;
 export const TRUST_PROXY = trimUnset(process.env.TRUST_PROXY);
+export const RATE_LIMIT_WINDOW_MS = optionalPositiveInt("RATE_LIMIT_WINDOW_MS", 15 * 60 * 1000);
+export const RATE_LIMIT_MAX = optionalPositiveInt("RATE_LIMIT_MAX", appEnv === "production" ? 1000 : 10000);
+export const AUTH_RATE_LIMIT_WINDOW_MS = optionalPositiveInt("AUTH_RATE_LIMIT_WINDOW_MS", 60 * 1000);
+export const AUTH_RATE_LIMIT_MAX = optionalPositiveInt("AUTH_RATE_LIMIT_MAX", 60);
 
 export const CORS_ORIGINS = (() => {
   const raw = trimUnset(process.env.CORS_ORIGINS);

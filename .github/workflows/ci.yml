@@ -10,6 +10,30 @@ jobs:
   quality:
     name: Quality Gate
     runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root_password_change_me
+          MYSQL_DATABASE: express_modern_starter_test
+          MYSQL_USER: app_user
+          MYSQL_PASSWORD: app_password_123456
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot_password_change_me"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=12
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=12
 
     steps:
       - name: Checkout
@@ -31,3 +55,7 @@ jobs:
 
       - name: Run quality checks
         run: pnpm run check
+        env:
+          APP_ENV: test
+          NODE_ENV: test
+          REDIS_URL: redis://127.0.0.1:6379
