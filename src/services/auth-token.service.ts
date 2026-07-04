@@ -12,6 +12,7 @@ function getJwtBlackListKey(jti: string) {
  * 若 ttlSeconds <= 0，则不添加到黑名单
  */
 export async function blacklistJwt(jti: string, ttlSeconds: number) {
+  if (!redis) return;
   if (ttlSeconds <= 0) return;
 
   // key value options
@@ -22,6 +23,7 @@ export async function blacklistJwt(jti: string, ttlSeconds: number) {
  * 判断某个JWT的jti是否已经在黑名单中
  */
 export async function isJwtBlacklisted(jti: string) {
+  if (!redis) return false;
   const exists = await redis.exists(getJwtBlackListKey(jti));
   return exists === 1;
 }

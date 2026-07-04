@@ -10,11 +10,11 @@ router.get("/health", (_req, res) => {
   res.status(200).json({ status: "ok" });
 });
 
-/** 就绪探针：校验 MySQL 与 Redis；失败返回 503 并标明各项检查结果 */
+/** 就绪探针：校验 MySQL 与启用状态下的 Redis；失败返回 503 并标明各项检查结果 */
 router.get("/ready", async (_req, res) => {
-  const checks: { mysql: "ok" | "failed"; redis: "ok" | "failed" } = {
+  const checks: { mysql: "ok" | "failed"; redis: "ok" | "failed" | "disabled" } = {
     mysql: "failed",
-    redis: "failed",
+    redis: redis ? "failed" : "disabled",
   };
 
   try {
@@ -24,14 +24,16 @@ router.get("/ready", async (_req, res) => {
     checks.mysql = "failed";
   }
 
-  try {
-    await redis.ping(); //检查redis是否连接成功
-    checks.redis = "ok";
-  } catch {
-    checks.redis = "failed";
+  if (redis) {
+    try {
+      await redis.ping(); //检查redis是否连接成功
+      checks.redis = "ok";
+    } catch {
+      checks.redis = "failed";
+    }
   }
 
-  const ready = checks.mysql === "ok" && checks.redis === "ok";
+  const ready = checks.mysql === "ok" && (checks.redis === "ok" || checks.redis === "disabled");
   if (ready) {
     res.status(200).json({ status: "ready", checks });
     return;

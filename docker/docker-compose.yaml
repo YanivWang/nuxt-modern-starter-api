@@ -32,6 +32,7 @@ services:
       TRUST_PROXY: "1"
       LOG_TO_FILE: "false"
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      AUTH_TOKEN_BLACKLIST_ENABLED: ${AUTH_TOKEN_BLACKLIST_ENABLED:-true}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env.production}
       CORS_ORIGINS: ${CORS_ORIGINS:?Set CORS_ORIGINS in .env.production}
       DB_PORT: ${DB_PORT:-3306}

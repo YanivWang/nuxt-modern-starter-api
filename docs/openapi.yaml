@@ -1,4 +1,4 @@
-openapi: 3.0.3
+openapi: 3.1.0
 info:
   title: Express Modern Starter API
   version: 1.0.0
@@ -25,72 +25,176 @@ components:
 paths:
   /health:
     get:
-      tags: [探针]
+      tags:
+        - 探针
+      summary: 存活探针
       responses:
-        "200": { description: ok }
+        "200":
+          description: ok
   /ready:
     get:
-      tags: [探针]
+      tags:
+        - 探针
+      summary: 就绪探针
       responses:
-        "200": { description: ok }
+        "200":
+          description: ok
   /api/register:
     post:
-      tags: [认证]
+      tags:
+        - 认证
+      summary: 注册用户
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [username, password]
               properties:
-                username: { type: string, minLength: 2, maxLength: 100 }
-                password: { type: string, minLength: 6, maxLength: 100 }
+                username:
+                  type: string
+                  minLength: 2
+                  maxLength: 100
+                password:
+                  type: string
+                  minLength: 6
+                  maxLength: 100
+              required:
+                - username
+                - password
       responses:
-        "200": { description: 注册成功 }
+        "200":
+          description: 注册成功
   /api/login:
     post:
-      tags: [认证]
+      tags:
+        - 认证
+      summary: 用户登录
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [username, password]
               properties:
-                username: { type: string }
-                password: { type: string }
+                username:
+                  type: string
+                  minLength: 2
+                  maxLength: 100
+                password:
+                  type: string
+                  minLength: 6
+                  maxLength: 100
+              required:
+                - username
+                - password
       responses:
-        "200": { description: 登录成功，返回 token }
+        "200":
+          description: 登录成功，返回 token
   /api/logout:
     post:
-      tags: [认证]
-      security: [{ bearerAuth: [] }]
+      tags:
+        - 认证
+      summary: 退出登录
+      security:
+        - bearerAuth: []
       responses:
-        "200": { description: 退出登录成功 }
+        "200":
+          description: 退出登录成功
   /api/me:
     get:
-      tags: [当前用户]
-      security: [{ bearerAuth: [] }]
+      tags:
+        - 当前用户
+      summary: 获取当前用户
+      security:
+        - bearerAuth: []
       responses:
-        "200": { description: 当前用户基础资料 }
+        "200":
+          description: 当前用户基础资料
   /api/me/profile:
     get:
-      tags: [当前用户]
-      security: [{ bearerAuth: [] }]
+      tags:
+        - 当前用户
+      summary: 获取当前用户扩展资料
+      security:
+        - bearerAuth: []
       responses:
-        "200": { description: 当前用户扩展资料 }
+        "200":
+          description: 当前用户扩展资料
     patch:
-      tags: [当前用户]
-      security: [{ bearerAuth: [] }]
+      tags:
+        - 当前用户
+      summary: 更新当前用户扩展资料
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nickname:
+                  anyOf:
+                    - type: string
+                    - type: "null"
+                avatar:
+                  anyOf:
+                    - type: string
+                    - type: "null"
+                gender:
+                  anyOf:
+                    - type: string
+                    - type: "null"
+                birthday:
+                  anyOf:
+                    - type: string
+                    - type: "null"
+                bio:
+                  anyOf:
+                    - type: string
+                    - type: "null"
+                address:
+                  anyOf:
+                    - type: string
+                    - type: "null"
+                company:
+                  anyOf:
+                    - type: string
+                    - type: "null"
+                jobTitle:
+                  anyOf:
+                    - type: string
+                    - type: "null"
+                isMarried:
+                  anyOf:
+                    - type: boolean
+                    - type: "null"
+                mom:
+                  anyOf:
+                    - type: string
+                    - type: "null"
+                father:
+                  anyOf:
+                    - type: string
+                    - type: "null"
+                university:
+                  anyOf:
+                    - type: string
+                    - type: "null"
+              additionalProperties: false
       responses:
-        "200": { description: 更新当前用户扩展资料 }
+        "200":
+          description: 更新当前用户扩展资料
   /api/uploads:
     post:
-      tags: [上传]
-      security: [{ bearerAuth: [] }]
+      tags:
+        - 上传
+      summary: 上传通用图片
+      security:
+        - bearerAuth: []
       requestBody:
+        required: true
         content:
           multipart/form-data:
             schema:
@@ -98,59 +202,180 @@ paths:
               properties:
                 files:
                   type: array
-                  items: { type: string, format: binary }
+                  items:
+                    type: string
+                    format: binary
+              required:
+                - files
       responses:
-        "200": { description: 上传通用图片，返回 /uploads/common/... URL }
+        "200":
+          description: 上传通用图片，返回 /uploads/common/... URL
   /api/uploads/profiles:
     post:
-      tags: [上传]
-      security: [{ bearerAuth: [] }]
-      responses:
-        "200": { description: 上传用户头像/资料图 }
-  /api/uploads/large/init:
-    post:
-      tags: [上传]
-      security: [{ bearerAuth: [] }]
-      responses:
-        "200": { description: 创建大文件分片上传任务或秒传 }
-  /api/uploads/large/{uploadId}/status:
-    get:
-      tags: [上传]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - { name: uploadId, in: path, required: true, schema: { type: string, format: uuid } }
-      responses:
-        "200": { description: 查询上传状态 }
-  /api/uploads/large/{uploadId}/chunks/{chunkIndex}:
-    put:
-      tags: [上传]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - { name: uploadId, in: path, required: true, schema: { type: string, format: uuid } }
-        - { name: chunkIndex, in: path, required: true, schema: { type: integer, minimum: 0 } }
-        - { name: X-Chunk-Md5, in: header, required: true, schema: { type: string } }
+      tags:
+        - 上传
+      summary: 上传用户头像/资料图
+      security:
+        - bearerAuth: []
       requestBody:
+        required: true
         content:
           multipart/form-data:
             schema:
               type: object
               properties:
-                chunk: { type: string, format: binary }
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+              required:
+                - files
       responses:
-        "200": { description: 分片已接收 }
+        "200":
+          description: 上传用户头像/资料图
+  /api/uploads/large/init:
+    post:
+      tags:
+        - 上传
+      summary: 创建大文件分片上传任务
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fileName:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                fileSize:
+                  type: integer
+                  exclusiveMinimum: 0
+                  maximum: 1073741824
+                chunkSize:
+                  type: integer
+                  minimum: 1048576
+                  maximum: 8388608
+                mimeType:
+                  type: string
+                  maxLength: 128
+                fileMd5:
+                  type: string
+                  minLength: 32
+                  maxLength: 32
+                  pattern: ^[a-fA-F0-9]{32}$
+              required:
+                - fileName
+                - fileSize
+                - chunkSize
+                - fileMd5
+      responses:
+        "200":
+          description: 创建大文件分片上传任务或秒传
+  /api/uploads/large/{uploadId}/status:
+    get:
+      tags:
+        - 上传
+      summary: 查询大文件上传状态
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uploadId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            pattern: >-
+              ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+      responses:
+        "200":
+          description: 查询上传状态
+  /api/uploads/large/{uploadId}/chunks/{chunkIndex}:
+    put:
+      tags:
+        - 上传
+      summary: 上传大文件分片
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uploadId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            pattern: >-
+              ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+        - name: chunkIndex
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 1999
+        - name: X-Chunk-Md5
+          in: header
+          required: true
+          schema:
+            type: string
+            minLength: 32
+            maxLength: 32
+            pattern: ^[a-fA-F0-9]{32}$
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                chunk:
+                  type: string
+                  format: binary
+              required:
+                - chunk
+      responses:
+        "200":
+          description: 分片已接收
   /api/uploads/large/{uploadId}/merge:
     post:
-      tags: [上传]
-      security: [{ bearerAuth: [] }]
+      tags:
+        - 上传
+      summary: 合并大文件分片
+      security:
+        - bearerAuth: []
       parameters:
-        - { name: uploadId, in: path, required: true, schema: { type: string, format: uuid } }
+        - name: uploadId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            pattern: >-
+              ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
       responses:
-        "200": { description: 合并完成 }
+        "200":
+          description: 合并完成
   /api/uploads/large/{uploadId}:
     delete:
-      tags: [上传]
-      security: [{ bearerAuth: [] }]
+      tags:
+        - 上传
+      summary: 取消大文件上传任务
+      security:
+        - bearerAuth: []
       parameters:
-        - { name: uploadId, in: path, required: true, schema: { type: string, format: uuid } }
+        - name: uploadId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            pattern: >-
+              ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
       responses:
-        "200": { description: 已取消 }
+        "200":
+          description: 已取消

@@ -79,6 +79,16 @@ function optionalPositiveInt(name: string, fallback: number): number {
   return n;
 }
 
+function optionalBoolean(name: string, fallback: boolean): boolean {
+  const raw = trimUnset(process.env[name]);
+  if (raw === undefined) return fallback;
+  const lower = raw.toLowerCase();
+  if (["1", "true", "yes", "on"].includes(lower)) return true;
+  if (["0", "false", "no", "off"].includes(lower)) return false;
+  console.error(`[env] ${name} 必须是布尔值: true/false/1/0/yes/no/on/off`);
+  process.exit(1);
+}
+
 function rejectProductionPlaceholder(name: string, value: string) {
   if (appEnv !== "production") return;
   const lower = value.toLowerCase();
@@ -117,7 +127,8 @@ export const JWT_SECRET = (() => {
 
 export const PORT = requirePortLike("PORT", 3000);
 export const DB_PORT = requirePortLike("DB_PORT", 3306);
-export const REDIS_URL = requireEnv("REDIS_URL");
+export const AUTH_TOKEN_BLACKLIST_ENABLED = optionalBoolean("AUTH_TOKEN_BLACKLIST_ENABLED", true);
+export const REDIS_URL = AUTH_TOKEN_BLACKLIST_ENABLED ? requireEnv("REDIS_URL") : trimUnset(process.env.REDIS_URL);
 export const DB_HOST = requireEnv("DB_HOST");
 export const DB_USER = requireEnv("DB_USER");
 export const DB_PWD = (() => {
