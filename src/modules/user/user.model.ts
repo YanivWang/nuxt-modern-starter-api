@@ -1,3 +1,7 @@
+/**
+ * 文件职责：定义 Users 模型。
+ * Users 保存登录账号、密码哈希和 /api/me 常用头像字段。
+ */
 import { DataTypes, type Sequelize } from "sequelize";
 
 export function defineUserModel(sequelize: Sequelize) {

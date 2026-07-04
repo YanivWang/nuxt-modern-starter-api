@@ -1,3 +1,7 @@
+/**
+ * 文件职责：配置响应压缩策略。
+ * 只压缩典型 JSON 响应，避免对流式响应、图片、音视频、字体和压缩包做无意义压缩。
+ */
 import compression from "compression";
 
 import type { Request, Response } from "express";

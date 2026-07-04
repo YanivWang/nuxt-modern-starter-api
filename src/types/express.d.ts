@@ -1,3 +1,7 @@
+/**
+ * 文件职责：扩展 Express Request 类型。
+ * 项目中间件会写入 validated、requestId 和 user，controller 通过这些字段读取校验结果与登录态。
+ */
 import type { AppJwtUser } from "./jwt-user.js";
 
 declare global {

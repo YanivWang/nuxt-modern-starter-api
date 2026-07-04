@@ -1,3 +1,7 @@
+/**
+ * 文件职责：定义 UserProfiles 模型和 Users 一对一关联。
+ * 扩展资料按 userId 唯一，头像字段与 Users.avatar 保持双写。
+ */
 import { DataTypes, type Model, type ModelStatic, type Sequelize } from "sequelize";
 
 export function defineUserProfileModel(sequelize: Sequelize, User: ModelStatic<Model>) {

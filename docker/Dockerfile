@@ -1,3 +1,5 @@
+# 文件职责：生产镜像构建。
+# 多阶段安装依赖、编译 TypeScript，并在运行阶段只保留 dist、生产依赖、docs 和非 root 用户。
 ARG PNPM_VERSION=10.17.0
 ARG NODE_IMAGE=node:22-bookworm-slim
 

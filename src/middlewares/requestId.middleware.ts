@@ -1,3 +1,7 @@
+/**
+ * 文件职责：为每个请求准备 requestId。
+ * 优先透传客户端 X-Request-Id，否则生成 UUID，并回写响应头。
+ */
 import { randomUUID } from "node:crypto";
 
 import type { NextFunction, Request, Response } from "express";

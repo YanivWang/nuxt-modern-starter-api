@@ -1,3 +1,7 @@
+/**
+ * 文件职责：配置 Umzug 数据库迁移器。
+ * 迁移上下文是 Sequelize QueryInterface，迁移执行记录存放在数据库中。
+ */
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 

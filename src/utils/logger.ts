@@ -1,3 +1,7 @@
+/**
+ * 文件职责：创建全局结构化 logger。
+ * 开发环境默认同时输出文件与彩色控制台，生产环境默认输出 JSON 到 stdout/stderr 供容器平台采集。
+ */
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";

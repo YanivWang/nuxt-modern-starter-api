@@ -1,3 +1,7 @@
+/**
+ * 文件职责：认证与当前用户 API 集成测试。
+ * 覆盖注册去重、登录 token、Cookie 登录、CSRF、防 refresh token 重放、登出黑名单等真实 HTTP 行为。
+ */
 import request from "supertest";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 

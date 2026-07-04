@@ -1,3 +1,7 @@
+/**
+ * 文件职责：配置普通图片上传的 multer 存储策略。
+ * 通用图片与头像图片落到不同目录段，最终通过 /uploads 静态路径公开访问。
+ */
 import { randomBytes } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";

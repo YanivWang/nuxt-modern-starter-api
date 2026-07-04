@@ -1,3 +1,7 @@
+/**
+ * 文件职责：大文件分片上传 HTTP 控制器。
+ * 负责登录态校验、读取 validate/multer 结果，并把 service 返回值包装成统一响应。
+ */
 import { createHttpError } from "../../middlewares/error.middleware.js";
 import {
   abortLargeUpload,

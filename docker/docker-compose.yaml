@@ -1,3 +1,5 @@
+# 文件职责：生产环境 Compose 覆盖配置。
+# 为 MySQL、Redis、uploads 和 .data 配置持久化卷，并通过 Nginx 网关暴露唯一外部入口。
 name: express-modern-starter-prod
 
 services:

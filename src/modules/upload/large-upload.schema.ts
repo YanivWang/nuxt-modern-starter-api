@@ -1,3 +1,7 @@
+/**
+ * 文件职责：大文件分片上传接口的 Zod schema。
+ * 约束文件大小、分片大小、分片数量、uploadId 和分片 MD5 请求头。
+ */
 import { z } from "zod";
 
 import { LARGE_UPLOAD_MAX_FILE_BYTES } from "./largeUpload.js";

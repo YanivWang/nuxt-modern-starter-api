@@ -1,3 +1,7 @@
+/**
+ * 文件职责：trimmedStringFromUnknown 的单元测试。
+ * 明确字符串、基础 primitive、对象/数组/null/undefined 的归一化边界。
+ */
 import { describe, expect, it } from "vitest";
 
 import { trimmedStringFromUnknown } from "./trimmedStringFromUnknown.js";

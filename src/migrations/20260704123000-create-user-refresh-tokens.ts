@@ -1,3 +1,7 @@
+/**
+ * 文件职责：创建 UserRefreshTokens 表。
+ * 表用于保存 refresh token 摘要、撤销状态和轮换关系，并为用户查询和过期清理预留索引。
+ */
 import { DataTypes } from "sequelize";
 
 import type { QueryInterface } from "sequelize";

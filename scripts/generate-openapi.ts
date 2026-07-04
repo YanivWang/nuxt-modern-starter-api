@@ -1,3 +1,7 @@
+/**
+ * 文件职责：生成或校验 docs/openapi.yaml。
+ * --check 用于 CI，默认模式会把 src/openapi.ts 的运行时定义写入仓库文档。
+ */
 import fs from "node:fs";
 import path from "node:path";
 

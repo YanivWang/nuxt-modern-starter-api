@@ -1,3 +1,7 @@
+/**
+ * 文件职责：当前用户相关 HTTP 控制器。
+ * 负责从登录态读取 userId、调用用户资料 service，并保持统一响应格式。
+ */
 import { createHttpError } from "../../middlewares/error.middleware.js";
 import { findUserProfileByUserId, upsertUserProfileForUser } from "./user-profile.service.js";
 import { findPublicProfileById } from "./user.service.js";

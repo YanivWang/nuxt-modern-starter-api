@@ -1,3 +1,7 @@
+/**
+ * 文件职责：ESLint 扁平配置。
+ * 启用 TypeScript 类型感知规则、Prettier 兼容，并对脚本/测试放宽少量 unsafe 规则。
+ */
 import js from "@eslint/js";
 import eslintConfigPrettier from "eslint-config-prettier";
 import globals from "globals";

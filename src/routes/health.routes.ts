@@ -1,3 +1,7 @@
+/**
+ * 文件职责：提供健康检查和就绪检查路由。
+ * /health 只证明进程存活；/ready 会检查 MySQL 与启用状态下的 Redis 是否可用。
+ */
 import { Router } from "express";
 
 import { sequelize } from "../db.js";
@@ -18,7 +22,7 @@ router.get("/ready", async (_req, res) => {
   };
 
   try {
-    await sequelize.authenticate(); //检查mysql是否连接成功
+    await sequelize.authenticate();
     checks.mysql = "ok";
   } catch {
     checks.mysql = "failed";
@@ -26,7 +30,7 @@ router.get("/ready", async (_req, res) => {
 
   if (redis) {
     try {
-      await redis.ping(); //检查redis是否连接成功
+      await redis.ping();
       checks.redis = "ok";
     } catch {
       checks.redis = "failed";

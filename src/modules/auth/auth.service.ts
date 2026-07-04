@@ -1,3 +1,7 @@
+/**
+ * 文件职责：注册与登录的业务逻辑。
+ * 这里只处理用户名密码归一化、密码哈希/比对和用户查询；token 会话创建交给 auth-session.service。
+ */
 import bcrypt from "bcrypt";
 
 import { User } from "../../db.js";

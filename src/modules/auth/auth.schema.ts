@@ -1,3 +1,7 @@
+/**
+ * 文件职责：认证接口的 Zod 入参 schema。
+ * 同一份 schema 同时用于运行时 validate 中间件和 OpenAPI 请求体生成。
+ */
 import { z } from "zod";
 
 const credentialsBodySchema = z.object({

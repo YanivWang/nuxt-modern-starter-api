@@ -1,3 +1,7 @@
+/**
+ * 文件职责：定义 refresh token 会话模型。
+ * 表中只保存 token 摘要、过期时间、撤销时间和轮换关系，不保存明文 refresh token。
+ */
 import { DataTypes, type Model, type ModelStatic, type Sequelize } from "sequelize";
 
 export function defineUserRefreshTokenModel(sequelize: Sequelize, User: ModelStatic<Model>) {

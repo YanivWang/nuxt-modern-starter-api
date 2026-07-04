@@ -1,3 +1,7 @@
+/**
+ * 文件职责：Redis 相关环境变量行为测试。
+ * 覆盖关闭 JWT 黑名单时 REDIS_URL 可省略，以及黑名单操作退化为空操作的场景。
+ */
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const ORIGINAL_ENV = { ...process.env };

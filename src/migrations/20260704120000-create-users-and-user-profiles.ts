@@ -1,3 +1,7 @@
+/**
+ * 文件职责：创建 Users 与 UserProfiles 表。
+ * 迁移包含表/索引存在性判断，便于从早期手动建表或重复初始化场景平滑迁入 Umzug。
+ */
 import { DataTypes } from "sequelize";
 
 import type { QueryInterface } from "sequelize";

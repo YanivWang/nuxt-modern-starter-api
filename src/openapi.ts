@@ -1,3 +1,7 @@
+/**
+ * 文件职责：从运行时 Zod 校验规则生成 OpenAPI 3.1 文档。
+ * Swagger 页面和 docs/openapi.yaml 都使用这里的同一份定义，避免接口校验与文档分叉。
+ */
 import yaml from "js-yaml";
 import { z } from "zod";
 
@@ -58,6 +62,7 @@ function stripJsonSchemaMeta(value: unknown): unknown {
 }
 
 function zodInputSchema(schema: z.ZodType): OpenApiSchema {
+  // OpenAPI 请求 schema 直接复用路由 Zod 规则，避免文档和运行时校验各写一套。
   return stripJsonSchemaMeta(z.toJSONSchema(schema, { io: "input" })) as OpenApiSchema;
 }
 
@@ -110,6 +115,7 @@ function schemaRef(name: string): OpenApiSchema {
 }
 
 function ok(description: string) {
+  // 当前 API 响应统一是 { code, msg, ... }；具体业务字段通过 additionalProperties 承载。
   return {
     "200": jsonResponse(description, schemaRef("SuccessBody")),
     "400": jsonResponse("请求参数错误", schemaRef("ErrorBody")),
@@ -118,6 +124,7 @@ function ok(description: string) {
 }
 
 function uploadIdParam() {
+  // 路径参数也从 Zod schema 转换，保持 controller 校验与 OpenAPI 描述一致。
   const schema = zodInputSchema(largeUploadIdParamsSchema.shape.params.shape.uploadId);
   return {
     name: "uploadId",

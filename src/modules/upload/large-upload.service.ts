@@ -1,3 +1,7 @@
+/**
+ * 文件职责：实现本地磁盘大文件分片上传。
+ * 维护 init/status/chunk/merge/abort 流程，以及 .data 中的会话、完成标记和全局 MD5 秒传索引。
+ */
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import fsSync, { createReadStream, createWriteStream } from "node:fs";
 import fs from "node:fs/promises";
@@ -19,10 +23,12 @@ export const LARGE_FINAL_SEGMENT = "large";
 const UPLOAD_TTL_MS = 24 * 60 * 60 * 1000;
 const FILE_MD5_RE = /^[a-f0-9]{32}$/;
 
+// done marker 独立于分片目录：合并完成并清理临时目录后，重复查询/合并仍能返回已完成结果。
 function doneMarkerPath(uploadId: string): string {
   return path.join(projectRoot, ".data", "large-upload-done", `${uploadId}.json`);
 }
 
+// session 只保存 uploadId → fileMd5 映射，供 multer 的同步 destination 回调定位分片目录。
 function sessionsDir(): string {
   return path.join(projectRoot, ".data", "large-upload-sessions");
 }
@@ -92,6 +98,7 @@ export type InitLargeUploadResult =
   | { instant: false; uploadId: string; chunkTotal: number; expiresAt: string };
 
 function tempBaseDir(fileMd5: string, uploadId: string): string {
+  // fileMd5 参与目录分层，便于同一内容的临时任务聚集，也避免 uploadId 单层目录过大。
   return path.join(uploadsRoot, LARGE_CHUNKS_TEMP_SEGMENT, fileMd5, uploadId);
 }
 
@@ -153,6 +160,7 @@ function absPathFromPublicUploadUrl(publicUrl: string): string | null {
   const resolved = path.resolve(abs);
   const rootResolved = path.resolve(uploadsRoot);
   const relToRoot = path.relative(rootResolved, resolved);
+  // 秒传索引来自本地 JSON 文件，仍然要校验路径不能逃逸 uploadsRoot。
   if (relToRoot.startsWith("..") || path.isAbsolute(relToRoot)) {
     return null;
   }
@@ -214,6 +222,7 @@ async function listValidReceivedPartIndices(meta: LargeUploadMeta, dir: string):
       const st = await fs.stat(p);
       const want = expectedPartSize(meta, idx);
       if (st.size === want) {
+        // 只把大小匹配的分片暴露给客户端，损坏/未写完的文件不参与断点续传状态。
         out.push(idx);
       }
     } catch {
@@ -259,8 +268,10 @@ export async function initLargeUpload(body: LargeUploadInitBody, _userId: number
   const rec = await readGlobalHashRecord(fileMd5);
   if (rec && rec.fileSize === body.fileSize && typeof rec.url === "string") {
     if (await globalHashRecordPointsToLiveFile(rec)) {
+      // 全局 MD5 索引命中且文件仍存在时直接秒传；不绑定 userId，适合作为本地单实例去重能力。
       return { instant: true, publicUrl: rec.url, chunkTotal: 0, expiresAt };
     }
+    // 索引指向的文件已丢失或大小不符时删除索引，避免后续一直返回坏链接。
     await deleteGlobalHashRecord(fileMd5);
   }
 
@@ -362,11 +373,13 @@ export async function finalizeChunkWrite(
   const want = expectedPartSize(meta, chunkIndex);
   const st = await fs.stat(savedAbsPath);
   if (st.size !== want) {
+    // multer 已经把文件写入磁盘，校验失败时必须主动删除，避免坏分片被后续 status/merge 误用。
     await fs.unlink(savedAbsPath).catch(() => {});
     throw createHttpError(400, `分片大小不符，期望 ${want} 字节`);
   }
   const actualMd5 = await md5OfFile(savedAbsPath);
   if (actualMd5 !== expectedChunkMd5) {
+    // 分片 MD5 是客户端声明的端到端校验，失败同样清理落盘文件。
     await fs.unlink(savedAbsPath).catch(() => {});
     throw createHttpError(400, "分片 MD5 与声明不一致，内容可能损坏或传输不完整");
   }
@@ -409,6 +422,7 @@ export async function mergeLargeUpload(uploadId: string, userId: number) {
   assertNotExpired(meta);
 
   if (meta.status === "merging") {
+    // 本地文件实现没有分布式锁；merging 状态用于阻止同一 uploadId 的并发合并。
     throw createHttpError(409, "正在合并中，请稍后重试");
   }
 
@@ -467,6 +481,7 @@ export async function mergeLargeUpload(uploadId: string, userId: number) {
 
     const digest = hash.digest("hex");
     if (digest !== meta.fileMd5) {
+      // 最终文件仍以整文件 MD5 为准；分片都正确也可能因顺序/并发写入异常导致整体不一致。
       await fs.unlink(finalTmp).catch(() => {});
       meta.status = "failed";
       await writeMeta(uploadId, meta).catch(() => {});
@@ -491,10 +506,12 @@ export async function mergeLargeUpload(uploadId: string, userId: number) {
   meta.status = "done";
   meta.publicUrl = publicUrl;
   await fs.mkdir(path.join(projectRoot, ".data", "large-upload-done"), { recursive: true });
+  // 临时目录随后会被清理，因此把完成状态写入 marker，支持客户端重试 merge/status 的幂等返回。
   await fs.writeFile(markerFile, JSON.stringify({ userId, url: publicUrl, chunkTotal: meta.chunkTotal }), "utf8");
 
   const existing = await readGlobalHashRecord(meta.fileMd5);
   const firstUploaderUserId = existing?.firstUploaderUserId ?? userId;
+  // hash index 用于后续相同 MD5 文件秒传；只记录公开 URL，不承载权限模型。
   await writeGlobalHashRecord(meta.fileMd5, {
     fileSize: meta.fileSize,
     url: publicUrl,

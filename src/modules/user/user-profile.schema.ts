@@ -1,3 +1,7 @@
+/**
+ * 文件职责：当前用户扩展资料接口的 Zod schema。
+ * PATCH body 只允许白名单字段，并要求至少提供一个字段。
+ */
 import { z } from "zod";
 
 const nullableStr = z.union([z.string(), z.null()]).optional();

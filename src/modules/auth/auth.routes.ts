@@ -1,3 +1,7 @@
+/**
+ * 文件职责：注册认证相关 HTTP 路由。
+ * 登录、注册、刷新接口单独套认证限流；登出接口必须先通过 authMiddleware。
+ */
 import express from "express";
 
 import { login, logout, refresh, register } from "./auth.controller.js";

@@ -1,3 +1,7 @@
+/**
+ * 文件职责：认证 HTTP 控制器。
+ * 负责把请求/响应、Cookie、CSRF、登录上下文与 auth service 串起来，具体凭证创建和校验逻辑放在 service 层。
+ */
 import { createHttpError } from "../../middlewares/error.middleware.js";
 import { revokeRefreshToken, rotateRefreshToken, type AuthTokenPair } from "./auth-session.service.js";
 import { blacklistJwt } from "./auth-token.service.js";
@@ -23,6 +27,7 @@ function authContext(req: Request) {
 }
 
 function sendTokenPair(res: Response, msg: string, pair: AuthTokenPair) {
+  // 返回体保留 token/accessToken，Cookie 也同步写入，兼容显式 Bearer 与浏览器 Cookie 两种接入方式。
   setAuthCookies(res, pair);
   return success(res, msg, {
     token: pair.accessToken,
@@ -53,6 +58,7 @@ export async function refresh(req: Request, res: Response) {
     throw createHttpError(401, "refresh token 无效或已过期");
   }
   if (!bodyRefreshToken && !csrfTokensMatch(req)) {
+    // refreshToken 来自 Cookie 时会被浏览器自动附带，需要 CSRF 头；请求体显式传 token 时按 Bearer 类客户端处理。
     throw createHttpError(403, "CSRF token 无效或缺失");
   }
 
@@ -71,8 +77,7 @@ export async function logout(req: Request, res: Response) {
   const ttlSeconds = exp - now;
 
   if (ttlSeconds > 0) {
-    // 如果JWT的过期时间大于当前时间，则把JWT加入黑名单
-    // 这样用户在过期时间内再次使用该JWT时，会返回401错误
+    // access token 是无状态 JWT，只能用 jti 黑名单实现“登出后立刻失效”，TTL 与 token 剩余寿命一致。
     await blacklistJwt(jti, ttlSeconds);
   }
 

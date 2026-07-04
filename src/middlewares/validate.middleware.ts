@@ -1,3 +1,7 @@
+/**
+ * 文件职责：统一执行 Zod 请求校验。
+ * 校验成功后把清洗后的 body/query/params/headers 写入 req.validated，后续代码不再直接信任原始输入。
+ */
 import { createHttpError } from "./error.middleware.js";
 
 import type { NextFunction, Request, Response } from "express";

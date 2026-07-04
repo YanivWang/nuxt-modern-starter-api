@@ -1,3 +1,7 @@
+/**
+ * 文件职责：管理当前用户扩展资料。
+ * 负责字段清洗、长度/枚举校验、UserProfiles upsert，以及头像字段与 Users 表的事务内同步。
+ */
 import { Transaction } from "sequelize";
 
 import { sequelize, User, UserProfile } from "../../db.js";
@@ -194,6 +198,7 @@ export async function upsertUserProfileForUser(userId: number, patch: PatchUserP
     }
 
     if (nextUserAvatar !== undefined) {
+      // /api/me 的头像来自 Users.avatar，资料详情来自 UserProfiles.avatar；用户改头像时保持两处同步。
       await User.update({ avatar: nextUserAvatar }, { where: { id: userId }, transaction: t });
     }
   });

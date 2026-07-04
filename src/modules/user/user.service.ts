@@ -1,3 +1,7 @@
+/**
+ * 文件职责：读取对外可展示的用户基础资料。
+ * 返回值会剔除 password，并把 Users.avatar 与 UserProfiles.nickname 合并成 /api/me 所需结构。
+ */
 import { User, UserProfile } from "../../db.js";
 
 import type { Model } from "sequelize";

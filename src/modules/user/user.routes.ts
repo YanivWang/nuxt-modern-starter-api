@@ -1,3 +1,7 @@
+/**
+ * 文件职责：注册当前用户与用户资料路由。
+ * 这些接口都必须登录，并在进入 controller 前完成 Zod 校验。
+ */
 import express from "express";
 
 import { getMe, getMyProfile, patchMyProfile } from "./user.controller.js";

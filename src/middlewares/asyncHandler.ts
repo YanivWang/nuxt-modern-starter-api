@@ -1,3 +1,7 @@
+/**
+ * 文件职责：包装 Express 4 异步 controller。
+ * 捕获 Promise reject 后补充默认失败文案，并交给统一错误处理中间件。
+ */
 import type { HttpAppError } from "./error.middleware.js";
 import type { NextFunction, Request, Response } from "express";
 
@@ -7,17 +11,14 @@ export function asyncHandler(
   fn: (req: Request, res: Response, next: NextFunction) => Promise<void | Response>,
   failureMessage?: string,
 ) {
-  // 将 controller 中的异步函数包成中间件，统一 try/catch，把异常交给错误处理中间件
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
       await fn(req, res, next);
     } catch (error) {
-      // 异步异常在 asyncHandler 里接
       const normalizedError = error instanceof Error ? error : new Error(String(error));
       const httpErr = normalizedError as HttpAppError;
       httpErr.failureMessage = httpErr.failureMessage ?? failureMessage;
 
-      // next(error)：Express 会跳到已注册的错误处理中间件
       next(normalizedError);
     }
   };

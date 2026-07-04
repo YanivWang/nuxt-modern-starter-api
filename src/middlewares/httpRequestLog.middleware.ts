@@ -1,3 +1,7 @@
+/**
+ * 文件职责：记录 HTTP 请求日志。
+ * 响应结束后写入 requestId、用户、路由模板、状态码、耗时和客户端信息，便于排查链路问题。
+ */
 import { expressRoutePath } from "../utils/expressRoutePath.js";
 import { logger } from "../utils/logger.js";
 

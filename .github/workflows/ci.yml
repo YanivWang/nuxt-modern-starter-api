@@ -1,3 +1,5 @@
+# 文件职责：GitHub Actions 质量门禁。
+# 在 MySQL/Redis services 就绪后运行 pnpm run check，覆盖类型、lint、格式、OpenAPI 同步、测试和构建。
 name: CI
 
 on:

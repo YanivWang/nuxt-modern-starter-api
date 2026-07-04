@@ -1,3 +1,7 @@
+/**
+ * 文件职责：注册普通上传和大文件分片上传路由。
+ * 所有上传接口都要求登录；multipart 文件先由 multer 写盘，再进入 controller/service 做业务校验。
+ */
 import express from "express";
 
 import { largeUploadChunkMulter } from "./large-upload.multer.js";

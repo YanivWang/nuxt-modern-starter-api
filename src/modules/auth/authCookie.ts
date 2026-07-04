@@ -1,3 +1,7 @@
+/**
+ * 文件职责：认证 Cookie 与 CSRF token 的读写工具。
+ * access/refresh token 写入 httpOnly Cookie；csrf_token 允许前端读取，用于双提交校验。
+ */
 import { randomBytes, timingSafeEqual } from "node:crypto";
 
 import { AUTH_COOKIE_SECURE } from "../../env.js";
@@ -13,6 +17,7 @@ const CSRF_HEADER = "x-csrf-token";
 function cookieOptions(maxAgeSeconds: number) {
   return {
     httpOnly: true,
+    // Lax 允许常见同站跳转携带 Cookie，同时降低第三方站点发起跨站写请求的默认风险。
     sameSite: "lax" as const,
     secure: AUTH_COOKIE_SECURE,
     path: "/",
@@ -23,6 +28,7 @@ function cookieOptions(maxAgeSeconds: number) {
 function csrfCookieOptions(maxAgeSeconds: number) {
   return {
     ...cookieOptions(maxAgeSeconds),
+    // 双提交 Cookie：前端需读取该值并放入 X-CSRF-Token，服务端比较 Cookie 与 Header。
     httpOnly: false,
   };
 }
@@ -79,5 +85,6 @@ export function csrfTokensMatch(req: Request): boolean {
   const headerBuffer = Buffer.from(headerToken);
   if (cookieBuffer.length !== headerBuffer.length) return false;
 
+  // 使用常量时间比较，避免 token 不同时泄露过多比较进度信息。
   return timingSafeEqual(cookieBuffer, headerBuffer);
 }

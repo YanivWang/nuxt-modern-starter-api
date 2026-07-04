@@ -1,3 +1,7 @@
+/**
+ * 文件职责：读取 validate 中间件写入的校验结果。
+ * 若缺失 req.validated，说明路由漏挂 validate，应视为服务端配置错误。
+ */
 import { createInternalServerError } from "../middlewares/error.middleware.js";
 
 import type { Request } from "express";

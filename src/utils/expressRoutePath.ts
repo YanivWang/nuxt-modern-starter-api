@@ -1,3 +1,7 @@
+/**
+ * 文件职责：从 Express Request 中提取匹配到的路由模板。
+ * 用于日志中记录 /api/uploads/large/:uploadId 这类模板路径，而不是高基数的真实 URL。
+ */
 import type { Request } from "express";
 
 /** Express 在匹配路由后填充 `req.route`；类型定义较宽松，此处安全读出 pattern */

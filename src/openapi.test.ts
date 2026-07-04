@@ -1,3 +1,7 @@
+/**
+ * 文件职责：OpenAPI 生成测试。
+ * 验证文档 schema 复用 Zod 规则，并确保 docs/openapi.yaml 与运行时生成结果保持同步。
+ */
 import fs from "node:fs";
 import path from "node:path";
 

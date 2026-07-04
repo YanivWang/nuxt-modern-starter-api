@@ -1,3 +1,7 @@
+/**
+ * 文件职责：解析和强制校验 access token。
+ * 两个导出分别服务于可选登录态和强制登录态，都会检查 jti 是否已进入 Redis 黑名单。
+ */
 import jwt from "jsonwebtoken";
 
 import { JWT_SECRET } from "../../env.js";
