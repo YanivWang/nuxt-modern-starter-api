@@ -2,7 +2,7 @@ import { createHttpError } from "../../middlewares/error.middleware.js";
 import { revokeRefreshToken, rotateRefreshToken, type AuthTokenPair } from "./auth-session.service.js";
 import { blacklistJwt } from "./auth-token.service.js";
 import { loginUser, registerUser } from "./auth.service.js";
-import { clearAuthCookies, readRefreshTokenCookie, setAuthCookies } from "./authCookie.js";
+import { clearAuthCookies, csrfTokensMatch, readRefreshTokenCookie, setAuthCookies } from "./authCookie.js";
 import { getValidated } from "../../utils/getValidated.js";
 import { success } from "../../utils/response.js";
 
@@ -47,9 +47,13 @@ export async function login(req: Request, res: Response) {
 
 export async function refresh(req: Request, res: Response) {
   const validated = getValidated<ValidatedRefreshSchema>(req);
-  const refreshToken = validated.body?.refreshToken ?? readRefreshTokenCookie(req);
+  const bodyRefreshToken = validated.body?.refreshToken;
+  const refreshToken = bodyRefreshToken ?? readRefreshTokenCookie(req);
   if (!refreshToken) {
     throw createHttpError(401, "refresh token 无效或已过期");
+  }
+  if (!bodyRefreshToken && !csrfTokensMatch(req)) {
+    throw createHttpError(403, "CSRF token 无效或缺失");
   }
 
   const pair = await rotateRefreshToken(refreshToken, authContext(req));

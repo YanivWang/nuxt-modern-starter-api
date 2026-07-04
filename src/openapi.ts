@@ -27,7 +27,7 @@ type OpenApiOperation = {
     required?: boolean;
     content: Record<string, OpenApiMedia>;
   };
-  responses: Record<string, { description: string }>;
+  responses: Record<string, { description: string; content?: Record<string, OpenApiMedia> }>;
 };
 
 export type OpenApiSpec = {
@@ -94,8 +94,27 @@ function bearerAuth() {
   return [{ bearerAuth: [] }];
 }
 
+function jsonResponse(description: string, schema: OpenApiSchema) {
+  return {
+    description,
+    content: {
+      "application/json": {
+        schema,
+      },
+    },
+  };
+}
+
+function schemaRef(name: string): OpenApiSchema {
+  return { $ref: `#/components/schemas/${name}` };
+}
+
 function ok(description: string) {
-  return { "200": { description } };
+  return {
+    "200": jsonResponse(description, schemaRef("SuccessBody")),
+    "400": jsonResponse("请求参数错误", schemaRef("ErrorBody")),
+    "500": jsonResponse("服务器内部错误", schemaRef("ErrorBody")),
+  };
 }
 
 function uploadIdParam() {
@@ -142,12 +161,23 @@ export function generateOpenApiSpec(): OpenApiSpec {
         },
       },
       schemas: {
-        MsgBody: {
+        SuccessBody: {
           type: "object",
           properties: {
             code: { type: "integer" },
             msg: { type: "string" },
           },
+          required: ["code", "msg"],
+          additionalProperties: true,
+        },
+        ErrorBody: {
+          type: "object",
+          properties: {
+            code: { type: "integer" },
+            msg: { type: "string" },
+          },
+          required: ["code", "msg"],
+          additionalProperties: false,
         },
       },
     },

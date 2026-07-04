@@ -146,6 +146,7 @@ export const AUTH_RATE_LIMIT_MAX = optionalPositiveInt("AUTH_RATE_LIMIT_MAX", 60
 export const ACCESS_TOKEN_TTL_SECONDS = optionalPositiveInt("ACCESS_TOKEN_TTL_SECONDS", 15 * 60);
 export const REFRESH_TOKEN_TTL_SECONDS = optionalPositiveInt("REFRESH_TOKEN_TTL_SECONDS", 30 * 24 * 60 * 60);
 export const AUTH_COOKIE_SECURE = optionalBoolean("AUTH_COOKIE_SECURE", appEnv === "production");
+export const REQUEST_BODY_LIMIT = trimUnset(process.env.REQUEST_BODY_LIMIT) ?? "1mb";
 
 export const CORS_ORIGINS = (() => {
   const raw = trimUnset(process.env.CORS_ORIGINS);

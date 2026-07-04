@@ -3,7 +3,7 @@ import express, { type RequestHandler } from "express";
 import helmet from "helmet";
 
 import { uploadsRoot } from "./modules/upload/upload.config.js";
-import { TRUST_PROXY, getCorsOriginOption } from "./env.js";
+import { REQUEST_BODY_LIMIT, TRUST_PROXY, getCorsOriginOption } from "./env.js";
 import { compressionMiddleware } from "./middlewares/compression.middleware.js";
 import { createHttpError, errorMiddleware } from "./middlewares/error.middleware.js";
 import { httpRequestLogMiddleware } from "./middlewares/httpRequestLog.middleware.js";
@@ -32,14 +32,15 @@ const helmetPick: RequestHandler = (req, res, next) => {
 };
 app.use(helmetPick);
 
-app.use(cors({ origin: getCorsOriginOption() }));
+app.use(cors({ origin: getCorsOriginOption(), credentials: true }));
 app.use(requestIdMiddleware);
 app.use(httpRequestLogMiddleware);
 app.use("/uploads", express.static(uploadsRoot));
 app.use(healthRoutes);
 app.use(globalRateLimitMiddleware);
 app.use(compressionMiddleware);
-app.use(express.json());
+app.use(express.json({ limit: REQUEST_BODY_LIMIT }));
+app.use(express.urlencoded({ extended: false, limit: REQUEST_BODY_LIMIT }));
 setupSwagger(app);
 
 app.use("/api", authRoutes);

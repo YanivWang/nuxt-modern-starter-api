@@ -26,6 +26,11 @@ function uniqueUsername() {
   return `user_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
 
+function cookieValue(cookies: string[] | undefined, name: string): string | undefined {
+  const matched = cookies?.find((cookie) => cookie.startsWith(`${name}=`));
+  return matched?.split(";")[0]?.slice(name.length + 1);
+}
+
 async function cleanDatabase() {
   await db.UserRefreshToken.destroy({ where: {} });
   await db.UserProfile.destroy({ where: {} });
@@ -101,12 +106,33 @@ describe("auth and current user API", () => {
 
     expect(setCookie?.some((cookie) => cookie.startsWith("access_token=") && cookie.includes("HttpOnly"))).toBe(true);
     expect(setCookie?.some((cookie) => cookie.startsWith("refresh_token=") && cookie.includes("HttpOnly"))).toBe(true);
+    expect(setCookie?.some((cookie) => cookie.startsWith("csrf_token=") && !cookie.includes("HttpOnly"))).toBe(true);
 
     const meRes = await request(app)
       .get("/api/me")
       .set("Cookie", setCookie ?? [])
       .expect(200);
     expect(meRes.body.user).toMatchObject({ username });
+  });
+
+  it("requires a CSRF token for unsafe cookie-authenticated requests", async () => {
+    const { refreshToken, setCookie } = await registerAndLogin();
+    const csrfToken = cookieValue(setCookie, "csrf_token");
+
+    expect(csrfToken).toEqual(expect.any(String));
+
+    await request(app)
+      .post("/api/logout")
+      .set("Cookie", setCookie ?? [])
+      .send({ refreshToken })
+      .expect(403);
+
+    await request(app)
+      .post("/api/logout")
+      .set("Cookie", setCookie ?? [])
+      .set("X-CSRF-Token", csrfToken ?? "")
+      .send({ refreshToken })
+      .expect(200);
   });
 
   it("rotates refresh tokens and rejects reused refresh tokens", async () => {

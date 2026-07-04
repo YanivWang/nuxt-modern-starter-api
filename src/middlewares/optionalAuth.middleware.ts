@@ -1,11 +1,13 @@
 import { resolveJwtUser } from "../modules/auth/jwt-verify.service.js";
+import { readAccessTokenCookie } from "../modules/auth/authCookie.js";
 
 import type { NextFunction, Request, Response } from "express";
 
 /** 有 Bearer 则解析并写入 req.user；无 token、无效、过期或已拉黑则静默按匿名继续 */
 export async function optionalAuthMiddleware(req: Request, _res: Response, next: NextFunction) {
   const authorization = req.headers.authorization ?? "";
-  const token = authorization.startsWith("Bearer ") ? authorization.slice(7) : "";
+  const bearerToken = authorization.startsWith("Bearer ") ? authorization.slice(7) : "";
+  const token = bearerToken || readAccessTokenCookie(req) || "";
   if (!token) {
     next();
     return;

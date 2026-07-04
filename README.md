@@ -28,7 +28,7 @@ Swagger: `http://localhost:3000/api-docs`，OpenAPI: `http://localhost:3000/open
 
 ## OpenAPI 文档
 
-OpenAPI 由 `src/openapi.ts` 统一生成，运行时 Swagger 和 `docs/openapi.yaml` 都来自同一份定义；请求体 schema 直接复用现有 Zod 校验规则，避免接口校验和文档分叉。
+OpenAPI 由 `src/openapi.ts` 统一生成，运行时 Swagger 和 `docs/openapi.yaml` 都来自同一份定义；请求体 schema 直接复用现有 Zod 校验规则，统一成功/错误响应也在 OpenAPI components 中声明，避免接口校验和文档分叉。
 
 ```bash
 pnpm openapi:generate # 重新生成 docs/openapi.yaml
@@ -76,18 +76,19 @@ pnpm test:unit
 
 这个脚手架面向纯 Web App API，不默认引入后台管理系统常见的 RBAC、菜单权限或权限点模型。默认约定是：
 
-- `/api/login` 返回短期 `accessToken` 和长期 `refreshToken`，同时写入 `httpOnly` cookie。响应里的 `token` 是 `accessToken` 的兼容别名。
-- `/api/refresh` 使用 `refreshToken` 换取新的 `accessToken` 和 `refreshToken`，旧 refresh token 会立即失效。
+- `/api/login` 返回短期 `accessToken` 和长期 `refreshToken`，同时写入 `httpOnly` cookie，并写入非 `httpOnly` 的 `csrf_token`。响应里的 `token` 是 `accessToken` 的兼容别名。
+- `/api/refresh` 使用 `refreshToken` 换取新的 `accessToken` 和 `refreshToken`，旧 refresh token 会立即失效。若 refresh token 来自 cookie，需带 `X-CSRF-Token` 请求头，值与 `csrf_token` cookie 一致。
 - `authMiddleware` 优先读取 `Authorization: Bearer <accessToken>`，也支持浏览器请求携带的 `access_token` cookie，适合 `/api/me`、上传、订单等必须登录的接口。
-- `optionalAuthMiddleware` 适合“登录用户和匿名用户都能访问，但返回内容略有差异”的接口。
+- 使用 cookie 认证访问 POST/PATCH/PUT/DELETE 等非安全方法时，需带 `X-CSRF-Token` 请求头；Bearer 认证不受 CSRF 规则影响。
+- `optionalAuthMiddleware` 适合“登录用户和匿名用户都能访问，但返回内容略有差异”的接口，支持 Bearer 和 `access_token` cookie。
 - 资源归属校验放在 service 层，例如只能修改自己的资料、只能删除自己的上传任务、只能查看自己的订单。
 - 如果业务后续出现管理员后台、多角色协作或租户权限，再按业务引入 role/permission，不作为前台 Web App starter 的默认复杂度。
 
 ### Bearer 与 Cookie 怎么选
 
 - 前端显式管理 token、移动端、小程序或第三方客户端：使用 `Authorization: Bearer <accessToken>`，并在 access token 过期后调用 `/api/refresh`。
-- 同站点或同主域 Web App：可以使用服务端写入的 `httpOnly` cookie，降低 XSS 直接读取 token 的风险。
-- 生产环境 cookie 默认 `AUTH_COOKIE_SECURE=true`，本地开发默认 `false`。跨站 cookie 场景还需要按真实域名补充 CORS credentials、SameSite 和 HTTPS 策略。
+- 同站点或同主域 Web App：可以使用服务端写入的 `httpOnly` cookie，降低 XSS 直接读取 token 的风险；前端需要读取 `csrf_token` cookie 并在非安全请求中放入 `X-CSRF-Token`。
+- 生产环境 cookie 默认 `AUTH_COOKIE_SECURE=true`，本地开发默认 `false`。服务端 CORS 已启用 `credentials: true`，跨站 cookie 场景还需要前端请求设置 `credentials: "include"`，并按真实域名补充 SameSite 和 HTTPS 策略。
 
 ### 默认模块分层
 
@@ -107,7 +108,7 @@ cp .env.production.example .env.production
 ```
 
 务必替换 `JWT_SECRET`、`DB_PWD`、`MYSQL_ROOT_PASSWORD`、`REDIS_PASSWORD` 等占位值；生产启动时会拒绝 `replace_with` / `change_me` 这类模板值。
-生产环境建议显式配置 `CORS_ORIGINS`、`TRUST_PROXY`、`RATE_LIMIT_MAX`、`AUTH_RATE_LIMIT_MAX`、`ACCESS_TOKEN_TTL_SECONDS`、`REFRESH_TOKEN_TTL_SECONDS`、`AUTH_COOKIE_SECURE`，并根据真实流量调整限流窗口和登录态有效期。
+生产环境建议显式配置 `CORS_ORIGINS`、`REQUEST_BODY_LIMIT`、`TRUST_PROXY`、`RATE_LIMIT_MAX`、`AUTH_RATE_LIMIT_MAX`、`ACCESS_TOKEN_TTL_SECONDS`、`REFRESH_TOKEN_TTL_SECONDS`、`AUTH_COOKIE_SECURE`，并根据真实流量调整请求体大小限制、限流窗口和登录态有效期。
 默认 `AUTH_TOKEN_BLACKLIST_ENABLED=true`，服务会依赖 Redis 记录登出后的 JWT 黑名单。只有确认业务接受“已签发 JWT 在过期前无法主动失效”时，才建议改为 `false`。
 
 2. 构建并执行数据库迁移：
@@ -143,10 +144,10 @@ pnpm docker:prod:down
 
 如果业务不需要 Redis，优先设置 `AUTH_TOKEN_BLACKLIST_ENABLED=false` 并移除 `REDIS_URL`。应用会跳过 Redis 连接，`/ready` 会把 Redis 标记为 `disabled`，`logout` 不再写入黑名单，JWT 校验也不再检查黑名单。这样做意味着已签发 JWT 在过期前无法被服务端主动失效。
 
-如果你要彻底删除 Redis 依赖，再移除 `src/redis.ts`、`src/services/auth-token.service.ts` 的 Redis 调用、Docker Compose 中的 Redis service，以及相关环境变量。
+如果你要彻底删除 Redis 依赖，再移除 `src/redis.ts`、`src/modules/auth/auth-token.service.ts` 的 Redis 调用、Docker Compose 中的 Redis service，以及相关环境变量。
 
-如果业务不需要普通文件上传，可以移除 `src/routes/upload.routes.ts` 中 `/uploads`、`/uploads/profiles` 相关路由，以及 `src/controllers/upload.controller.ts`、`src/config/upload.config.ts` 和 `/uploads` 静态目录挂载。
+如果业务不需要普通文件上传，可以移除 `src/modules/upload/upload.routes.ts` 中 `/uploads`、`/uploads/profiles` 相关路由，以及 `src/modules/upload/upload.controller.ts`、`src/modules/upload/upload.config.ts` 和 `/uploads` 静态目录挂载。
 
-如果业务不需要大文件分片上传，可以移除 `src/controllers/large-upload.controller.ts`、`src/services/large-upload.service.ts`、`src/config/large-upload.multer.ts`、`src/schema/large-upload.schema.ts`、`src/constants/largeUpload.ts` 以及 `upload.routes.ts` 中 `/uploads/large/*` 路由。
+如果业务不需要大文件分片上传，可以移除 `src/modules/upload/large-upload.controller.ts`、`src/modules/upload/large-upload.service.ts`、`src/modules/upload/large-upload.multer.ts`、`src/modules/upload/large-upload.schema.ts`、`src/modules/upload/largeUpload.ts` 以及 `src/modules/upload/upload.routes.ts` 中 `/uploads/large/*` 路由。
 
 当前上传实现使用本地磁盘和 `.data` 会话文件，适合单实例部署。多实例或容器弹性伸缩场景请改为对象存储（S3、OSS、MinIO 等），并把大文件上传会话迁移到 Redis、数据库或对象存储 multipart 机制。
