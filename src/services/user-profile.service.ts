@@ -53,9 +53,7 @@ export function userProfileToPlain(row: Model): UserProfilePlain {
     company: (row.get("company") as string | null | undefined) ?? null,
     jobTitle: (row.get("jobTitle") as string | null | undefined) ?? null,
     isMarried:
-      row.get("isMarried") === null || row.get("isMarried") === undefined
-        ? null
-        : Boolean(row.get("isMarried")),
+      row.get("isMarried") === null || row.get("isMarried") === undefined ? null : Boolean(row.get("isMarried")),
     mom: (row.get("mom") as string | null | undefined) ?? null,
     father: (row.get("father") as string | null | undefined) ?? null,
     university: (row.get("university") as string | null | undefined) ?? null,
@@ -154,10 +152,7 @@ export async function upsertUserProfileForUser(userId: number, patch: PatchUserP
     }
   }
 
-  const str255 = (
-    key: "address" | "company" | "jobTitle" | "mom" | "father" | "university",
-    label: string,
-  ) => {
+  const str255 = (key: "address" | "company" | "jobTitle" | "mom" | "father" | "university", label: string) => {
     const v = patch[key];
     if (v === undefined) return;
     if (v === null) {
@@ -185,13 +180,13 @@ export async function upsertUserProfileForUser(userId: number, patch: PatchUserP
   }
 
   await sequelize.transaction(async (t) => {
-    let row = await UserProfile.findOne({
+    const row = await UserProfile.findOne({
       where: { userId },
       transaction: t,
       lock: Transaction.LOCK.UPDATE,
     });
     if (!row) {
-      row = await UserProfile.create({ userId, ...next } as Record<string, unknown>, {
+      await UserProfile.create({ userId, ...next } as Record<string, unknown>, {
         transaction: t,
       });
     } else {

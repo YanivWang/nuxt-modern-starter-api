@@ -1,8 +1,5 @@
 import { createHttpError } from "../middlewares/error.middleware.js";
-import {
-  findUserProfileByUserId,
-  upsertUserProfileForUser,
-} from "../services/user-profile.service.js";
+import { findUserProfileByUserId, upsertUserProfileForUser } from "../services/user-profile.service.js";
 import { findPublicProfileById } from "../services/user.service.js";
 import { success } from "../utils/response.js";
 

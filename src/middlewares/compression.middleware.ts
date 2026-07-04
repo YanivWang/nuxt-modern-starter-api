@@ -21,8 +21,7 @@ function isExcludedNonJson(base: string) {
   if (base.startsWith("font/")) return true;
   if (base === "application/octet-stream") return true;
   if (base === "application/pdf") return true;
-  if (base === "application/zip" || base === "application/gzip" || base === "application/x-gzip")
-    return true;
+  if (base === "application/zip" || base === "application/gzip" || base === "application/x-gzip") return true;
   if (base === "application/x-ndjson") return true;
   return false;
 }

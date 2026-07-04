@@ -2,7 +2,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import fsSync, { createReadStream, createWriteStream } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { finished, pipeline } from "node:stream/promises";
+import { finished } from "node:stream/promises";
 
 import { filePathToPublicUrl, uploadsRoot } from "../config/upload.config.js";
 import { createHttpError } from "../middlewares/error.middleware.js";
@@ -251,10 +251,7 @@ function assertNotExpired(meta: LargeUploadMeta): void {
   }
 }
 
-export async function initLargeUpload(
-  body: LargeUploadInitBody,
-  _userId: number,
-): Promise<InitLargeUploadResult> {
+export async function initLargeUpload(body: LargeUploadInitBody, _userId: number): Promise<InitLargeUploadResult> {
   const fileMd5 = body.fileMd5;
   const expiresAt = new Date(Date.now() + UPLOAD_TTL_MS).toISOString();
   const chunkTotal = Math.ceil(body.fileSize / body.chunkSize);
@@ -494,11 +491,7 @@ export async function mergeLargeUpload(uploadId: string, userId: number) {
   meta.status = "done";
   meta.publicUrl = publicUrl;
   await fs.mkdir(path.join(projectRoot, ".data", "large-upload-done"), { recursive: true });
-  await fs.writeFile(
-    markerFile,
-    JSON.stringify({ userId, url: publicUrl, chunkTotal: meta.chunkTotal }),
-    "utf8",
-  );
+  await fs.writeFile(markerFile, JSON.stringify({ userId, url: publicUrl, chunkTotal: meta.chunkTotal }), "utf8");
 
   const existing = await readGlobalHashRecord(meta.fileMd5);
   const firstUploaderUserId = existing?.firstUploaderUserId ?? userId;

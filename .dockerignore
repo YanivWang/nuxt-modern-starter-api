@@ -2,7 +2,11 @@ node_modules
 dist
 logs
 .git
+.pnpm-store
 .data
 uploads
+.env
+.env.development
+.env.production
 .env.*.local
 coverage

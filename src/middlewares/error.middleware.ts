@@ -65,9 +65,7 @@ export const errorMiddleware: ErrorRequestHandler = (error, req, res, next) => {
   const httpErr = error as HttpAppError;
   const statusCode = httpErr.statusCode ?? 500;
   const expose = httpErr.expose === true;
-  const msg = expose
-    ? (httpErr.message ?? "请求处理失败")
-    : (httpErr.failureMessage ?? "服务器内部错误");
+  const msg = expose ? (httpErr.message ?? "请求处理失败") : (httpErr.failureMessage ?? "服务器内部错误");
 
   //记录错误日志
   //在全局错误中间件中，导入 logger 日志记录器，记录日志

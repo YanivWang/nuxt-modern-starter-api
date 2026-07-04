@@ -20,19 +20,30 @@ services:
       - "${GATEWAY_HOST_PORT:-2026}:2026"
     depends_on:
       rest-api:
-        condition: service_started
+        condition: service_healthy
     restart: unless-stopped
 
   rest-api:
     container_name: express-modern-starter-rest-api
-    env_file:
-      - ../.env.production
     environment:
       APP_ENV: production
       NODE_ENV: production
       PORT: "3000"
       TRUST_PROXY: "1"
+      LOG_TO_FILE: "false"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env.production}
+      CORS_ORIGINS: ${CORS_ORIGINS:?Set CORS_ORIGINS in .env.production}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_NAME: ${DB_NAME:?Set DB_NAME in .env.production}
+      DB_USER: ${DB_USER:?Set DB_USER in .env.production}
+      DB_PWD: ${DB_PWD:?Set DB_PWD in .env.production}
+    volumes:
+      - app_uploads:/app/uploads
+      - app_data:/app/.data
 
 volumes:
   mysql_data:
   redis_data:
+  app_uploads:
+  app_data:

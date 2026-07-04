@@ -24,7 +24,7 @@ services:
       - "${GATEWAY_HOST_PORT:-2026}:2026"
     depends_on:
       rest-api:
-        condition: service_started
+        condition: service_healthy
     restart: unless-stopped
 
   rest-api:

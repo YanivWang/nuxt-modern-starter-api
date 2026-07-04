@@ -84,7 +84,18 @@ export const JWT_SECRET = (() => {
     console.error(`[env] JWT_SECRET 长度至少 ${minLen} 字符（当前 ${secret.length}），请使用足够长的随机串`);
     process.exit(1);
   }
-  const weak = new Set(["secret", "jwt_secret", "jwtsecret", "changeme", "password", "123456", "your-secret-key", "your_secret_key", "supersecret", "please_change_me"]);
+  const weak = new Set([
+    "secret",
+    "jwt_secret",
+    "jwtsecret",
+    "changeme",
+    "password",
+    "123456",
+    "your-secret-key",
+    "your_secret_key",
+    "supersecret",
+    "please_change_me",
+  ]);
   if (weak.has(secret.toLowerCase())) {
     console.error("[env] JWT_SECRET 不能使用常见弱默认值，请换成随机生成的密钥");
     process.exit(1);
@@ -110,7 +121,10 @@ export const TRUST_PROXY = trimUnset(process.env.TRUST_PROXY);
 export const CORS_ORIGINS = (() => {
   const raw = trimUnset(process.env.CORS_ORIGINS);
   if (raw === undefined) return [];
-  return raw.split(",").map((s) => s.trim()).filter(Boolean);
+  return raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
 })();
 
 export function getCorsOriginOption(): boolean | string | string[] {

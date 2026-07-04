@@ -23,10 +23,7 @@ export const largeUploadInitSchema = z.object({
         .number({ error: "fileSize 须为整数" })
         .int("fileSize 须为整数")
         .positive("fileSize 须为正数")
-        .max(
-          LARGE_UPLOAD_MAX_FILE_BYTES,
-          `单文件不超过 ${LARGE_UPLOAD_MAX_FILE_BYTES / 1024 / 1024}MB`,
-        ),
+        .max(LARGE_UPLOAD_MAX_FILE_BYTES, `单文件不超过 ${LARGE_UPLOAD_MAX_FILE_BYTES / 1024 / 1024}MB`),
       chunkSize: z
         .number({ error: "chunkSize 须为整数" })
         .int("chunkSize 须为整数")

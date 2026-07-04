@@ -21,19 +21,9 @@ import {
 
 const router = express.Router();
 
-router.post(
-  "/uploads",
-  authMiddleware,
-  uploadImagesMiddleware,
-  asyncHandler(uploadImages, "上传失败"),
-);
+router.post("/uploads", authMiddleware, uploadImagesMiddleware, asyncHandler(uploadImages, "上传失败"));
 
-router.post(
-  "/uploads/profiles",
-  authMiddleware,
-  uploadProfileImagesMiddleware,
-  asyncHandler(uploadImages, "上传失败"),
-);
+router.post("/uploads/profiles", authMiddleware, uploadProfileImagesMiddleware, asyncHandler(uploadImages, "上传失败"));
 
 router.post(
   "/uploads/large/init",

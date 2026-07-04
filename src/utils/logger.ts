@@ -8,8 +8,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const logDir = path.resolve(__dirname, "../../logs");
 
-fs.mkdirSync(logDir, { recursive: true });
-
 const { combine, timestamp, errors, json, colorize, printf } = winston.format;
 
 /** JSON 序列化时 Error 的 message/stack 不可枚举会丢失，转成普通对象再记日志 */
@@ -59,26 +57,33 @@ const consoleFormat = printf(({ level, message, timestamp: ts, stack, ...meta })
   return `${tsPart} ${levelPart}: ${body}${metaText}`;
 });
 
-export const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || "info",
-  format: combine(timestamp(), errors({ stack: true }), json()),
-  transports: [
-    // 只记录 error 级别日志
+const logToFile = process.env.LOG_TO_FILE === "true" || process.env.NODE_ENV !== "production";
+const transports: winston.transport[] = [];
+
+if (logToFile) {
+  fs.mkdirSync(logDir, { recursive: true });
+  transports.push(
     new winston.transports.File({
       filename: path.join(logDir, "error.log"),
       level: "error",
     }),
-    // 所有日志
     new winston.transports.File({
       filename: path.join(logDir, "combined.log"),
     }),
-  ],
-});
-
-if (process.env.NODE_ENV !== "production") {
-  logger.add(
-    new winston.transports.Console({
-      format: combine(colorize(), timestamp(), errors({ stack: true }), consoleFormat),
-    }),
   );
 }
+
+transports.push(
+  new winston.transports.Console({
+    format:
+      process.env.NODE_ENV === "production"
+        ? combine(timestamp(), errors({ stack: true }), json())
+        : combine(colorize(), timestamp(), errors({ stack: true }), consoleFormat),
+  }),
+);
+
+export const logger = winston.createLogger({
+  level: process.env.LOG_LEVEL || "info",
+  format: combine(timestamp(), errors({ stack: true }), json()),
+  transports,
+});

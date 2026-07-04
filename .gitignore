@@ -3,6 +3,8 @@ dist/
 logs/
 uploads/
 .data/
+.env.development
+.env.production
 .env.*.local
 .DS_Store
 coverage/

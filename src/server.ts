@@ -1,8 +1,9 @@
 import app from "./app.js";
 import { ensureUploadsRoot } from "./config/upload.config.js";
-import { connectDatabase } from "./db.js";
+import { connectDatabase, sequelize } from "./db.js";
 import { APP_ENV, PORT } from "./env.js";
-import { connectRedis } from "./redis.js";
+import { connectRedis, disconnectRedis } from "./redis.js";
+import { logger, serializeError } from "./utils/logger.js";
 
 await connectDatabase();
 await connectRedis();
@@ -10,31 +11,60 @@ await connectRedis();
 ensureUploadsRoot();
 
 const server = app.listen(PORT, () => {
-  console.log(`服务运行: http://localhost:${PORT}`);
+  logger.info("server_started", { url: `http://localhost:${PORT}`, appEnv: APP_ENV });
 });
 
 server.on("error", (err: NodeJS.ErrnoException) => {
   if (err.code === "EADDRINUSE") {
     const hint =
-      APP_ENV === "development"
-        ? "已被占用（开发环境可先检查是否尚有旧 nodemon/tsx 未退出）："
-        : "已被占用：";
+      APP_ENV === "development" ? "已被占用（开发环境可先检查是否尚有旧 nodemon/tsx 未退出）：" : "已被占用：";
+    logger.error("server_port_in_use", { port: PORT, error: serializeError(err) });
     console.error(`端口 ${String(PORT)} ${hint}${err.message}`);
     process.exit(1);
   }
   throw err;
 });
 
-/** 仅开发：`nodemon` / Docker dev 热重启时先关掉监听，减轻与旧进程的端口竞争 */
-if (APP_ENV === "development") {
-  function gracefulHttpShutdown() {
-    server.close(() => {
-      process.exit(0);
-    });
-    const t = setTimeout(() => process.exit(0), 8_000);
-    t.unref();
-  }
+let shuttingDown = false;
 
-  process.once("SIGTERM", gracefulHttpShutdown);
-  process.once("SIGINT", gracefulHttpShutdown);
+async function closeHttpServer() {
+  await new Promise<void>((resolve, reject) => {
+    server.close((error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve();
+    });
+  });
 }
+
+async function gracefulShutdown(signal: NodeJS.Signals) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+
+  logger.info("server_shutdown_started", { signal });
+
+  const forceExit = setTimeout(() => {
+    logger.error("server_shutdown_timeout", { signal });
+    process.exit(1);
+  }, 10_000);
+  forceExit.unref();
+
+  try {
+    await closeHttpServer();
+    await Promise.allSettled([sequelize.close(), disconnectRedis()]);
+    logger.info("server_shutdown_completed", { signal });
+    process.exit(0);
+  } catch (error) {
+    logger.error("server_shutdown_failed", { signal, error: serializeError(error) });
+    process.exit(1);
+  }
+}
+
+process.once("SIGTERM", (signal) => {
+  void gracefulShutdown(signal);
+});
+process.once("SIGINT", (signal) => {
+  void gracefulShutdown(signal);
+});

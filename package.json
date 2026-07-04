@@ -9,15 +9,21 @@
     "start": "cross-env NODE_ENV=production node dist/server.js",
     "dev": "cross-env NODE_ENV=development nodemon --exec tsx src/server.ts",
     "dev:debug": "cross-env NODE_ENV=development nodemon --inspect=0.0.0.0:9229 --exec tsx src/server.ts",
+    "check": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run test && pnpm run build",
     "test": "pnpm run test:unit && pnpm run test:env",
     "test:unit": "vitest run",
     "test:env": "tsx scripts/test-env.ts",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "build": "tsc -p tsconfig.build.json",
     "db:drop-create": "tsx scripts/reset-db.ts",
     "docker:dev": "cross-env APP_ENV=development docker compose --env-file .env.development -f docker/docker-compose.base.yaml -f docker/docker-compose.dev.yaml up -d --build",
     "docker:dev:down": "cross-env APP_ENV=development docker compose --env-file .env.development -f docker/docker-compose.base.yaml -f docker/docker-compose.dev.yaml down",
-    "docker:prod": "cross-env APP_ENV=production docker compose --env-file .env.production -f docker/docker-compose.base.yaml -f docker/docker-compose.yaml up -d --build"
+    "docker:prod": "cross-env APP_ENV=production docker compose --env-file .env.production -f docker/docker-compose.base.yaml -f docker/docker-compose.yaml up -d --build",
+    "docker:prod:down": "cross-env APP_ENV=production docker compose --env-file .env.production -f docker/docker-compose.base.yaml -f docker/docker-compose.yaml down"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
@@ -39,6 +45,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/bcrypt": "^5.0.2",
     "@types/compression": "^1.7.5",
     "@types/cors": "^2.8.17",
@@ -48,9 +55,14 @@
     "@types/multer": "^1.4.12",
     "@types/node": "^20.14.9",
     "@types/swagger-ui-express": "^4.1.8",
+    "eslint": "^10.6.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.7.0",
     "nodemon": "^3.1.14",
+    "prettier": "^3.9.4",
     "tsx": "^4.19.2",
     "typescript": "~5.5.3",
+    "typescript-eslint": "^8.62.1",
     "vitest": "^2.1.9"
   },
   "engines": {
@@ -58,6 +70,8 @@
     "pnpm": ">=10.17.0"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["bcrypt"]
+    "onlyBuiltDependencies": [
+      "bcrypt"
+    ]
   }
 }
