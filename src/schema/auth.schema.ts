@@ -17,5 +17,23 @@ export const loginSchema = z.object({
   body: credentialsBodySchema,
 });
 
+export const refreshSchema = z.object({
+  body: z
+    .object({
+      refreshToken: z.string().trim().min(1, "refreshToken 不能为空").optional(),
+    })
+    .optional(),
+});
+
+export const logoutSchema = z.object({
+  body: z
+    .object({
+      refreshToken: z.string().trim().min(1, "refreshToken 不能为空").optional(),
+    })
+    .optional(),
+});
+
 export type ValidatedRegisterSchema = z.infer<typeof registerSchema>;
 export type ValidatedLoginSchema = z.infer<typeof loginSchema>;
+export type ValidatedRefreshSchema = z.infer<typeof refreshSchema>;
+export type ValidatedLogoutSchema = z.infer<typeof logoutSchema>;

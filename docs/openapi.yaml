@@ -90,7 +90,25 @@ paths:
                 - password
       responses:
         "200":
-          description: 登录成功，返回 token
+          description: 登录成功，返回 accessToken、refreshToken，并写入 httpOnly cookie
+  /api/refresh:
+    post:
+      tags:
+        - 认证
+      summary: 刷新 access token 并轮换 refresh token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken:
+                  type: string
+                  minLength: 1
+      responses:
+        "200":
+          description: 刷新成功，返回新的 accessToken、refreshToken，并写入 httpOnly cookie
   /api/logout:
     post:
       tags:
@@ -98,6 +116,16 @@ paths:
       summary: 退出登录
       security:
         - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken:
+                  type: string
+                  minLength: 1
       responses:
         "200":
           description: 退出登录成功

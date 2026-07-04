@@ -1,6 +1,6 @@
 # Express Modern Starter
 
-独立 Express API 服务脚手架，基于参考项目 `apps/backend/rest-api` 提炼，保留通用 Web App 后端能力：auth、user、health、Swagger、MySQL、可选 Redis、JWT、文件上传和 Docker 部署。
+独立 Express API 服务脚手架，基于参考项目 `apps/backend/rest-api` 提炼，保留普通 Web App 后端常用能力：auth、user、health、Swagger、MySQL、可选 Redis、JWT access/refresh token、文件上传和 Docker 部署。
 
 ## 快速开始
 
@@ -76,10 +76,27 @@ pnpm test:unit
 
 这个脚手架面向纯 Web App API，不默认引入后台管理系统常见的 RBAC、菜单权限或权限点模型。默认约定是：
 
-- `authMiddleware` 负责确认“当前请求是谁”，适合 `/api/me`、上传、订单等必须登录的接口。
+- `/api/login` 返回短期 `accessToken` 和长期 `refreshToken`，同时写入 `httpOnly` cookie。响应里的 `token` 是 `accessToken` 的兼容别名。
+- `/api/refresh` 使用 `refreshToken` 换取新的 `accessToken` 和 `refreshToken`，旧 refresh token 会立即失效。
+- `authMiddleware` 优先读取 `Authorization: Bearer <accessToken>`，也支持浏览器请求携带的 `access_token` cookie，适合 `/api/me`、上传、订单等必须登录的接口。
 - `optionalAuthMiddleware` 适合“登录用户和匿名用户都能访问，但返回内容略有差异”的接口。
 - 资源归属校验放在 service 层，例如只能修改自己的资料、只能删除自己的上传任务、只能查看自己的订单。
 - 如果业务后续出现管理员后台、多角色协作或租户权限，再按业务引入 role/permission，不作为前台 Web App starter 的默认复杂度。
+
+### Bearer 与 Cookie 怎么选
+
+- 前端显式管理 token、移动端、小程序或第三方客户端：使用 `Authorization: Bearer <accessToken>`，并在 access token 过期后调用 `/api/refresh`。
+- 同站点或同主域 Web App：可以使用服务端写入的 `httpOnly` cookie，降低 XSS 直接读取 token 的风险。
+- 生产环境 cookie 默认 `AUTH_COOKIE_SECURE=true`，本地开发默认 `false`。跨站 cookie 场景还需要按真实域名补充 CORS credentials、SameSite 和 HTTPS 策略。
+
+### 默认模块分层
+
+| 层级         | 模块                                                                            | 建议                                                           |
+| ------------ | ------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| 核心必留     | health/ready、env 校验、统一错误、requestId、日志、Zod 校验、OpenAPI、migration | 普通 Web App API 的基础设施，不建议删除                        |
+| Web App 基础 | auth、access/refresh token、`/api/me`、用户资料                                 | 大多数需要登录态的 Web App 都会用到                            |
+| 常用增强     | 普通图片上传、头像上传、Redis JWT 黑名单                                        | 需要用户资料图、登出立即失效时保留                             |
+| 可选增强     | 大文件分片上传、秒传、本地 `.data` 会话                                         | 适合网盘、素材、视频等场景；普通内容站或 SaaS 表单应用可以删除 |
 
 ## 生产部署
 
@@ -90,7 +107,7 @@ cp .env.production.example .env.production
 ```
 
 务必替换 `JWT_SECRET`、`DB_PWD`、`MYSQL_ROOT_PASSWORD`、`REDIS_PASSWORD` 等占位值；生产启动时会拒绝 `replace_with` / `change_me` 这类模板值。
-生产环境建议显式配置 `CORS_ORIGINS`、`TRUST_PROXY`、`RATE_LIMIT_MAX`、`AUTH_RATE_LIMIT_MAX`，并根据真实流量调整限流窗口。
+生产环境建议显式配置 `CORS_ORIGINS`、`TRUST_PROXY`、`RATE_LIMIT_MAX`、`AUTH_RATE_LIMIT_MAX`、`ACCESS_TOKEN_TTL_SECONDS`、`REFRESH_TOKEN_TTL_SECONDS`、`AUTH_COOKIE_SECURE`，并根据真实流量调整限流窗口和登录态有效期。
 默认 `AUTH_TOKEN_BLACKLIST_ENABLED=true`，服务会依赖 Redis 记录登出后的 JWT 黑名单。只有确认业务接受“已签发 JWT 在过期前无法主动失效”时，才建议改为 `false`。
 
 2. 构建并执行数据库迁移：

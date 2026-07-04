@@ -11,7 +11,7 @@ const sequelize = new Sequelize(DB_NAME, DB_USER, DB_PWD, {
   logging: APP_ENV === "test" ? false : undefined,
 });
 
-const { User, UserProfile } = initModels(sequelize);
+const { User, UserProfile, UserRefreshToken } = initModels(sequelize);
 
 export async function connectDatabase() {
   await sequelize.authenticate();
@@ -22,4 +22,4 @@ export async function connectDatabase() {
   }
 }
 
-export { sequelize, User, UserProfile };
+export { sequelize, User, UserProfile, UserRefreshToken };

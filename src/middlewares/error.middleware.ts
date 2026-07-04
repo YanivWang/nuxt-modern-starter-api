@@ -69,7 +69,7 @@ export const errorMiddleware: ErrorRequestHandler = (error, req, res, next) => {
 
   //记录错误日志
   //在全局错误中间件中，导入 logger 日志记录器，记录日志
-  logger.error("request_error", {
+  const logPayload = {
     requestId: req.requestId,
     userId: req.user?.id,
     routePath: expressRoutePath(req),
@@ -78,7 +78,13 @@ export const errorMiddleware: ErrorRequestHandler = (error, req, res, next) => {
     url: req.originalUrl,
     statusCode: statusCode,
     clientMsg: msg,
-  });
+  };
+
+  if (statusCode >= 500) {
+    logger.error("request_error", logPayload);
+  } else {
+    logger.warn("request_client_error", logPayload);
+  }
 
   fail(res, statusCode, msg);
 };

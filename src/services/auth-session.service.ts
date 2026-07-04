@@ -1,0 +1,131 @@
+import { createHash, randomBytes, randomUUID } from "node:crypto";
+
+import jwt from "jsonwebtoken";
+import { Op } from "sequelize";
+
+import { User, UserRefreshToken } from "../db.js";
+import { ACCESS_TOKEN_TTL_SECONDS, JWT_SECRET, REFRESH_TOKEN_TTL_SECONDS } from "../env.js";
+import { createHttpError } from "../middlewares/error.middleware.js";
+
+type TokenContext = {
+  userAgent?: string;
+  ipAddress?: string;
+};
+
+type UserLike = {
+  get(key: "id" | "username"): unknown;
+};
+
+export type AuthTokenPair = {
+  accessToken: string;
+  refreshToken: string;
+  accessTokenExpiresIn: number;
+  refreshTokenExpiresIn: number;
+};
+
+function tokenHash(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+function generateRefreshToken(): string {
+  return randomBytes(48).toString("base64url");
+}
+
+function signAccessToken(user: UserLike): string {
+  return jwt.sign(
+    {
+      id: user.get("id") as number,
+      username: user.get("username") as string,
+    },
+    JWT_SECRET,
+    {
+      expiresIn: ACCESS_TOKEN_TTL_SECONDS,
+      jwtid: randomUUID(),
+    },
+  );
+}
+
+async function createRefreshToken(userId: number, context: TokenContext = {}): Promise<string> {
+  const refreshToken = generateRefreshToken();
+  const expiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_SECONDS * 1000);
+
+  await UserRefreshToken.create({
+    userId,
+    tokenHash: tokenHash(refreshToken),
+    expiresAt,
+    userAgent: context.userAgent,
+    ipAddress: context.ipAddress,
+  });
+
+  return refreshToken;
+}
+
+export async function createAuthTokenPair(user: UserLike, context: TokenContext = {}): Promise<AuthTokenPair> {
+  const userId = user.get("id") as number;
+  const accessToken = signAccessToken(user);
+  const refreshToken = await createRefreshToken(userId, context);
+
+  return {
+    accessToken,
+    refreshToken,
+    accessTokenExpiresIn: ACCESS_TOKEN_TTL_SECONDS,
+    refreshTokenExpiresIn: REFRESH_TOKEN_TTL_SECONDS,
+  };
+}
+
+export async function rotateRefreshToken(refreshToken: string, context: TokenContext = {}): Promise<AuthTokenPair> {
+  const oldHash = tokenHash(refreshToken);
+  const session = await UserRefreshToken.findOne({
+    where: {
+      tokenHash: oldHash,
+      revokedAt: null,
+      expiresAt: { [Op.gt]: new Date() },
+    },
+  });
+
+  if (!session) {
+    throw createHttpError(401, "refresh token 无效或已过期");
+  }
+
+  const user = await User.findByPk(session.get("userId") as number);
+  if (!user) {
+    await session.update({ revokedAt: new Date() });
+    throw createHttpError(401, "refresh token 无效或已过期");
+  }
+
+  const nextRefreshToken = generateRefreshToken();
+  const nextHash = tokenHash(nextRefreshToken);
+  const expiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_SECONDS * 1000);
+
+  await UserRefreshToken.create({
+    userId: user.get("id") as number,
+    tokenHash: nextHash,
+    expiresAt,
+    userAgent: context.userAgent,
+    ipAddress: context.ipAddress,
+  });
+  await session.update({
+    revokedAt: new Date(),
+    replacedByTokenHash: nextHash,
+  });
+
+  return {
+    accessToken: signAccessToken(user),
+    refreshToken: nextRefreshToken,
+    accessTokenExpiresIn: ACCESS_TOKEN_TTL_SECONDS,
+    refreshTokenExpiresIn: REFRESH_TOKEN_TTL_SECONDS,
+  };
+}
+
+export async function revokeRefreshToken(refreshToken: string | undefined): Promise<void> {
+  if (!refreshToken) return;
+  await UserRefreshToken.update(
+    { revokedAt: new Date() },
+    {
+      where: {
+        tokenHash: tokenHash(refreshToken),
+        revokedAt: null,
+      },
+    },
+  );
+}

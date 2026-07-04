@@ -6,7 +6,7 @@ import {
   largeUploadIdParamsSchema,
   largeUploadInitSchema,
 } from "./schema/large-upload.schema.js";
-import { loginSchema, registerSchema } from "./schema/auth.schema.js";
+import { loginSchema, logoutSchema, refreshSchema, registerSchema } from "./schema/auth.schema.js";
 import { patchMyProfileSchema } from "./schema/user-profile.schema.js";
 
 type OpenApiSchema = Record<string, unknown> & {
@@ -179,7 +179,15 @@ export function generateOpenApiSpec(): OpenApiSpec {
           tags: ["认证"],
           summary: "用户登录",
           requestBody: jsonRequestBody(loginSchema.shape.body),
-          responses: ok("登录成功，返回 token"),
+          responses: ok("登录成功，返回 accessToken、refreshToken，并写入 httpOnly cookie"),
+        },
+      },
+      "/api/refresh": {
+        post: {
+          tags: ["认证"],
+          summary: "刷新 access token 并轮换 refresh token",
+          requestBody: jsonRequestBody(refreshSchema.shape.body),
+          responses: ok("刷新成功，返回新的 accessToken、refreshToken，并写入 httpOnly cookie"),
         },
       },
       "/api/logout": {
@@ -187,6 +195,7 @@ export function generateOpenApiSpec(): OpenApiSpec {
           tags: ["认证"],
           summary: "退出登录",
           security: bearerAuth(),
+          requestBody: jsonRequestBody(logoutSchema.shape.body),
           responses: ok("退出登录成功"),
         },
       },
