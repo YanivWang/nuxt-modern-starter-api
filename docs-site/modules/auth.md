@@ -16,7 +16,7 @@ src/modules/auth/
     HTTP 层：读取校验结果、设置 Cookie、处理 CSRF、调用 service
 
   auth.service.ts
-    注册和登录业务：用户名密码归一化、bcrypt 哈希与比对
+    注册和登录业务：接收 Zod 校验后的用户名密码，bcrypt 哈希与比对
 
   auth-session.service.ts
     access token 签发、refresh token 生成/落库/轮换/撤销
@@ -76,15 +76,26 @@ POST /api/login
   -> bcrypt.compare(password, user.password)
   -> createAuthTokenPair()
   -> setAuthCookies()
-  -> response body 返回 token/accessToken/refreshToken
+  -> response body 返回 accessToken/refreshToken
 ```
 
 登录成功后，服务同时支持两种客户端接入方式：
 
-1. 响应体返回 token，客户端用 `Authorization: Bearer <accessToken>`。
+1. 响应体返回 `accessToken`，客户端用 `Authorization: Bearer <accessToken>`。
 2. 服务端写入 httpOnly Cookie，浏览器 Web App 可走 Cookie 登录态。
 
-响应体里的 `token` 是 `accessToken` 的兼容别名。
+登录/刷新成功时，响应 `data` 固定包含：
+
+```json
+{
+  "accessToken": "<JWT>",
+  "refreshToken": "<明文 refresh token>",
+  "accessTokenExpiresIn": 900,
+  "refreshTokenExpiresIn": 2592000
+}
+```
+
+**不存在** `token` 或其它 access token 字段别名；客户端统一读取 `accessToken`。
 
 ## access token
 

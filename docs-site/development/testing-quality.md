@@ -154,7 +154,6 @@ cross-env APP_ENV=test NODE_ENV=test vitest run --exclude "src/**/*.integration.
 
 当前覆盖：
 
-- `trimmedStringFromUnknown`
 - OpenAPI 生成一致性
 - Redis 环境变量行为
 
@@ -182,7 +181,7 @@ cross-env APP_ENV=test NODE_ENV=test vitest run --config vitest.integration.conf
 
 - 注册用户。
 - 重复用户名返回 409。
-- 登录返回 accessToken 和 refreshToken。
+- 登录返回 `accessToken`、`refreshToken` 及对应 TTL 字段（**无** `token` 别名）。
 - Bearer access token 可访问 `/api/me`。
 - httpOnly Cookie access token 可访问 `/api/me`。
 - Cookie 写操作要求 CSRF。
@@ -199,6 +198,14 @@ cross-env APP_ENV=test NODE_ENV=test vitest run --config vitest.integration.conf
 - 列出、读取项目详情，以及读取/保存自己的文档。
 - 删除自己的项目，并验证关联 Document 被级联清理。
 - 跨用户无法读取、删除他人的项目或文档（当前集成测试覆盖 GET/DELETE 隔离，PATCH 越权由 service 层按 `ownerId` 过滤并在代码审查中约束）。
+
+### 当前未覆盖（集成测试 gap）
+
+- `/api/me/profile` GET/PATCH（含 avatar 写入 `Users.avatar`）
+- 上传模块（普通 / 大文件 / 秒传）
+- Cookie 认证下 PATCH 文档/项目的 CSRF 行为
+- 限流 429、`/ready` 探针
+- `optionalAuthMiddleware`（中间件存在但未挂载路由）
 
 ## 环境变量测试
 

@@ -25,7 +25,6 @@ export default defineConfig({
           { text: "文档首页", link: "/" },
           { text: "快速上手", link: "/guide/getting-started" },
           { text: "技术栈总览", link: "/guide/tech-stack" },
-          { text: "目录职责索引", link: "/reference/directory" },
         ],
       },
       {

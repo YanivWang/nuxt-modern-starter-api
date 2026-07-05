@@ -29,11 +29,13 @@ src/modules/workspace/
 
 所有接口都需要 `authMiddleware`。
 
-| 方法 | 路径 | 说明 |
-| ---- | ---- | ---- |
-| `GET` | `/api/projects` | 返回当前用户的项目列表 |
-| `POST` | `/api/projects` | 创建项目并初始化关联 Document |
-| `GET` | `/api/projects/:projectId` | 返回当前用户的项目详情 |
+**无独立 Workspace CRUD 端点。** Workspace 在创建项目时由 `ensurePersonalWorkspace()` 内部自动创建（`type = personal`，`(ownerId, type)` 唯一）。
+
+| 方法     | 路径                       | 说明                                        |
+| -------- | -------------------------- | ------------------------------------------- |
+| `GET`    | `/api/projects`            | 返回当前用户的项目列表                      |
+| `POST`   | `/api/projects`            | 创建项目并初始化关联 Document               |
+| `GET`    | `/api/projects/:projectId` | 返回当前用户的项目详情                      |
 | `DELETE` | `/api/projects/:projectId` | 删除当前用户的项目，并级联删除关联 Document |
 
 创建项目请求体：

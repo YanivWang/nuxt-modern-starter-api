@@ -27,10 +27,8 @@ function authContext(req: Request) {
 }
 
 function sendTokenPair(res: Response, msg: string, pair: AuthTokenPair) {
-  // 返回体保留 token/accessToken，Cookie 也同步写入，兼容显式 Bearer 与浏览器 Cookie 两种接入方式。
   setAuthCookies(res, pair);
   return success(res, msg, {
-    token: pair.accessToken,
     accessToken: pair.accessToken,
     refreshToken: pair.refreshToken,
     accessTokenExpiresIn: pair.accessTokenExpiresIn,

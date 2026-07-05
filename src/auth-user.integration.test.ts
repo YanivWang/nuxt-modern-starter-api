@@ -48,7 +48,6 @@ async function registerAndLogin(username = uniqueUsername(), password = "passwor
   return {
     username,
     password,
-    token: loginRes.body.data.token as string,
     accessToken: loginRes.body.data.accessToken as string,
     refreshToken: loginRes.body.data.refreshToken as string,
     setCookie: Array.isArray(rawSetCookie) ? rawSetCookie : rawSetCookie ? [rawSetCookie] : undefined,
@@ -91,11 +90,10 @@ describe("auth and current user API", () => {
   });
 
   it("logs in and returns a usable token", async () => {
-    const { accessToken, refreshToken, token, username } = await registerAndLogin();
+    const { accessToken, refreshToken, username } = await registerAndLogin();
 
     expect(accessToken).toEqual(expect.any(String));
     expect(refreshToken).toEqual(expect.any(String));
-    expect(token).toBe(accessToken);
 
     const meRes = await request(app).get("/api/me").set("Authorization", `Bearer ${accessToken}`).expect(200);
     expect(meRes.body.data.user).toMatchObject({
@@ -148,7 +146,6 @@ describe("auth and current user API", () => {
     expect(refreshRes.body.data.accessToken).toEqual(expect.any(String));
     expect(refreshRes.body.data.refreshToken).toEqual(expect.any(String));
     expect(refreshRes.body.data.refreshToken).not.toBe(refreshToken);
-    expect(refreshRes.body.data.token).toBe(refreshRes.body.data.accessToken);
 
     await request(app).post("/api/refresh").send({ refreshToken }).expect(401);
 

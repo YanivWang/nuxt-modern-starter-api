@@ -80,8 +80,8 @@ MySQL 是主业务数据库。Sequelize 负责：
 
 当前核心表：
 
-- `Users`：登录账号、密码哈希、头像字段。
-- `UserProfiles`：用户扩展资料。
+- `Users`：登录账号、密码哈希、头像（`avatar`）。
+- `UserProfiles`：用户扩展资料（不含头像列）。
 - `UserRefreshTokens`：refresh token 会话。
 - `Workspaces`：用户工作区，默认 `type = personal`。
 - `Projects`：项目元数据，关联工作区与用户。
@@ -90,6 +90,8 @@ MySQL 是主业务数据库。Sequelize 负责：
 ### Umzug
 
 Umzug 管理数据库迁移。迁移记录存放在数据库中，迁移文件位于 `src/migrations/`。
+
+当前共 3 个迁移文件，直接使用 `createTable` / `addIndex` 建表，**不含** `tableExists` 等幂等守卫；开发阶段若需重建 schema，请使用 `pnpm db:drop-create` 或重建数据库 volume。
 
 约定：
 
@@ -138,7 +140,7 @@ refresh token 是长期凭证，但数据库只保存 SHA-256 摘要，不保存
 
 ### Cookie + CSRF
 
-登录和刷新成功时，服务同时返回 token 到响应体，并写入 Cookie：
+登录和刷新成功时，服务在响应体返回 `accessToken` / `refreshToken` 及 TTL 字段，并写入 Cookie：
 
 - `access_token`：httpOnly
 - `refresh_token`：httpOnly
@@ -157,7 +159,7 @@ Zod 是请求校验的单一来源。路由通过 `validate(schema)` 校验：
 - `params`
 - `headers`
 
-校验成功后结果写入 `req.validated`，controller 不直接信任原始输入。
+校验成功后结果写入 `req.validated`；controller 通过 `getValidated<T>(req)` 读取，service 接收已校验的类型化数据，不在 service 层重复做 trim 或长度校验。
 
 ### OpenAPI + Swagger
 

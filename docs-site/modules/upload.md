@@ -124,7 +124,7 @@ POST /api/uploads/profiles
 uploads/profiles/<年>/<月>/
 ```
 
-上传成功后，前端通常会把返回 URL 写入 `PATCH /api/me/profile` 的 `avatar` 字段。
+上传成功后，前端通常会把返回 URL 通过 `PATCH /api/me/profile` 的 `avatar` 字段写入 `Users.avatar`。
 
 ## 文件名策略
 

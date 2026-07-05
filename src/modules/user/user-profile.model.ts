@@ -1,6 +1,6 @@
 /**
  * 文件职责：定义 UserProfiles 模型和 Users 一对一关联。
- * 扩展资料按 userId 唯一，头像字段与 Users.avatar 保持双写。
+ * 扩展资料按 userId 唯一；头像仅存 Users.avatar，读取时通过 user 关联合并。
  */
 import { DataTypes, type Model, type ModelStatic, type Sequelize } from "sequelize";
 
@@ -16,11 +16,6 @@ export function defineUserProfileModel(sequelize: Sequelize, User: ModelStatic<M
       nickname: {
         type: DataTypes.STRING(100),
         allowNull: true,
-      },
-      avatar: {
-        type: DataTypes.STRING(500),
-        allowNull: true,
-        comment: "与 Users.avatar 双写；展示以 Users 为准",
       },
       gender: {
         type: DataTypes.STRING(20),

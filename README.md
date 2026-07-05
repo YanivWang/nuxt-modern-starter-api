@@ -83,7 +83,7 @@ server.ts
 | `src/redis.ts`                     | JWT 黑名单 Redis 连接；关闭黑名单时可不启用 Redis                 |
 | `src/middlewares/`                 | 统一错误、认证、限流、请求 ID、日志、Zod 校验等横切能力           |
 | `src/modules/auth/`                | 注册、登录、access/refresh token、Cookie/CSRF、登出黑名单         |
-| `src/modules/user/`                | `/api/me`、用户资料和头像字段同步                                 |
+| `src/modules/user/`                | `/api/me`、用户资料（头像仅存 `Users.avatar`）                    |
 | `src/modules/upload/`              | 普通图片上传、头像上传、大文件分片上传和秒传索引                  |
 | `src/modules/workspace/`           | 默认个人空间、项目 CRUD（列表/创建/详情/删除）                    |
 | `src/modules/document/`            | 编辑器文档读取与保存                                              |
@@ -165,6 +165,8 @@ pnpm db:migrate:prod
 
 不要在生产环境使用 `sequelize.sync()` 或 `db:drop-create` 管理表结构。
 
+迁移文件直接使用 `createTable` / `addIndex`，不含旧版幂等守卫。本地 schema 与代码不一致时，开发环境可 `pnpm db:drop-create` 或重建 Docker MySQL volume。
+
 ## 测试
 
 `pnpm test` 会在 `APP_ENV=test` 下运行单元测试、API 集成测试和环境变量校验。完整 API 集成测试依赖 MySQL 与 Redis，默认读取 `.env.test`。
@@ -183,7 +185,7 @@ pnpm test:unit
 
 这个脚手架面向纯 Web App API，不默认引入后台管理系统常见的 RBAC、菜单权限或权限点模型。默认约定是：
 
-- `/api/login` 返回短期 `accessToken` 和长期 `refreshToken`，同时写入 `httpOnly` cookie，并写入非 `httpOnly` 的 `csrf_token`。响应里的 `token` 是 `accessToken` 的兼容别名。
+- `/api/login` 返回短期 `accessToken` 和长期 `refreshToken`（含 `accessTokenExpiresIn`、`refreshTokenExpiresIn`），同时写入 `httpOnly` cookie，并写入非 `httpOnly` 的 `csrf_token`。响应体**不含** `token` 字段别名。
 - `/api/register` 只创建用户，不自动登录；注册成功后需要再调用 `/api/login` 获取 token。
 - `/api/refresh` 使用 `refreshToken` 换取新的 `accessToken` 和 `refreshToken`，旧 refresh token 会立即失效。若 refresh token 来自 cookie，需带 `X-CSRF-Token` 请求头，值与 `csrf_token` cookie 一致。
 - `authMiddleware` 优先读取 `Authorization: Bearer <accessToken>`，也支持浏览器请求携带的 `access_token` cookie，适合 `/api/me`、项目、文档、上传等必须登录的接口。
@@ -203,13 +205,13 @@ pnpm test:unit
 | 层级         | 模块                                                                            | 建议                                                           |
 | ------------ | ------------------------------------------------------------------------------- | -------------------------------------------------------------- |
 | 核心必留     | health/ready、env 校验、统一错误、requestId、日志、Zod 校验、OpenAPI、migration | 普通 Web App API 的基础设施，不建议删除                        |
-| Web App 基础 | auth、access/refresh token、`/api/me`、用户资料、工作台项目、编辑器文档 | 与 `nuxt-modern-starter` 前端默认联调的主路径 |
+| Web App 基础 | auth、access/refresh token、`/api/me`、用户资料、工作台项目、编辑器文档         | 与 `nuxt-modern-starter` 前端默认联调的主路径                  |
 | 常用增强     | 普通图片上传、头像上传、Redis JWT 黑名单                                        | 需要用户资料图、登出立即失效时保留                             |
 | 可选增强     | 大文件分片上传、秒传、本地 `.data` 会话                                         | 适合网盘、素材、视频等场景；普通内容站或 SaaS 表单应用可以删除 |
 
 ### 用户与资料模型
 
-默认有六张核心业务表：`Users`、`UserProfiles`、`UserRefreshTokens`、`Workspaces`、`Projects`、`Documents`。`Users` 与 `UserProfiles` 是一对一关系；每个用户有一个默认 personal Workspace；每个 Project 对应一个 Document；资料接口更新 `avatar` 时会同步写入 `Users.avatar`，因为 `/api/me` 读取的是用户表头像，而 `/api/me/profile` 读取的是资料表头像。
+默认有六张核心业务表：`Users`、`UserProfiles`、`UserRefreshTokens`、`Workspaces`、`Projects`、`Documents`。`Users` 与 `UserProfiles` 是一对一关系；每个用户有一个默认 personal Workspace；每个 Project 对应一个 Document；头像仅存 `Users.avatar`，`/api/me` 与 `/api/me/profile` 读取时均来自该字段。
 
 ### 大文件分片上传
 

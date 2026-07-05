@@ -189,6 +189,8 @@ src/migrations/*.ts
 
 迁移上下文是 Sequelize QueryInterface。
 
+迁移文件直接使用 `createTable` / `addIndex`，不含 `tableExists` 等幂等守卫。开发阶段 schema 变更后，优先 `pnpm db:drop-create` 或重建数据库 volume，再执行迁移。
+
 开发/测试环境：
 
 - `connectDatabase()` 会自动运行 pending migrations。
@@ -221,12 +223,13 @@ pnpm db:migrate:prod
 
 ### UserProfiles
 
-保存扩展资料。
+保存扩展资料（nickname、gender、birthday、bio 等）。
 
 关键约束：
 
 - `userId` 指向 `Users.id`。
 - `userId` 唯一。
+- **不含 `avatar` 列**；头像仅存 `Users.avatar`。
 - 删除用户时级联删除资料。
 
 ### UserRefreshTokens

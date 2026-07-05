@@ -16,9 +16,9 @@ src/middlewares/
 
 src/modules/
   auth/
-    注册、登录、token、Cookie、CSRF、登出
+    注册、登录、accessToken/refreshToken、Cookie、CSRF、登出
   user/
-    当前用户、用户扩展资料、头像字段同步
+    当前用户、用户扩展资料
   upload/
     普通图片上传、大文件分片上传、秒传索引
   workspace/
@@ -130,6 +130,8 @@ helmet / Swagger CSP 例外
 
 `src/migrator.ts` 配置 Umzug，迁移文件在 `src/migrations/`。`src/migrate.ts` 提供命令行入口。
 
+迁移文件直接使用 `createTable` / `addIndex` 建表，不做 `tableExists` 条件判断。若本地 schema 与迁移不一致，使用 `pnpm db:drop-create` 或重建数据库后再迁移。
+
 ## 数据模型关系
 
 ```text
@@ -143,7 +145,6 @@ UserProfiles
   id
   userId -> Users.id
   nickname
-  avatar
   gender
   birthday
   ...
@@ -191,11 +192,10 @@ Documents
 - `Projects` 与 `Documents` 是一对一。
 - 删除用户时，关联资料、refresh token、空间、项目和文档会级联删除。
 
-头像字段需要注意：
+头像仅存 `Users.avatar`：
 
-- `/api/me` 读取 `Users.avatar`。
-- `/api/me/profile` 读取 `UserProfiles.avatar`。
-- 更新资料头像时，service 会在事务内同步写两张表。
+- `/api/me` 与 `/api/me/profile` 均通过 `Users.avatar` 返回头像。
+- `PATCH /api/me/profile` 的 `avatar` 字段写入 `Users.avatar`。
 
 ## 文档架构
 

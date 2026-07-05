@@ -208,10 +208,7 @@ describe("product foundation API", () => {
     const listRes = await request(app).get("/api/projects").set("Authorization", `Bearer ${accessToken}`).expect(200);
     expect(listRes.body.data.projects).toEqual([]);
 
-    await request(app)
-      .get(`/api/documents/${documentId}`)
-      .set("Authorization", `Bearer ${accessToken}`)
-      .expect(404);
+    await request(app).get(`/api/documents/${documentId}`).set("Authorization", `Bearer ${accessToken}`).expect(404);
   });
 
   it("prevents users from deleting another user's project", async () => {

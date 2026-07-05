@@ -65,12 +65,12 @@ pnpm docker:dev
 
 若同时开发 `nuxt-modern-starter` 前端，请保持以下配置一致：
 
-| 配置项 | 推荐值 |
-| ------ | ------ |
-| 前端 `NUXT_PUBLIC_API_BASE` | `http://localhost:2026/api` |
-| 后端 `CORS_ORIGINS` | 包含 `http://localhost:3000` |
-| 前端开发地址 | `http://localhost:3000` |
-| API Docker 网关 | `http://localhost:2026` |
+| 配置项                      | 推荐值                       |
+| --------------------------- | ---------------------------- |
+| 前端 `NUXT_PUBLIC_API_BASE` | `http://localhost:2026/api`  |
+| 后端 `CORS_ORIGINS`         | 包含 `http://localhost:3000` |
+| 前端开发地址                | `http://localhost:3000`      |
+| API Docker 网关             | `http://localhost:2026`      |
 
 修改 `.env.development` 后需要重建 API 容器，而不是仅 `restart`：
 

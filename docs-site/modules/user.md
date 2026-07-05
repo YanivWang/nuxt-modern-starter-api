@@ -25,7 +25,7 @@ src/modules/user/
     用户扩展资料 Zod schema
 
   user-profile.service.ts
-    扩展资料清洗、校验、upsert、头像双写
+    扩展资料 upsert、头像写入 Users.avatar
 
   user-profile.model.ts
     UserProfiles Sequelize 模型与 Users 一对一关联
@@ -68,7 +68,6 @@ src/modules/user/
 
 - `userId`
 - `nickname`
-- `avatar`
 - `gender`
 - `birthday`
 - `bio`
@@ -79,6 +78,8 @@ src/modules/user/
 - `mom`
 - `father`
 - `university`
+
+**不含 `avatar` 列**；头像仅存 `Users.avatar`，读取时通过关联 `User` 合并到响应。
 
 `userId` 有唯一索引，一个用户最多一条扩展资料。
 
@@ -159,22 +160,29 @@ GET /api/me
 }
 ```
 
-## 字段清洗规则
+## 字段校验规则
 
-`user-profile.service.ts` 会做业务层清洗和校验：
+校验由 `user-profile.schema.ts` 中的 Zod schema 统一完成，service 只负责数据库写入与事务控制。
 
-- 字符串字段会 trim。
-- 空字符串会转为 `null`。
-- `nickname` 最大 100 字符。
-- `avatar` 最大 500 字符。
-- `gender` 只能是 `male`、`female`、`unknown`。
-- `birthday` 必须是 `YYYY-MM-DD`。
-- `bio` 最大 65535 字符。
-- `address/company/jobTitle/mom/father/university` 最大 255 字符。
+`nullableTrimmedString(label, max)` 辅助函数规则：
 
-为什么 schema 之后还要 service 校验？
+- `undefined`：字段未提供，PATCH 时跳过更新。
+- `null`：清空字段。
+- 非空字符串：trim 后保留；trim 后为空字符串也视为 `null`。
 
-Zod schema 负责请求结构和基础类型；service 负责业务规则和数据库写入前的最终清洗。这样即使未来有非 HTTP 调用 service，也不会绕过业务规则。
+各字段约束：
+
+| 字段                                                            | 规则                                                  |
+| --------------------------------------------------------------- | ----------------------------------------------------- |
+| `nickname`                                                      | nullable trimmed string，max 100                      |
+| `avatar`                                                        | nullable trimmed string，max 500；写入 `Users.avatar` |
+| `gender`                                                        | `male` / `female` / `unknown` / null                  |
+| `birthday`                                                      | `YYYY-MM-DD` / null                                   |
+| `bio`                                                           | max 65535                                             |
+| `address`、`company`、`jobTitle`、`mom`、`father`、`university` | max 255                                               |
+| `isMarried`                                                     | boolean / null                                        |
+
+schema 使用 `.strict()`，多传字段会被拒绝；至少提供一个字段才会通过校验。
 
 ## upsert 逻辑
 
@@ -182,30 +190,22 @@ Zod schema 负责请求结构和基础类型；service 负责业务规则和数�
 
 ```text
 sequelize.transaction
+  -> 若 avatar 变更：User.update({ avatar })
   -> UserProfile.findOne({ lock: UPDATE })
   -> 如果不存在：UserProfile.create()
   -> 如果存在：row.update()
-  -> 如果 avatar 被更新：同步 User.update({ avatar })
+  -> 若仅更新 avatar 且尚无资料行：UserProfile.findOrCreate()
 ```
 
 `lock: Transaction.LOCK.UPDATE` 用于避免同一用户资料并发写入时出现竞争。
 
-## 头像双写
+## 头像存储
 
-项目同时保存：
+头像仅存 `Users.avatar`：
 
-- `Users.avatar`
-- `UserProfiles.avatar`
-
-这是一个有意设计。
-
-原因：
-
-- `/api/me` 是常用接口，需要快速返回基础资料，头像从 `Users.avatar` 读取。
-- `/api/me/profile` 是资料详情接口，头像从 `UserProfiles.avatar` 读取。
-- 用户修改头像时，两处必须保持一致。
-
-所以 `upsertUserProfileForUser()` 在事务里同步更新 `Users.avatar`。
+- `/api/me` 直接读取 `Users.avatar`。
+- `/api/me/profile` 通过 `UserProfile` 关联 `User` 合并返回 `avatar`。
+- `PATCH /api/me/profile` 的 `avatar` 字段写入 `Users.avatar`。
 
 ## 对外展示不返回 password
 

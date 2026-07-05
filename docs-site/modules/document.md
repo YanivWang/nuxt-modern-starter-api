@@ -26,9 +26,9 @@ src/modules/document/
 
 所有接口都需要 `authMiddleware`。
 
-| 方法 | 路径 | 说明 |
-| ---- | ---- | ---- |
-| `GET` | `/api/documents/:documentId` | 读取当前用户文档 |
+| 方法    | 路径                         | 说明             |
+| ------- | ---------------------------- | ---------------- |
+| `GET`   | `/api/documents/:documentId` | 读取当前用户文档 |
 | `PATCH` | `/api/documents/:documentId` | 保存当前用户文档 |
 
 保存请求体字段均为可选：
