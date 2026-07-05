@@ -137,3 +137,11 @@ export async function findProjectForUser(userId: number, projectId: string) {
 
   return project ? toProjectDto(project) : null;
 }
+
+export async function deleteProjectForUser(userId: number, projectId: string) {
+  const deleted = await Project.destroy({
+    where: { id: projectId, ownerId: userId },
+  });
+
+  return deleted > 0;
+}

@@ -182,6 +182,56 @@ describe("product foundation API", () => {
       .expect(404);
   });
 
+  it("deletes authenticated user projects and their documents", async () => {
+    const { accessToken } = await registerAndLogin();
+
+    const createRes = await request(app)
+      .post("/api/projects")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({ title: "待删除项目" })
+      .expect(201);
+
+    const projectId = createRes.body.data.project.id as string;
+    const documentId = createRes.body.data.document.id as string;
+
+    const deleteRes = await request(app)
+      .delete(`/api/projects/${projectId}`)
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(200);
+
+    expect(deleteRes.body).toEqual({
+      code: 200,
+      message: "删除项目成功",
+      data: null,
+    });
+
+    const listRes = await request(app).get("/api/projects").set("Authorization", `Bearer ${accessToken}`).expect(200);
+    expect(listRes.body.data.projects).toEqual([]);
+
+    await request(app)
+      .get(`/api/documents/${documentId}`)
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(404);
+  });
+
+  it("prevents users from deleting another user's project", async () => {
+    const firstUser = await registerAndLogin();
+    const secondUser = await registerAndLogin();
+
+    const createRes = await request(app)
+      .post("/api/projects")
+      .set("Authorization", `Bearer ${firstUser.accessToken}`)
+      .send({ title: "不可删除项目" })
+      .expect(201);
+
+    const projectId = createRes.body.data.project.id as string;
+
+    await request(app)
+      .delete(`/api/projects/${projectId}`)
+      .set("Authorization", `Bearer ${secondUser.accessToken}`)
+      .expect(404);
+  });
+
   it("prevents users from reading another user's project", async () => {
     const firstUser = await registerAndLogin();
     const secondUser = await registerAndLogin();

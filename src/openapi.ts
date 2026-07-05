@@ -293,6 +293,20 @@ export function generateOpenApiSpec(): OpenApiSpec {
           ],
           responses: ok("项目详情"),
         },
+        delete: {
+          tags: ["项目"],
+          summary: "删除当前用户项目",
+          security: bearerAuth(),
+          parameters: [
+            {
+              name: "projectId",
+              in: "path",
+              required: true,
+              schema: zodInputSchema(projectIdParamsSchema.shape.params.shape.projectId),
+            },
+          ],
+          responses: ok("删除项目成功"),
+        },
       },
       "/api/documents/{documentId}": {
         get: {

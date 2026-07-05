@@ -4,7 +4,12 @@
 import { createHttpError } from "../../middlewares/error.middleware.js";
 import { getValidated } from "../../utils/getValidated.js";
 import { success } from "../../utils/response.js";
-import { createProjectForUser, findProjectForUser, listProjectsForUser } from "./workspace.service.js";
+import {
+  createProjectForUser,
+  deleteProjectForUser,
+  findProjectForUser,
+  listProjectsForUser,
+} from "./workspace.service.js";
 
 import type { ValidatedCreateProjectSchema, ValidatedProjectIdParamsSchema } from "./workspace.schema.js";
 import type { Request, Response } from "express";
@@ -37,4 +42,15 @@ export async function getProject(req: Request, res: Response) {
   }
 
   return success(res, "获取项目成功", { project });
+}
+
+export async function deleteProject(req: Request, res: Response) {
+  const { params } = getValidated<ValidatedProjectIdParamsSchema>(req);
+  const deleted = await deleteProjectForUser(currentUserId(req), params.projectId);
+
+  if (!deleted) {
+    throw createHttpError(404, "项目不存在");
+  }
+
+  return success(res, "删除项目成功", null);
 }
