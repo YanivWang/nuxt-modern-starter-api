@@ -192,6 +192,13 @@ cross-env APP_ENV=test NODE_ENV=test vitest run --config vitest.integration.conf
 - 登出后 access token 被黑名单拒绝。
 - 登出后 refresh token 被撤销。
 
+当前 `product-foundation.integration.test.ts` 覆盖：
+
+- 标准 `{ code, message, data }` 响应 envelope。
+- 登录用户创建项目，并在同一事务中初始化关联 Document。
+- 列出、读取项目详情，以及读取/保存自己的文档。
+- 跨用户无法读取他人的项目或文档（当前集成测试覆盖 GET 隔离，PATCH 越权由 service 层按 `ownerId` 过滤并在代码审查中约束）。
+
 ## 环境变量测试
 
 命令：

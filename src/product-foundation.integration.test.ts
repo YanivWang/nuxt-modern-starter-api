@@ -181,4 +181,22 @@ describe("product foundation API", () => {
       .set("Authorization", `Bearer ${secondUser.accessToken}`)
       .expect(404);
   });
+
+  it("prevents users from reading another user's project", async () => {
+    const firstUser = await registerAndLogin();
+    const secondUser = await registerAndLogin();
+
+    const createRes = await request(app)
+      .post("/api/projects")
+      .set("Authorization", `Bearer ${firstUser.accessToken}`)
+      .send({ title: "私有项目" })
+      .expect(201);
+
+    const projectId = createRes.body.data.project.id as string;
+
+    await request(app)
+      .get(`/api/projects/${projectId}`)
+      .set("Authorization", `Bearer ${secondUser.accessToken}`)
+      .expect(404);
+  });
 });

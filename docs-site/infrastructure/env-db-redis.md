@@ -71,6 +71,17 @@ cp .env.production.example .env.production
 | `TRUST_PROXY`        | Express trust proxy 配置       |
 | `REQUEST_BODY_LIMIT` | JSON/urlencoded 请求体大小限制 |
 
+开发环境示例（与 `nuxt-modern-starter` 联调）：
+
+```env
+CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173
+```
+
+- `http://localhost:3000`：Nuxt 前端开发地址。
+- `http://localhost:5173`：VitePress 文档站本地预览地址。
+
+修改 `.env.development` 后，Docker 开发环境需要 `--force-recreate api` 才会重新加载 CORS 配置。
+
 部署在 Nginx 或负载均衡后面时，通常需要 `TRUST_PROXY=1`，否则 `req.ip` 和限流客户端识别会退化为代理 IP。
 
 ### 限流
@@ -151,6 +162,9 @@ initModels(sequelize)
   -> defineUserModel()
   -> defineUserProfileModel()
   -> defineUserRefreshTokenModel()
+  -> defineWorkspaceModel()
+  -> defineProjectModel()
+  -> defineDocumentModel()
 ```
 
 然后导出：
@@ -159,6 +173,9 @@ initModels(sequelize)
 - `User`
 - `UserProfile`
 - `UserRefreshToken`
+- `Workspace`
+- `Project`
+- `Document`
 
 ## 迁移策略
 
@@ -222,6 +239,18 @@ pnpm db:migrate:prod
 - `userId` 有索引。
 - `expiresAt` 有索引。
 - 删除用户时级联删除 token 会话。
+
+### Workspaces
+
+保存用户拥有的工作区。当前每个用户有一个 `type = personal` 的默认空间。
+
+### Projects
+
+保存 PPT 项目元数据，关联到工作区与用户。
+
+### Documents
+
+保存编辑器文档内容，与项目一对一关联。
 
 ## Redis 生命周期
 

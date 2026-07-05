@@ -58,8 +58,30 @@ pnpm docker:dev
 
 - 本机 API：`http://localhost:3000`
 - Docker 网关：`http://localhost:2026`
-- Swagger：`http://localhost:3000/api-docs`
-- OpenAPI YAML：`http://localhost:3000/openapi.yaml`
+- Swagger：`http://localhost:3000/api-docs` 或经网关 `http://localhost:2026/api-docs`
+- OpenAPI YAML：`http://localhost:3000/openapi.yaml` 或 `http://localhost:2026/openapi.yaml`
+
+## 与 Nuxt 前端联调
+
+若同时开发 `nuxt-modern-starter` 前端，请保持以下配置一致：
+
+| 配置项 | 推荐值 |
+| ------ | ------ |
+| 前端 `NUXT_PUBLIC_API_BASE` | `http://localhost:2026/api` |
+| 后端 `CORS_ORIGINS` | 包含 `http://localhost:3000` |
+| 前端开发地址 | `http://localhost:3000` |
+| API Docker 网关 | `http://localhost:2026` |
+
+修改 `.env.development` 后需要重建 API 容器，而不是仅 `restart`：
+
+```bash
+docker compose --env-file .env.development \
+  -f docker/docker-compose.base.yaml \
+  -f docker/docker-compose.dev.yaml \
+  up -d --force-recreate api
+```
+
+联调验证路径：登录 → `/app/workspace` 列表/创建 → `/app/workspace/:projectId/edit` 保存文档 → `/app/workspace/:projectId/preview` HTML 预览。
 
 ## 文档站命令
 

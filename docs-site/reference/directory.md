@@ -91,6 +91,27 @@
 | `src/modules/upload/large-upload.controller.ts` | 大文件上传控制器     |
 | `src/modules/upload/large-upload.service.ts`    | 大文件上传核心业务   |
 
+## workspace 模块
+
+| 路径                                         | 职责                     |
+| -------------------------------------------- | ------------------------ |
+| `src/modules/workspace/workspace.routes.ts`    | 项目列表/创建/详情路由   |
+| `src/modules/workspace/workspace.schema.ts`    | 项目接口 Zod schema      |
+| `src/modules/workspace/workspace.controller.ts` | 项目 HTTP 控制器      |
+| `src/modules/workspace/workspace.service.ts` | 默认空间、项目聚合与 DTO |
+| `src/modules/workspace/workspace.model.ts`   | Workspaces 模型          |
+| `src/modules/workspace/project.model.ts`     | Projects 模型            |
+
+## document 模块
+
+| 路径                                       | 职责               |
+| ------------------------------------------ | ------------------ |
+| `src/modules/document/document.routes.ts`  | 文档读取/保存路由  |
+| `src/modules/document/document.schema.ts`  | 文档接口 Zod schema |
+| `src/modules/document/document.controller.ts` | 文档 HTTP 控制器 |
+| `src/modules/document/document.service.ts` | 文档读写与归属校验 |
+| `src/modules/document/document.model.ts`   | Documents 模型     |
+
 ## routes
 
 | 路径                          | 职责                  |
@@ -109,6 +130,7 @@
 | ----------------------------------------------------------------- | -------------------------- |
 | `src/migrations/20260704120000-create-users-and-user-profiles.ts` | 创建 Users 和 UserProfiles |
 | `src/migrations/20260704123000-create-user-refresh-tokens.ts`     | 创建 UserRefreshTokens     |
+| `src/migrations/20260705150000-create-workspaces-projects-documents.ts` | 创建 Workspaces、Projects、Documents |
 
 ## utils
 
@@ -151,10 +173,8 @@
 
 | 路径                             | 职责                 |
 | -------------------------------- | -------------------- |
-| `docs/openapi.yaml`              | OpenAPI 生成物       |
-| `docs/迁移计划.md`               | 迁移计划文档         |
-| `docs/superpowers/plans/`        | 项目计划文档         |
-| `docs-site/`                     | VitePress 文档站源码 |
+| `docs/openapi.yaml` | OpenAPI 生成物       |
+| `docs-site/`        | VitePress 文档站源码 |
 | `docs-site/.vitepress/config.ts` | VitePress 配置       |
 
 ## 不应手写的内容

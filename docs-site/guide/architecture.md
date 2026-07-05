@@ -21,6 +21,10 @@ src/modules/
     当前用户、用户扩展资料、头像字段同步
   upload/
     普通图片上传、大文件分片上传、秒传索引
+  workspace/
+    默认个人空间、项目列表、项目创建
+  document/
+    编辑器文档读取与保存
 
 src/db.ts / src/redis.ts / src/env.ts / src/migrator.ts
   负责配置、数据库、Redis 和迁移等基础设施
@@ -65,7 +69,7 @@ helmet / Swagger CSP 例外
   -> compression
   -> json/urlencoded body parser
   -> Swagger
-  -> /api auth/user/upload
+  -> /api auth/user/workspace/document/upload
   -> 404
   -> errorMiddleware
 ```
@@ -153,13 +157,39 @@ UserRefreshTokens
   replacedByTokenHash
   userAgent
   ipAddress
+
+Workspaces
+  id
+  ownerId -> Users.id
+  name
+  type
+
+Projects
+  id
+  workspaceId -> Workspaces.id
+  ownerId -> Users.id
+  title
+  description
+  status
+  slideCount
+  accent
+
+Documents
+  id
+  projectId -> Projects.id
+  ownerId -> Users.id
+  title
+  content
 ```
 
 关系：
 
 - `Users` 与 `UserProfiles` 是一对一。
 - `Users` 与 `UserRefreshTokens` 是一对多。
-- 删除用户时，关联资料和 refresh token 会级联删除。
+- `Users` 与 `Workspaces` 是一对多；当前每个用户有一个 `type = personal` 的默认空间。
+- `Workspaces` 与 `Projects` 是一对多。
+- `Projects` 与 `Documents` 是一对一。
+- 删除用户时，关联资料、refresh token、空间、项目和文档会级联删除。
 
 头像字段需要注意：
 
@@ -182,7 +212,7 @@ OpenAPI 由 `src/openapi.ts` 生成，`docs/openapi.yaml` 是生成物。修改�
 
 - 单体 Express API 服务。
 - 普通 Web App 后端。
-- 登录态、用户资料、文件上传类需求。
+- 登录态、用户资料、工作台项目、编辑器文档、文件上传类需求。
 - 单实例或小规模部署。
 - 后续按业务裁剪或扩展。
 
