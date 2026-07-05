@@ -2,7 +2,7 @@
 layout: home
 
 hero:
-  name: Express Modern Starter
+  name: Nuxt Modern Starter API
   text: 现代 Express API 服务脚手架
   tagline: 从入口链路、技术栈、功能模块到部署运维，一套给新人完整理解项目的文档。
   actions:
@@ -36,7 +36,7 @@ features:
 
 ## 项目一句话
 
-`express-modern-starter` 是一个 TypeScript ESM 后端模板：它把 Express 的路由、中间件、认证、数据库迁移、接口文档、上传、测试、容器化部署整理成一套可裁剪的基础工程。
+`nuxt-modern-starter-api` 是一个 TypeScript ESM 后端模板：它把 Express 的路由、中间件、认证、数据库迁移、接口文档、上传、测试、容器化部署整理成一套可裁剪的基础工程。
 
 ## 文档和源码的关系
 

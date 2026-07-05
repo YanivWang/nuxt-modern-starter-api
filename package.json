@@ -1,5 +1,5 @@
 {
-  "name": "express-modern-starter",
+  "name": "nuxt-modern-starter-api",
   "version": "1.0.0",
   "private": true,
   "type": "module",

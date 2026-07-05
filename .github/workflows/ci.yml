@@ -17,7 +17,7 @@ jobs:
         image: mysql:8.4
         env:
           MYSQL_ROOT_PASSWORD: root_password_change_me
-          MYSQL_DATABASE: express_modern_starter_test
+          MYSQL_DATABASE: nuxt_modern_starter_api_test
           MYSQL_USER: app_user
           MYSQL_PASSWORD: app_password_123456
         ports:

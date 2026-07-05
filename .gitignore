@@ -10,3 +10,4 @@ uploads/
 coverage/
 .pnpm-store/
 docs-site/.vitepress/dist/
+docs-site/.vitepress/cache/

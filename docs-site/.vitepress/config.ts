@@ -1,8 +1,8 @@
 import { defineConfig } from "vitepress";
 
 export default defineConfig({
-  title: "Express Modern Starter",
-  description: "Express Modern Starter 项目架构、技术栈、模块与部署文档",
+  title: "Nuxt Modern Starter API",
+  description: "Nuxt Modern Starter API 项目架构、技术栈、模块与部署文档",
   lang: "zh-CN",
   cleanUrls: true,
   lastUpdated: true,
@@ -55,7 +55,7 @@ export default defineConfig({
       },
     ],
     footer: {
-      message: "Express Modern Starter 文档站",
+      message: "Nuxt Modern Starter API 文档站",
       copyright: "基于当前仓库源码维护",
     },
   },

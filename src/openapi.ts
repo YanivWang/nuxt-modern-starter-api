@@ -151,7 +151,7 @@ export function generateOpenApiSpec(): OpenApiSpec {
   return {
     openapi: "3.1.0",
     info: {
-      title: "Express Modern Starter API",
+      title: "Nuxt Modern Starter API",
       version: "1.0.0",
       description: "独立 Express API 服务脚手架，保留 auth、user、health、upload 和 large-upload 通用能力。",
     },

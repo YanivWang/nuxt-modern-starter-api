@@ -1,32 +1,32 @@
 # 文件职责：生产环境 Compose 覆盖配置。
 # 为 MySQL、Redis、uploads 和 .data 配置持久化卷，并通过 Nginx 网关暴露唯一外部入口。
-name: express-modern-starter-prod
+name: nuxt-modern-starter-api-prod
 
 services:
   mysql:
-    container_name: express-modern-starter-mysql
+    container_name: nuxt-modern-starter-api-mysql
     volumes:
       - mysql_data:/var/lib/mysql
 
   redis:
-    container_name: express-modern-starter-redis
+    container_name: nuxt-modern-starter-api-redis
     volumes:
       - redis_data:/data
 
   gateway:
     image: nginx:alpine
-    container_name: express-modern-starter-gateway
+    container_name: nuxt-modern-starter-api-gateway
     volumes:
       - ./nginx/gateway.docker.conf:/etc/nginx/nginx.conf:ro
     ports:
       - "${GATEWAY_HOST_PORT:-2026}:2026"
     depends_on:
-      rest-api:
+      api:
         condition: service_healthy
     restart: unless-stopped
 
-  rest-api:
-    container_name: express-modern-starter-rest-api
+  api:
+    container_name: nuxt-modern-starter-api-app
     environment:
       APP_ENV: production
       NODE_ENV: production

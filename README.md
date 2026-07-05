@@ -1,4 +1,4 @@
-# Express Modern Starter
+# Nuxt Modern Starter API
 
 独立 Express API 服务脚手架，基于参考项目 `apps/backend/rest-api` 提炼，保留普通 Web App 后端常用能力：auth、user、health、Swagger、MySQL、可选 Redis、JWT access/refresh token、文件上传和 Docker 部署。
 
@@ -230,8 +230,8 @@ pnpm docker:prod
 pnpm docker:prod:down
 ```
 
-生产 Compose 会启动 MySQL、Redis、REST API 和 Nginx 网关。`rest-api` 暴露 `/health` 健康检查，网关会等待 API healthy 后再启动。应用还提供 `/ready`，用于检查 MySQL 和启用状态下的 Redis；当 `AUTH_TOKEN_BLACKLIST_ENABLED=false` 时，Redis 检查会标记为 `disabled`。
-生产 Compose 默认只把 Nginx 网关映射到宿主机 `GATEWAY_HOST_PORT`（默认 `2026`），`rest-api` 的 3000 端口只在 Compose 网络内部使用。
+生产 Compose 会启动 MySQL、Redis、API 应用和 Nginx 网关。`api` 服务暴露 `/health` 健康检查，网关会等待 API healthy 后再启动。应用还提供 `/ready`，用于检查 MySQL 和启用状态下的 Redis；当 `AUTH_TOKEN_BLACKLIST_ENABLED=false` 时，Redis 检查会标记为 `disabled`。
+生产 Compose 默认只把 Nginx 网关映射到宿主机 `GATEWAY_HOST_PORT`（默认 `2026`），`api` 的 3000 端口只在 Compose 网络内部使用。
 
 ### 部署约定
 

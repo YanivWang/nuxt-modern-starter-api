@@ -13,7 +13,7 @@ docker/
     开发镜像，安装 pnpm 和 native 依赖构建工具
 
   docker-compose.base.yaml
-    MySQL、Redis、rest-api 公共定义
+    MySQL、Redis、api 公共定义
 
   docker-compose.dev.yaml
     开发覆盖配置
@@ -65,7 +65,7 @@ pnpm docker:prod
 
 - `mysql`
 - `redis`
-- `rest-api`
+- `api`
 
 ### MySQL
 
@@ -103,7 +103,7 @@ redis:7-alpine
 redis-cli -a "$REDIS_PASSWORD" ping
 ```
 
-### rest-api
+### api
 
 公共配置中：
 
@@ -118,7 +118,7 @@ redis-cli -a "$REDIS_PASSWORD" ping
 
 `docker-compose.dev.yaml` 的特点：
 
-- 项目名：`express-modern-starter-dev`
+- 项目名：`nuxt-modern-starter-api-dev`
 - MySQL 暴露宿主机 `3306`
 - Redis 暴露宿主机 `6379`
 - API 暴露 Node 调试端口 `9229`
@@ -137,13 +137,13 @@ redis-cli -a "$REDIS_PASSWORD" ping
 
 `docker-compose.yaml` 的特点：
 
-- 项目名：`express-modern-starter-prod`
+- 项目名：`nuxt-modern-starter-api-prod`
 - MySQL 数据持久化到 volume。
 - Redis 数据持久化到 volume。
 - `uploads` 持久化到 volume。
 - `.data` 持久化到 volume。
 - 只通过 Nginx 网关暴露宿主机端口。
-- `rest-api` 的 `3000` 只在 Compose 网络内部使用。
+- `api` 的 `3000` 只在 Compose 网络内部使用。
 
 生产环境暴露：
 
@@ -202,7 +202,7 @@ docker/nginx/gateway.docker.conf
 反向代理到：
 
 ```text
-rest-api:3000
+api:3000
 ```
 
 转发路径：
