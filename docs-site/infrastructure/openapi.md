@@ -64,14 +64,15 @@ OpenAPI components 中声明：
 - `SuccessBody`
 - `ErrorBody`
 
-成功响应允许 `additionalProperties: true`，因为业务字段会追加在 `{ code, msg }` 同一层。
+成功响应使用 `{ code, message, data }`，业务字段放在 `data` 内。
 
 错误响应使用 `additionalProperties: false`，默认只返回：
 
 ```json
 {
   "code": 400,
-  "msg": "请求参数错误"
+  "message": "请求参数错误",
+  "data": null
 }
 ```
 

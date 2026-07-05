@@ -48,9 +48,9 @@ async function registerAndLogin(username = uniqueUsername(), password = "passwor
   return {
     username,
     password,
-    token: loginRes.body.token as string,
-    accessToken: loginRes.body.accessToken as string,
-    refreshToken: loginRes.body.refreshToken as string,
+    token: loginRes.body.data.token as string,
+    accessToken: loginRes.body.data.accessToken as string,
+    refreshToken: loginRes.body.data.refreshToken as string,
     setCookie: Array.isArray(rawSetCookie) ? rawSetCookie : rawSetCookie ? [rawSetCookie] : undefined,
   };
 }
@@ -85,7 +85,8 @@ describe("auth and current user API", () => {
     const duplicateRes = await request(app).post("/api/register").send({ username, password }).expect(409);
     expect(duplicateRes.body).toMatchObject({
       code: 409,
-      msg: "用户名已存在",
+      message: "用户名已存在",
+      data: null,
     });
   });
 
@@ -97,12 +98,12 @@ describe("auth and current user API", () => {
     expect(token).toBe(accessToken);
 
     const meRes = await request(app).get("/api/me").set("Authorization", `Bearer ${accessToken}`).expect(200);
-    expect(meRes.body.user).toMatchObject({
+    expect(meRes.body.data.user).toMatchObject({
       username,
       avatar: null,
       nickname: null,
     });
-    expect(meRes.body.user.password).toBeUndefined();
+    expect(meRes.body.data.user.password).toBeUndefined();
   });
 
   it("accepts the access token from an httpOnly cookie", async () => {
@@ -116,7 +117,7 @@ describe("auth and current user API", () => {
       .get("/api/me")
       .set("Cookie", setCookie ?? [])
       .expect(200);
-    expect(meRes.body.user).toMatchObject({ username });
+    expect(meRes.body.data.user).toMatchObject({ username });
   });
 
   it("requires a CSRF token for unsafe cookie-authenticated requests", async () => {
@@ -144,18 +145,18 @@ describe("auth and current user API", () => {
 
     const refreshRes = await request(app).post("/api/refresh").send({ refreshToken }).expect(200);
 
-    expect(refreshRes.body.accessToken).toEqual(expect.any(String));
-    expect(refreshRes.body.refreshToken).toEqual(expect.any(String));
-    expect(refreshRes.body.refreshToken).not.toBe(refreshToken);
-    expect(refreshRes.body.token).toBe(refreshRes.body.accessToken);
+    expect(refreshRes.body.data.accessToken).toEqual(expect.any(String));
+    expect(refreshRes.body.data.refreshToken).toEqual(expect.any(String));
+    expect(refreshRes.body.data.refreshToken).not.toBe(refreshToken);
+    expect(refreshRes.body.data.token).toBe(refreshRes.body.data.accessToken);
 
     await request(app).post("/api/refresh").send({ refreshToken }).expect(401);
 
     const meRes = await request(app)
       .get("/api/me")
-      .set("Authorization", `Bearer ${refreshRes.body.accessToken as string}`)
+      .set("Authorization", `Bearer ${refreshRes.body.data.accessToken as string}`)
       .expect(200);
-    expect(meRes.body.user).toMatchObject({ username });
+    expect(meRes.body.data.user).toMatchObject({ username });
   });
 
   it("rejects current user requests without a token", async () => {
@@ -163,7 +164,8 @@ describe("auth and current user API", () => {
 
     expect(res.body).toMatchObject({
       code: 401,
-      msg: "未登录或无效登录凭证",
+      message: "未登录或无效登录凭证",
+      data: null,
     });
   });
 

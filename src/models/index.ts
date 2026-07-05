@@ -5,6 +5,9 @@
 import { defineUserProfileModel } from "../modules/user/user-profile.model.js";
 import { defineUserRefreshTokenModel } from "../modules/auth/user-refresh-token.model.js";
 import { defineUserModel } from "../modules/user/user.model.js";
+import { defineDocumentModel } from "../modules/document/document.model.js";
+import { defineProjectModel } from "../modules/workspace/project.model.js";
+import { defineWorkspaceModel } from "../modules/workspace/workspace.model.js";
 
 import type { Sequelize } from "sequelize";
 
@@ -12,6 +15,9 @@ export function initModels(sequelize: Sequelize) {
   const User = defineUserModel(sequelize);
   const UserProfile = defineUserProfileModel(sequelize, User);
   const UserRefreshToken = defineUserRefreshTokenModel(sequelize, User);
+  const Workspace = defineWorkspaceModel(sequelize, User);
+  const Project = defineProjectModel(sequelize, User, Workspace);
+  const Document = defineDocumentModel(sequelize, User, Project);
 
-  return { User, UserProfile, UserRefreshToken };
+  return { User, UserProfile, UserRefreshToken, Workspace, Project, Document };
 }

@@ -97,8 +97,10 @@ uploads/common/<年>/<月>/
 ```json
 {
   "code": 200,
-  "msg": "上传成功",
-  "urls": ["/uploads/common/2026/07/xxx.webp"]
+  "message": "上传成功",
+  "data": {
+    "urls": ["/uploads/common/2026/07/xxx.webp"]
+  }
 }
 ```
 

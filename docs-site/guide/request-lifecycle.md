@@ -140,7 +140,7 @@ Express 4 默认不会自动捕获异步 controller 中 rejected Promise。
 `errorMiddleware` 负责把不同来源的错误统一成响应：
 
 ```json
-{ "code": 400, "msg": "请求参数错误" }
+{ "code": 400, "message": "请求参数错误", "data": null }
 ```
 
 特殊处理：
@@ -159,21 +159,24 @@ Express 4 默认不会自动捕获异步 controller 中 rejected Promise。
 ```json
 {
   "code": 200,
-  "msg": "ok"
+  "message": "ok",
+  "data": null
 }
 ```
 
-带业务数据时，字段追加在同一层：
+带业务数据时，字段放在 `data` 内：
 
 ```json
 {
   "code": 200,
-  "msg": "获取当前用户成功",
-  "user": {
-    "id": 1,
-    "username": "demo",
-    "avatar": null,
-    "nickname": null
+  "message": "获取当前用户成功",
+  "data": {
+    "user": {
+      "id": 1,
+      "username": "demo",
+      "avatar": null,
+      "nickname": null
+    }
   }
 }
 ```
@@ -183,7 +186,8 @@ Express 4 默认不会自动捕获异步 controller 中 rejected Promise。
 ```json
 {
   "code": 401,
-  "msg": "未登录或无效登录凭证"
+  "message": "未登录或无效登录凭证",
+  "data": null
 }
 ```
 

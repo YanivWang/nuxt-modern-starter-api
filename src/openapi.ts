@@ -10,6 +10,8 @@ import {
   largeUploadIdParamsSchema,
   largeUploadInitSchema,
 } from "./modules/upload/large-upload.schema.js";
+import { createProjectSchema, projectIdParamsSchema } from "./modules/workspace/workspace.schema.js";
+import { documentIdParamsSchema, patchDocumentSchema } from "./modules/document/document.schema.js";
 import { loginSchema, logoutSchema, refreshSchema, registerSchema } from "./modules/auth/auth.schema.js";
 import { patchMyProfileSchema } from "./modules/user/user-profile.schema.js";
 
@@ -115,7 +117,7 @@ function schemaRef(name: string): OpenApiSchema {
 }
 
 function ok(description: string) {
-  // 当前 API 响应统一是 { code, msg, ... }；具体业务字段通过 additionalProperties 承载。
+  // 当前 API 响应统一是 { code, message, data }；具体业务字段放在 data 内。
   return {
     "200": jsonResponse(description, schemaRef("SuccessBody")),
     "400": jsonResponse("请求参数错误", schemaRef("ErrorBody")),
@@ -172,18 +174,20 @@ export function generateOpenApiSpec(): OpenApiSpec {
           type: "object",
           properties: {
             code: { type: "integer" },
-            msg: { type: "string" },
+            message: { type: "string" },
+            data: {},
           },
-          required: ["code", "msg"],
-          additionalProperties: true,
+          required: ["code", "message", "data"],
+          additionalProperties: false,
         },
         ErrorBody: {
           type: "object",
           properties: {
             code: { type: "integer" },
-            msg: { type: "string" },
+            message: { type: "string" },
+            data: { type: "null" },
           },
-          required: ["code", "msg"],
+          required: ["code", "message", "data"],
           additionalProperties: false,
         },
       },
@@ -257,6 +261,68 @@ export function generateOpenApiSpec(): OpenApiSpec {
           security: bearerAuth(),
           requestBody: jsonRequestBody(patchMyProfileSchema.shape.body),
           responses: ok("更新当前用户扩展资料"),
+        },
+      },
+      "/api/projects": {
+        get: {
+          tags: ["项目"],
+          summary: "获取当前用户项目列表",
+          security: bearerAuth(),
+          responses: ok("当前用户项目列表"),
+        },
+        post: {
+          tags: ["项目"],
+          summary: "创建项目并初始化文档",
+          security: bearerAuth(),
+          requestBody: jsonRequestBody(createProjectSchema.shape.body),
+          responses: ok("创建项目成功"),
+        },
+      },
+      "/api/projects/{projectId}": {
+        get: {
+          tags: ["项目"],
+          summary: "获取当前用户项目详情",
+          security: bearerAuth(),
+          parameters: [
+            {
+              name: "projectId",
+              in: "path",
+              required: true,
+              schema: zodInputSchema(projectIdParamsSchema.shape.params.shape.projectId),
+            },
+          ],
+          responses: ok("项目详情"),
+        },
+      },
+      "/api/documents/{documentId}": {
+        get: {
+          tags: ["文档"],
+          summary: "获取当前用户文档",
+          security: bearerAuth(),
+          parameters: [
+            {
+              name: "documentId",
+              in: "path",
+              required: true,
+              schema: zodInputSchema(documentIdParamsSchema.shape.params.shape.documentId),
+            },
+          ],
+          responses: ok("文档详情"),
+        },
+        patch: {
+          tags: ["文档"],
+          summary: "保存当前用户文档",
+          security: bearerAuth(),
+          parameters: [
+            {
+              name: "documentId",
+              in: "path",
+              required: true,
+              schema: zodInputSchema(documentIdParamsSchema.shape.params.shape.documentId),
+            },
+          ],
+          requestBody: jsonRequestBody(patchDocumentSchema.shape.body),
+          responses: ok("保存文档成功"),
         },
       },
       "/api/uploads": {

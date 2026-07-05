@@ -49,10 +49,10 @@ describe("openapi generation", () => {
       maxLength: 32,
       pattern: "^[a-fA-F0-9]{32}$",
     });
-    expect(spec.components.schemas.SuccessBody.required).toEqual(["code", "msg"]);
+    expect(spec.components.schemas.SuccessBody.required).toEqual(["code", "message", "data"]);
     expect(spec.components.schemas.ErrorBody).toMatchObject({
       additionalProperties: false,
-      required: ["code", "msg"],
+      required: ["code", "message", "data"],
     });
     expect(spec.paths["/api/register"].post.responses["400"].content?.["application/json"].schema).toMatchObject({
       $ref: "#/components/schemas/ErrorBody",

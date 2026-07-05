@@ -133,8 +133,10 @@ GET /api/me
 ```json
 {
   "code": 200,
-  "msg": "获取用户扩展资料成功",
-  "profile": null
+  "message": "获取用户扩展资料成功",
+  "data": {
+    "profile": null
+  }
 }
 ```
 

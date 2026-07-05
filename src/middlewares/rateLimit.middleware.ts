@@ -1,6 +1,6 @@
 /**
  * 文件职责：配置全局限流和认证接口限流。
- * 限流响应也走项目统一 { code, msg } 格式，探针路径默认跳过。
+ * 限流响应也走项目统一 { code, message, data } 格式，探针路径默认跳过。
  */
 import rateLimit from "express-rate-limit";
 

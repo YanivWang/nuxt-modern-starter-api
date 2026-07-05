@@ -1,6 +1,6 @@
 /**
  * 文件职责：统一错误类型与 Express 错误处理中间件。
- * 把业务错误、Multer 错误、唯一键冲突和未知异常统一转换为 { code, msg } 响应，并写入结构化日志。
+ * 把业务错误、Multer 错误、唯一键冲突和未知异常统一转换为 { code, message, data } 响应，并写入结构化日志。
  */
 import multer from "multer";
 import { UniqueConstraintError } from "sequelize";

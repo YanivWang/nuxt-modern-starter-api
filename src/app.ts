@@ -14,9 +14,11 @@ import { httpRequestLogMiddleware } from "./middlewares/httpRequestLog.middlewar
 import { globalRateLimitMiddleware } from "./middlewares/rateLimit.middleware.js";
 import { requestIdMiddleware } from "./middlewares/requestId.middleware.js";
 import authRoutes from "./modules/auth/auth.routes.js";
+import documentRoutes from "./modules/document/document.routes.js";
 import healthRoutes from "./routes/health.routes.js";
 import uploadRoutes from "./modules/upload/upload.routes.js";
 import userRoutes from "./modules/user/user.routes.js";
+import workspaceRoutes from "./modules/workspace/workspace.routes.js";
 import { setupSwagger } from "./swagger.js";
 
 const app = express();
@@ -56,6 +58,8 @@ setupSwagger(app);
 // 业务 API 统一挂在 /api 下；路由内部决定是否需要 authMiddleware。
 app.use("/api", authRoutes);
 app.use("/api", userRoutes);
+app.use("/api", workspaceRoutes);
+app.use("/api", documentRoutes);
 app.use("/api", uploadRoutes);
 
 app.use((_req, _res, next) => {
