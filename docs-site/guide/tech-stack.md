@@ -83,6 +83,9 @@ MySQL 是主业务数据库。Sequelize 负责：
 - `Users`：登录账号、密码哈希、头像字段。
 - `UserProfiles`：用户扩展资料。
 - `UserRefreshTokens`：refresh token 会话。
+- `Workspaces`：用户工作区，默认 `type = personal`。
+- `Projects`：项目元数据，关联工作区与用户。
+- `Documents`：编辑器文档内容，与项目一对一关联。
 
 ### Umzug
 

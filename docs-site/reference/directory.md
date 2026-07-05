@@ -95,7 +95,7 @@
 
 | 路径                                         | 职责                     |
 | -------------------------------------------- | ------------------------ |
-| `src/modules/workspace/workspace.routes.ts`    | 项目列表/创建/详情路由   |
+| `src/modules/workspace/workspace.routes.ts`    | 项目列表/创建/详情/删除路由 |
 | `src/modules/workspace/workspace.schema.ts`    | 项目接口 Zod schema      |
 | `src/modules/workspace/workspace.controller.ts` | 项目 HTTP 控制器      |
 | `src/modules/workspace/workspace.service.ts` | 默认空间、项目聚合与 DTO |

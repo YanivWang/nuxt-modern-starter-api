@@ -232,6 +232,8 @@ POST /api/logout
 
 - `/api/me`
 - `/api/me/profile`
+- `/api/projects`
+- `/api/documents/:documentId`
 - `/api/uploads`
 - `/api/uploads/large/*`
 

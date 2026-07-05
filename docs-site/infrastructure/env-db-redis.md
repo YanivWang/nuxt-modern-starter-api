@@ -244,9 +244,21 @@ pnpm db:migrate:prod
 
 保存用户拥有的工作区。当前每个用户有一个 `type = personal` 的默认空间。
 
+关键约束：
+
+- `ownerId` 指向 `Users.id`。
+- `(ownerId, type)` 唯一，保证同一用户每种类型只有一个工作区。
+- 删除用户时级联删除工作区。
+
 ### Projects
 
-保存 PPT 项目元数据，关联到工作区与用户。
+保存项目元数据，关联到工作区与用户。
+
+关键约束：
+
+- `workspaceId` 指向 `Workspaces.id`。
+- `ownerId` 指向 `Users.id`。
+- 删除项目时级联删除关联 Document。
 
 ### Documents
 

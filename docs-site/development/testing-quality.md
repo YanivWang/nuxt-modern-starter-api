@@ -197,7 +197,8 @@ cross-env APP_ENV=test NODE_ENV=test vitest run --config vitest.integration.conf
 - 标准 `{ code, message, data }` 响应 envelope。
 - 登录用户创建项目，并在同一事务中初始化关联 Document。
 - 列出、读取项目详情，以及读取/保存自己的文档。
-- 跨用户无法读取他人的项目或文档（当前集成测试覆盖 GET 隔离，PATCH 越权由 service 层按 `ownerId` 过滤并在代码审查中约束）。
+- 删除自己的项目，并验证关联 Document 被级联清理。
+- 跨用户无法读取、删除他人的项目或文档（当前集成测试覆盖 GET/DELETE 隔离，PATCH 越权由 service 层按 `ownerId` 过滤并在代码审查中约束）。
 
 ## 环境变量测试
 

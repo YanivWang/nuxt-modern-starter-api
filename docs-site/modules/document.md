@@ -40,6 +40,11 @@ src/modules/document/
 }
 ```
 
+字段校验：
+
+- `title`：若提供，trim 后 1～160 字符。
+- `content`：若提供，最大 10,000,000 字符（约 10MB 文本）。
+
 成功响应示例：
 
 ```json
@@ -63,7 +68,7 @@ src/modules/document/
 - 文档与项目是一对一关系，`Documents.projectId` 唯一。
 - 读取和保存都按 `ownerId = req.user.id` 过滤；其他用户访问返回 `404`。
 - 保存文档时会将 Document 标题写回关联 Project，使项目标题与文档标题保持一致。
-- 文档内容当前存储为 TEXT，适合编辑器 HTML；后续可扩展版本历史或协作能力。
+- 文档内容当前存储为 LONGTEXT，适合编辑器 HTML；后续可扩展版本历史或协作能力。
 
 ## 与前端协作
 

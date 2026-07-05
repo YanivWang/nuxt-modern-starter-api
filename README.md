@@ -85,7 +85,7 @@ server.ts
 | `src/modules/auth/`                | 注册、登录、access/refresh token、Cookie/CSRF、登出黑名单         |
 | `src/modules/user/`                | `/api/me`、用户资料和头像字段同步                                 |
 | `src/modules/upload/`              | 普通图片上传、头像上传、大文件分片上传和秒传索引                  |
-| `src/modules/workspace/`           | 默认个人空间、项目列表与创建                                      |
+| `src/modules/workspace/`           | 默认个人空间、项目 CRUD（列表/创建/详情/删除）                    |
 | `src/modules/document/`            | 编辑器文档读取与保存                                              |
 | `src/openapi.ts`、`src/swagger.ts` | 运行时 Swagger 与 `docs/openapi.yaml` 的统一生成来源              |
 
@@ -177,7 +177,7 @@ pnpm db:migrate:prod
 pnpm test:unit
 ```
 
-只运行 API 集成测试时，可以运行 `pnpm test:integration`。`product-foundation.integration.test.ts` 覆盖项目/文档 CRUD 与跨用户读取隔离。
+只运行 API 集成测试时，可以运行 `pnpm test:integration`。`product-foundation.integration.test.ts` 覆盖项目/文档 CRUD、项目删除级联清理与跨用户读取/删除隔离。
 
 ## Web App 授权约定
 

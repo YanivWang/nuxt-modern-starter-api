@@ -22,7 +22,7 @@ src/modules/
   upload/
     普通图片上传、大文件分片上传、秒传索引
   workspace/
-    默认个人空间、项目列表、项目创建
+    默认个人空间、项目 CRUD（列表/创建/详情/删除）
   document/
     编辑器文档读取与保存
 
@@ -186,7 +186,7 @@ Documents
 
 - `Users` 与 `UserProfiles` 是一对一。
 - `Users` 与 `UserRefreshTokens` 是一对多。
-- `Users` 与 `Workspaces` 是一对多；当前每个用户有一个 `type = personal` 的默认空间。
+- `Users` 与 `Workspaces` 是一对多；当前每个用户有一个 `type = personal` 的默认空间，且 `(ownerId, type)` 唯一。
 - `Workspaces` 与 `Projects` 是一对多。
 - `Projects` 与 `Documents` 是一对一。
 - 删除用户时，关联资料、refresh token、空间、项目和文档会级联删除。
