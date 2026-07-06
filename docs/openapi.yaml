@@ -392,6 +392,111 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorBody'
+  /api/content/news:
+    get:
+      tags:
+        - 公开内容
+      summary: 获取新闻列表
+      parameters:
+        - name: locale
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - zh-CN
+              - en-US
+      responses:
+        '200':
+          description: 本地化新闻列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessBody'
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/content/pricing:
+    get:
+      tags:
+        - 公开内容
+      summary: 获取定价页内容
+      parameters:
+        - name: locale
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - zh-CN
+              - en-US
+      responses:
+        '200':
+          description: 本地化定价页内容
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessBody'
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+  /api/content/news/{slug}:
+    get:
+      tags:
+        - 公开内容
+      summary: 获取新闻详情
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: locale
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - zh-CN
+              - en-US
+      responses:
+        '200':
+          description: 本地化新闻详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessBody'
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
   /api/projects:
     get:
       tags:

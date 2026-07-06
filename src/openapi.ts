@@ -10,6 +10,7 @@ import {
   largeUploadIdParamsSchema,
   largeUploadInitSchema,
 } from "./modules/upload/large-upload.schema.js";
+import { getPricingSchema, listNewsSchema, newsSlugSchema } from "./modules/content/content.schema.js";
 import { createProjectSchema, patchProjectSchema, projectIdParamsSchema } from "./modules/workspace/workspace.schema.js";
 import { documentIdParamsSchema, patchDocumentSchema } from "./modules/document/document.schema.js";
 import { loginSchema, logoutSchema, refreshSchema, registerSchema } from "./modules/auth/auth.schema.js";
@@ -261,6 +262,57 @@ export function generateOpenApiSpec(): OpenApiSpec {
           security: bearerAuth(),
           requestBody: jsonRequestBody(patchMyProfileSchema.shape.body),
           responses: ok("更新当前用户扩展资料"),
+        },
+      },
+      "/api/content/news": {
+        get: {
+          tags: ["公开内容"],
+          summary: "获取新闻列表",
+          parameters: [
+            {
+              name: "locale",
+              in: "query",
+              required: false,
+              schema: zodInputSchema(listNewsSchema.shape.query.shape.locale),
+            },
+          ],
+          responses: ok("本地化新闻列表"),
+        },
+      },
+      "/api/content/pricing": {
+        get: {
+          tags: ["公开内容"],
+          summary: "获取定价页内容",
+          parameters: [
+            {
+              name: "locale",
+              in: "query",
+              required: false,
+              schema: zodInputSchema(getPricingSchema.shape.query.shape.locale),
+            },
+          ],
+          responses: ok("本地化定价页内容"),
+        },
+      },
+      "/api/content/news/{slug}": {
+        get: {
+          tags: ["公开内容"],
+          summary: "获取新闻详情",
+          parameters: [
+            {
+              name: "slug",
+              in: "path",
+              required: true,
+              schema: zodInputSchema(newsSlugSchema.shape.params.shape.slug),
+            },
+            {
+              name: "locale",
+              in: "query",
+              required: false,
+              schema: zodInputSchema(newsSlugSchema.shape.query.shape.locale),
+            },
+          ],
+          responses: ok("本地化新闻详情"),
         },
       },
       "/api/projects": {
