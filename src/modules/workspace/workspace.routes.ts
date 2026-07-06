@@ -6,8 +6,8 @@ import express from "express";
 import { asyncHandler } from "../../middlewares/asyncHandler.js";
 import { authMiddleware } from "../../middlewares/auth.middleware.js";
 import { validate } from "../../middlewares/validate.middleware.js";
-import { createProject, deleteProject, getProject, listProjects } from "./workspace.controller.js";
-import { createProjectSchema, projectIdParamsSchema } from "./workspace.schema.js";
+import { createProject, deleteProject, getProject, listProjects, patchProject } from "./workspace.controller.js";
+import { createProjectSchema, patchProjectSchema, projectIdParamsSchema } from "./workspace.schema.js";
 
 const router = express.Router();
 
@@ -18,6 +18,12 @@ router.get(
   authMiddleware,
   validate(projectIdParamsSchema),
   asyncHandler(getProject, "获取项目失败"),
+);
+router.patch(
+  "/projects/:projectId",
+  authMiddleware,
+  validate(patchProjectSchema),
+  asyncHandler(patchProject, "更新项目失败"),
 );
 router.delete(
   "/projects/:projectId",

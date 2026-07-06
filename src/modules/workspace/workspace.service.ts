@@ -138,6 +138,65 @@ export async function findProjectForUser(userId: number, projectId: string) {
   return project ? toProjectDto(project) : null;
 }
 
+export async function updateProjectForUser(
+  userId: number,
+  projectId: string,
+  payload: {
+    title?: string;
+    description?: string;
+  },
+) {
+  return sequelize.transaction(async (transaction) => {
+    const project = await Project.findOne({
+      where: { id: projectId, ownerId: userId },
+      include: [{ model: Document, as: "document", attributes: ["id"], required: false }],
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+
+    if (!project) return null;
+
+    const updates: {
+      title?: string;
+      description?: string | null;
+    } = {};
+
+    if (payload.title !== undefined) {
+      updates.title = payload.title;
+    }
+
+    if (payload.description !== undefined) {
+      updates.description = payload.description;
+    }
+
+    await project.update(updates, { transaction });
+
+    if (payload.title !== undefined) {
+      const document = project.get("document") as Model | null | undefined;
+
+      if (document) {
+        await Document.update(
+          { title: payload.title },
+          {
+            where: {
+              id: document.get("id"),
+              ownerId: userId,
+            },
+            transaction,
+          },
+        );
+      }
+    }
+
+    await project.reload({
+      include: [{ model: Document, as: "document", attributes: ["id"], required: false }],
+      transaction,
+    });
+
+    return toProjectDto(project);
+  });
+}
+
 export async function deleteProjectForUser(userId: number, projectId: string) {
   const deleted = await Project.destroy({
     where: { id: projectId, ownerId: userId },

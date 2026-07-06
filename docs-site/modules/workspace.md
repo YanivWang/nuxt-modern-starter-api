@@ -7,7 +7,7 @@
 ```text
 src/modules/workspace/
   workspace.routes.ts
-    GET/POST /api/projects、GET/DELETE /api/projects/:projectId
+    GET/POST /api/projects、GET/PATCH/DELETE /api/projects/:projectId
 
   workspace.schema.ts
     创建项目 body、projectId path 的 Zod 校验
@@ -16,7 +16,7 @@ src/modules/workspace/
     HTTP 层：读取 req.user、返回标准 envelope
 
   workspace.service.ts
-    ensurePersonalWorkspace、createProjectForUser、listProjectsForUser、findProjectForUser、deleteProjectForUser
+    ensurePersonalWorkspace、createProjectForUser、listProjectsForUser、findProjectForUser、updateProjectForUser、deleteProjectForUser
 
   workspace.model.ts
     Workspaces 模型
@@ -36,6 +36,7 @@ src/modules/workspace/
 | `GET`    | `/api/projects`            | 返回当前用户的项目列表                      |
 | `POST`   | `/api/projects`            | 创建项目并初始化关联 Document               |
 | `GET`    | `/api/projects/:projectId` | 返回当前用户的项目详情                      |
+| `PATCH`  | `/api/projects/:projectId` | 更新当前用户的项目标题或描述                |
 | `DELETE` | `/api/projects/:projectId` | 删除当前用户的项目，并级联删除关联 Document |
 
 创建项目请求体：
@@ -51,6 +52,23 @@ src/modules/workspace/
 
 - `title`：必填，trim 后 1～160 字符。
 - `description`：可选，trim 后最多 500 字符。
+
+更新项目请求体（`PATCH /api/projects/:projectId`）：
+
+```json
+{
+  "title": "新标题",
+  "description": "可选描述"
+}
+```
+
+字段校验：
+
+- 至少提供一个字段。
+- `title`：可选，trim 后 1～160 字符。
+- `description`：可选，trim 后最多 500 字符。
+
+更新成功时返回 `200`，`data` 包含更新后的 `project`。若更新了 `title`，关联 Document 的标题会同步更新。
 
 新建项目默认值：
 
@@ -107,7 +125,8 @@ src/modules/workspace/
 - `fetchWorkspaceProjects()` → `GET /api/projects`
 - `createWorkspaceProject()` → `POST /api/projects`
 - `fetchWorkspaceProject(projectId)` → `GET /api/projects/:projectId`
-- 删除项目 → `DELETE /api/projects/:projectId`（前端可按需封装调用）
+- `updateWorkspaceProject(projectId)` → `PATCH /api/projects/:projectId`
+- `deleteWorkspaceProject(projectId)` → `DELETE /api/projects/:projectId`
 
 请求经 `createProductApiClient()` 发送 Bearer Token。前端当前只有空白项目卡片和顶部创建按钮会调用 `POST /api/projects`；搜索/筛选 UI 尚未接后端参数。
 

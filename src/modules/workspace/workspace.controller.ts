@@ -9,9 +9,14 @@ import {
   deleteProjectForUser,
   findProjectForUser,
   listProjectsForUser,
+  updateProjectForUser,
 } from "./workspace.service.js";
 
-import type { ValidatedCreateProjectSchema, ValidatedProjectIdParamsSchema } from "./workspace.schema.js";
+import type {
+  ValidatedCreateProjectSchema,
+  ValidatedPatchProjectSchema,
+  ValidatedProjectIdParamsSchema,
+} from "./workspace.schema.js";
 import type { Request, Response } from "express";
 
 function currentUserId(req: Request) {
@@ -42,6 +47,17 @@ export async function getProject(req: Request, res: Response) {
   }
 
   return success(res, "获取项目成功", { project });
+}
+
+export async function patchProject(req: Request, res: Response) {
+  const { body, params } = getValidated<ValidatedPatchProjectSchema>(req);
+  const project = await updateProjectForUser(currentUserId(req), params.projectId, body);
+
+  if (!project) {
+    throw createHttpError(404, "项目不存在");
+  }
+
+  return success(res, "更新项目成功", { project });
 }
 
 export async function deleteProject(req: Request, res: Response) {

@@ -10,7 +10,7 @@ import {
   largeUploadIdParamsSchema,
   largeUploadInitSchema,
 } from "./modules/upload/large-upload.schema.js";
-import { createProjectSchema, projectIdParamsSchema } from "./modules/workspace/workspace.schema.js";
+import { createProjectSchema, patchProjectSchema, projectIdParamsSchema } from "./modules/workspace/workspace.schema.js";
 import { documentIdParamsSchema, patchDocumentSchema } from "./modules/document/document.schema.js";
 import { loginSchema, logoutSchema, refreshSchema, registerSchema } from "./modules/auth/auth.schema.js";
 import { patchMyProfileSchema } from "./modules/user/user-profile.schema.js";
@@ -292,6 +292,21 @@ export function generateOpenApiSpec(): OpenApiSpec {
             },
           ],
           responses: ok("项目详情"),
+        },
+        patch: {
+          tags: ["项目"],
+          summary: "更新当前用户项目",
+          security: bearerAuth(),
+          parameters: [
+            {
+              name: "projectId",
+              in: "path",
+              required: true,
+              schema: zodInputSchema(projectIdParamsSchema.shape.params.shape.projectId),
+            },
+          ],
+          requestBody: jsonRequestBody(patchProjectSchema.shape.body),
+          responses: ok("更新项目成功"),
         },
         delete: {
           tags: ["项目"],

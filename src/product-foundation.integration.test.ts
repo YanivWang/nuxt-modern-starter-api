@@ -182,6 +182,65 @@ describe("product foundation API", () => {
       .expect(404);
   });
 
+  it("updates authenticated user project title and syncs linked document title", async () => {
+    const { accessToken } = await registerAndLogin();
+
+    const createRes = await request(app)
+      .post("/api/projects")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({ title: "原始标题" })
+      .expect(201);
+
+    const projectId = createRes.body.data.project.id as string;
+    const documentId = createRes.body.data.document.id as string;
+
+    const patchRes = await request(app)
+      .patch(`/api/projects/${projectId}`)
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({ title: "更新后的标题" })
+      .expect(200);
+
+    expect(patchRes.body).toMatchObject({
+      code: 200,
+      message: "更新项目成功",
+      data: {
+        project: {
+          id: projectId,
+          title: "更新后的标题",
+        },
+      },
+    });
+
+    const documentRes = await request(app)
+      .get(`/api/documents/${documentId}`)
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(200);
+
+    expect(documentRes.body.data.document).toMatchObject({
+      id: documentId,
+      title: "更新后的标题",
+    });
+  });
+
+  it("prevents users from updating another user's project", async () => {
+    const firstUser = await registerAndLogin();
+    const secondUser = await registerAndLogin();
+
+    const createRes = await request(app)
+      .post("/api/projects")
+      .set("Authorization", `Bearer ${firstUser.accessToken}`)
+      .send({ title: "不可更新项目" })
+      .expect(201);
+
+    const projectId = createRes.body.data.project.id as string;
+
+    await request(app)
+      .patch(`/api/projects/${projectId}`)
+      .set("Authorization", `Bearer ${secondUser.accessToken}`)
+      .send({ title: "越权标题" })
+      .expect(404);
+  });
+
   it("deletes authenticated user projects and their documents", async () => {
     const { accessToken } = await registerAndLogin();
 
