@@ -2,16 +2,74 @@
  * 文件职责：公开内容 API 集成测试。
  */
 import request from "supertest";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
+import type { connectDatabase, sequelize, User, UserProfile, UserRefreshToken } from "../../db.js";
+import type { connectRedis, disconnectRedis } from "../../redis.js";
 import type { Express } from "express";
 
+type DbModule = {
+  connectDatabase: typeof connectDatabase;
+  sequelize: typeof sequelize;
+  User: typeof User;
+  UserProfile: typeof UserProfile;
+  UserRefreshToken: typeof UserRefreshToken;
+};
+
+type RedisModule = {
+  connectRedis: typeof connectRedis;
+  disconnectRedis: typeof disconnectRedis;
+};
+
 let app: Express;
+let db: DbModule;
+let redisModule: RedisModule;
+
+function uniqueSlug() {
+  return `news-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function uniqueUsername() {
+  return `content_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+}
+
+async function cleanDatabase() {
+  await db.UserRefreshToken.destroy({ where: {} });
+  await db.UserProfile.destroy({ where: {} });
+  await db.User.destroy({ where: {} });
+}
+
+async function registerAndLogin() {
+  const username = uniqueUsername();
+  const password = "password123";
+
+  await request(app).post("/api/register").send({ username, password }).expect(200);
+  const loginRes = await request(app).post("/api/login").send({ username, password }).expect(200);
+
+  return {
+    accessToken: loginRes.body.data.accessToken as string,
+  };
+}
 
 describe("public content API", () => {
   beforeAll(async () => {
+    db = await import("../../db.js");
+    redisModule = await import("../../redis.js");
     const appModule = await import("../../app.js");
     app = appModule.default;
+
+    await db.connectDatabase();
+    await redisModule.connectRedis();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  afterAll(async () => {
+    await cleanDatabase().catch(() => {});
+    await redisModule.disconnectRedis().catch(() => {});
+    await db.sequelize.close().catch(() => {});
   });
 
   it("returns localized news list without auth", async () => {
@@ -83,5 +141,84 @@ describe("public content API", () => {
       }),
     );
     expect(zhRes.body.data.pricing.title).not.toBe(enRes.body.data.pricing.title);
+  });
+
+  it("creates, updates, deletes news and triggers revalidation", async () => {
+    const slug = uniqueSlug();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      text: async () => "",
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { accessToken } = await registerAndLogin();
+
+    const createPayload = {
+      slug,
+      title: {
+        "zh-CN": "测试新闻标题",
+        "en-US": "Test news title",
+      },
+      description: {
+        "zh-CN": "测试新闻摘要",
+        "en-US": "Test news summary",
+      },
+      body: {
+        "zh-CN": ["第一段中文正文"],
+        "en-US": ["First English paragraph"],
+      },
+      publishedAt: "2026-07-08",
+    };
+
+    const createRes = await request(app)
+      .post("/api/content/news")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send(createPayload)
+      .expect(201);
+
+    expect(createRes.body.data.article.slug).toBe(slug);
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          paths: ["/news", `/news/${slug}`, "/en/news", `/en/news/${slug}`],
+        }),
+      }),
+    );
+
+    const patchRes = await request(app)
+      .patch(`/api/content/news/${slug}`)
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({
+        description: {
+          "zh-CN": "更新后的摘要",
+          "en-US": "Updated summary",
+        },
+      })
+      .expect(200);
+
+    expect(patchRes.body.data.article.description["zh-CN"]).toBe("更新后的摘要");
+
+    await request(app)
+      .delete(`/api/content/news/${slug}`)
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(200);
+
+    const missingRes = await request(app).get(`/api/content/news/${slug}`).expect(404);
+    expect(missingRes.body.message).toBe("新闻不存在");
+  });
+
+  it("rejects news mutations without auth", async () => {
+    await request(app)
+      .post("/api/content/news")
+      .send({
+        slug: "unauthorized-news",
+        title: { "zh-CN": "x", "en-US": "x" },
+        description: { "zh-CN": "x", "en-US": "x" },
+        body: { "zh-CN": ["x"], "en-US": ["x"] },
+        publishedAt: "2026-07-08",
+      })
+      .expect(401);
   });
 });

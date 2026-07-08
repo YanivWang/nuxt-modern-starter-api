@@ -10,7 +10,13 @@ import {
   largeUploadIdParamsSchema,
   largeUploadInitSchema,
 } from "./modules/upload/large-upload.schema.js";
-import { getPricingSchema, listNewsSchema, newsSlugSchema } from "./modules/content/content.schema.js";
+import {
+  createNewsSchema,
+  getPricingSchema,
+  listNewsSchema,
+  newsSlugSchema,
+  patchNewsSchema,
+} from "./modules/content/content.schema.js";
 import { createProjectSchema, patchProjectSchema, projectIdParamsSchema } from "./modules/workspace/workspace.schema.js";
 import { documentIdParamsSchema, patchDocumentSchema } from "./modules/document/document.schema.js";
 import { loginSchema, logoutSchema, refreshSchema, registerSchema } from "./modules/auth/auth.schema.js";
@@ -278,6 +284,13 @@ export function generateOpenApiSpec(): OpenApiSpec {
           ],
           responses: ok("本地化新闻列表"),
         },
+        post: {
+          tags: ["公开内容"],
+          summary: "创建新闻",
+          security: bearerAuth(),
+          requestBody: jsonRequestBody(createNewsSchema.shape.body),
+          responses: ok("创建新闻"),
+        },
       },
       "/api/content/pricing": {
         get: {
@@ -313,6 +326,35 @@ export function generateOpenApiSpec(): OpenApiSpec {
             },
           ],
           responses: ok("本地化新闻详情"),
+        },
+        patch: {
+          tags: ["公开内容"],
+          summary: "更新新闻",
+          security: bearerAuth(),
+          parameters: [
+            {
+              name: "slug",
+              in: "path",
+              required: true,
+              schema: zodInputSchema(newsSlugSchema.shape.params.shape.slug),
+            },
+          ],
+          requestBody: jsonRequestBody(patchNewsSchema.shape.body),
+          responses: ok("更新新闻"),
+        },
+        delete: {
+          tags: ["公开内容"],
+          summary: "删除新闻",
+          security: bearerAuth(),
+          parameters: [
+            {
+              name: "slug",
+              in: "path",
+              required: true,
+              schema: zodInputSchema(newsSlugSchema.shape.params.shape.slug),
+            },
+          ],
+          responses: ok("删除新闻"),
         },
       },
       "/api/projects": {

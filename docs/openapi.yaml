@@ -425,6 +425,93 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorBody'
+    post:
+      tags:
+        - 公开内容
+      summary: 创建新闻
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                slug:
+                  type: string
+                  minLength: 1
+                  pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+                title:
+                  type: object
+                  properties:
+                    zh-CN:
+                      type: string
+                      minLength: 1
+                    en-US:
+                      type: string
+                      minLength: 1
+                  required:
+                    - zh-CN
+                    - en-US
+                description:
+                  type: object
+                  properties:
+                    zh-CN:
+                      type: string
+                      minLength: 1
+                    en-US:
+                      type: string
+                      minLength: 1
+                  required:
+                    - zh-CN
+                    - en-US
+                body:
+                  type: object
+                  properties:
+                    zh-CN:
+                      minItems: 1
+                      type: array
+                      items:
+                        type: string
+                        minLength: 1
+                    en-US:
+                      minItems: 1
+                      type: array
+                      items:
+                        type: string
+                        minLength: 1
+                  required:
+                    - zh-CN
+                    - en-US
+                publishedAt:
+                  type: string
+                  minLength: 1
+              required:
+                - slug
+                - title
+                - description
+                - body
+                - publishedAt
+      responses:
+        '200':
+          description: 创建新闻
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessBody'
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
   /api/content/pricing:
     get:
       tags:
@@ -470,6 +557,7 @@ paths:
           schema:
             type: string
             minLength: 1
+            pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
         - name: locale
           in: query
           required: false
@@ -481,6 +569,124 @@ paths:
       responses:
         '200':
           description: 本地化新闻详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessBody'
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+    patch:
+      tags:
+        - 公开内容
+      summary: 更新新闻
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: object
+                  properties:
+                    zh-CN:
+                      type: string
+                      minLength: 1
+                    en-US:
+                      type: string
+                      minLength: 1
+                  required:
+                    - zh-CN
+                    - en-US
+                description:
+                  type: object
+                  properties:
+                    zh-CN:
+                      type: string
+                      minLength: 1
+                    en-US:
+                      type: string
+                      minLength: 1
+                  required:
+                    - zh-CN
+                    - en-US
+                body:
+                  type: object
+                  properties:
+                    zh-CN:
+                      minItems: 1
+                      type: array
+                      items:
+                        type: string
+                        minLength: 1
+                    en-US:
+                      minItems: 1
+                      type: array
+                      items:
+                        type: string
+                        minLength: 1
+                  required:
+                    - zh-CN
+                    - en-US
+                publishedAt:
+                  type: string
+                  minLength: 1
+      responses:
+        '200':
+          description: 更新新闻
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessBody'
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+    delete:
+      tags:
+        - 公开内容
+      summary: 删除新闻
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+      responses:
+        '200':
+          description: 删除新闻
           content:
             application/json:
               schema:

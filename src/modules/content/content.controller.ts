@@ -3,13 +3,24 @@
  */
 import { createHttpError } from "../../middlewares/error.middleware.js";
 import { getValidated } from "../../utils/getValidated.js";
+import { revalidateNewsPaths } from "../../utils/revalidate.js";
 import { success } from "../../utils/response.js";
-import { findNewsArticle, getPricingPage, listNewsArticles, resolveLocale } from "./content.service.js";
+import {
+  createNewsArticle,
+  deleteNewsArticle,
+  findNewsArticle,
+  getPricingPage,
+  listNewsArticles,
+  resolveLocale,
+  updateNewsArticle,
+} from "./content.service.js";
 
 import type {
+  ValidatedCreateNewsSchema,
   ValidatedGetPricingSchema,
   ValidatedListNewsSchema,
   ValidatedNewsSlugSchema,
+  ValidatedPatchNewsSchema,
 } from "./content.schema.js";
 import type { Request, Response } from "express";
 
@@ -44,4 +55,43 @@ export async function getPricing(req: Request, res: Response) {
   const pricing = getPricingPage(locale);
 
   return success(res, "获取定价页内容成功", { pricing });
+}
+
+export async function createNews(req: Request, res: Response) {
+  const { body } = getValidated<ValidatedCreateNewsSchema>(req);
+  const article = createNewsArticle(body);
+
+  if (!article) {
+    throw createHttpError(409, "新闻 slug 已存在");
+  }
+
+  revalidateNewsPaths(article.slug);
+
+  return success(res, "创建新闻成功", { article }, 201);
+}
+
+export async function patchNews(req: Request, res: Response) {
+  const { params, body } = getValidated<ValidatedPatchNewsSchema>(req);
+  const article = updateNewsArticle(params.slug, body);
+
+  if (!article) {
+    throw createHttpError(404, "新闻不存在");
+  }
+
+  revalidateNewsPaths(article.slug);
+
+  return success(res, "更新新闻成功", { article });
+}
+
+export async function deleteNews(req: Request, res: Response) {
+  const { params } = getValidated<ValidatedNewsSlugSchema>(req);
+  const deleted = deleteNewsArticle(params.slug);
+
+  if (!deleted) {
+    throw createHttpError(404, "新闻不存在");
+  }
+
+  revalidateNewsPaths(params.slug);
+
+  return success(res, "删除新闻成功", null);
 }

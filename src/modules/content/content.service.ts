@@ -50,6 +50,55 @@ export function findNewsArticle(slug: string, locale: SupportedLocale) {
   return localizeArticle(article, locale);
 }
 
+export function createNewsArticle(input: NewsArticle) {
+  if (newsArticles.some((item) => item.slug === input.slug)) {
+    return null;
+  }
+
+  newsArticles.unshift(input);
+  return input;
+}
+
+export function updateNewsArticle(
+  slug: string,
+  patch: Partial<Pick<NewsArticle, "title" | "description" | "body" | "publishedAt">>,
+) {
+  const article = newsArticles.find((item) => item.slug === slug);
+
+  if (!article) {
+    return null;
+  }
+
+  if (patch.title) {
+    article.title = patch.title;
+  }
+
+  if (patch.description) {
+    article.description = patch.description;
+  }
+
+  if (patch.body) {
+    article.body = patch.body;
+  }
+
+  if (patch.publishedAt) {
+    article.publishedAt = patch.publishedAt;
+  }
+
+  return article;
+}
+
+export function deleteNewsArticle(slug: string) {
+  const index = newsArticles.findIndex((item) => item.slug === slug);
+
+  if (index === -1) {
+    return false;
+  }
+
+  newsArticles.splice(index, 1);
+  return true;
+}
+
 function localizePricingPlan(plan: PricingPlan, locale: SupportedLocale) {
   return {
     key: plan.key,
