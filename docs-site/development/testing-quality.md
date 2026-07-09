@@ -156,6 +156,7 @@ cross-env APP_ENV=test NODE_ENV=test vitest run --exclude "src/**/*.integration.
 
 - OpenAPI 生成一致性
 - Redis 环境变量行为
+- Nuxt revalidate 路径与跳过逻辑（`src/utils/revalidate.test.ts`）
 
 ## 集成测试
 
@@ -199,6 +200,14 @@ cross-env APP_ENV=test NODE_ENV=test vitest run --config vitest.integration.conf
 - 删除自己的项目，并验证关联 Document 被级联清理。
 - 跨用户无法读取、删除他人的项目或文档（当前集成测试覆盖 GET/DELETE 隔离，PATCH 越权由 service 层按 `ownerId` 过滤并在代码审查中约束）。
 
+当前 `content.integration.test.ts` 覆盖：
+
+- 无需登录即可按 `Accept-Language` / `locale` 获取本地化新闻列表与详情。
+- 未知新闻 slug 返回 404。
+- 无需登录即可获取本地化定价页内容。
+- 登录后可创建/更新/删除新闻，并触发 Nuxt revalidate（`paths` 含中英文新闻列表与详情）。
+- 未登录新闻写操作返回 401。
+
 ### 当前未覆盖（集成测试 gap）
 
 - `/api/me/profile` GET/PATCH（含 avatar 写入 `Users.avatar`）
@@ -206,6 +215,7 @@ cross-env APP_ENV=test NODE_ENV=test vitest run --config vitest.integration.conf
 - Cookie 认证下 PATCH 文档/项目的 CSRF 行为
 - 限流 429、`/ready` 探针
 - `optionalAuthMiddleware`（中间件存在但未挂载路由）
+- 项目 `PATCH` 跨用户隔离的集成断言（service 已按 `ownerId` 过滤）
 
 ## 环境变量测试
 

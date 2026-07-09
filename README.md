@@ -1,6 +1,6 @@
 # Nuxt Modern Starter API
 
-独立 Express API 服务脚手架，保留普通 Web App 后端常用能力：auth、user、workspace、document、health、Swagger、MySQL、可选 Redis、JWT access/refresh token、文件上传和 Docker 部署。
+独立 Express API 服务脚手架，保留普通 Web App 后端常用能力：auth、user、content（公开新闻/定价）、workspace、document、health、Swagger、MySQL、可选 Redis、JWT access/refresh token、文件上传和 Docker 部署。
 
 ## 快速开始
 
@@ -70,7 +70,7 @@ server.ts
   -> helmet / cors / requestId / HTTP log
   -> /uploads 静态资源、/health /ready 探针
   -> rate limit / compression / body parser / Swagger
-  -> /api auth / user / workspace / document / upload 路由
+  -> /api auth / content / user / workspace / document / upload 路由
   -> 404 / errorMiddleware
 ```
 
@@ -84,8 +84,9 @@ server.ts
 | `src/middlewares/`                 | 统一错误、认证、限流、请求 ID、日志、Zod 校验等横切能力           |
 | `src/modules/auth/`                | 注册、登录、access/refresh token、Cookie/CSRF、登出黑名单         |
 | `src/modules/user/`                | `/api/me`、用户资料（头像仅存 `Users.avatar`）                    |
+| `src/modules/content/`             | 公开新闻/定价内容（内存数据源）；写操作可触发 Nuxt revalidate     |
 | `src/modules/upload/`              | 普通图片上传、头像上传、大文件分片上传和秒传索引                  |
-| `src/modules/workspace/`           | 默认个人空间、项目 CRUD（列表/创建/详情/删除）                    |
+| `src/modules/workspace/`           | 默认个人空间、项目 CRUD（列表/创建/详情/更新/删除）                |
 | `src/modules/document/`            | 编辑器文档读取与保存                                              |
 | `src/openapi.ts`、`src/swagger.ts` | 运行时 Swagger 与 `docs/openapi.yaml` 的统一生成来源              |
 
@@ -179,7 +180,11 @@ pnpm db:migrate:prod
 pnpm test:unit
 ```
 
-只运行 API 集成测试时，可以运行 `pnpm test:integration`。`product-foundation.integration.test.ts` 覆盖项目/文档 CRUD、项目删除级联清理与跨用户读取/删除隔离。
+只运行 API 集成测试时，可以运行 `pnpm test:integration`。当前集成测试包括：
+
+- `auth-user.integration.test.ts`：注册/登录/refresh/logout、Bearer 与 Cookie、CSRF、黑名单。
+- `product-foundation.integration.test.ts`：项目/文档 CRUD、项目删除级联清理与跨用户读取/删除隔离。
+- `content.integration.test.ts`：公开新闻/定价本地化读取，以及登录后新闻创建/更新/删除与 revalidate 触发。
 
 ## Web App 授权约定
 
@@ -188,9 +193,9 @@ pnpm test:unit
 - `/api/login` 返回短期 `accessToken` 和长期 `refreshToken`（含 `accessTokenExpiresIn`、`refreshTokenExpiresIn`），同时写入 `httpOnly` cookie，并写入非 `httpOnly` 的 `csrf_token`。响应体**不含** `token` 字段别名。
 - `/api/register` 只创建用户，不自动登录；注册成功后需要再调用 `/api/login` 获取 token。
 - `/api/refresh` 使用 `refreshToken` 换取新的 `accessToken` 和 `refreshToken`，旧 refresh token 会立即失效。若 refresh token 来自 cookie，需带 `X-CSRF-Token` 请求头，值与 `csrf_token` cookie 一致。
-- `authMiddleware` 优先读取 `Authorization: Bearer <accessToken>`，也支持浏览器请求携带的 `access_token` cookie，适合 `/api/me`、项目、文档、上传等必须登录的接口。
+- `authMiddleware` 优先读取 `Authorization: Bearer <accessToken>`，也支持浏览器请求携带的 `access_token` cookie，适合 `/api/me`、项目、文档、上传、新闻写操作等必须登录的接口。
 - 使用 cookie 认证访问 POST/PATCH/PUT/DELETE 等非安全方法时，需带 `X-CSRF-Token` 请求头；Bearer 认证不受 CSRF 规则影响。
-- `optionalAuthMiddleware` 适合“登录用户和匿名用户都能访问，但返回内容略有差异”的接口，支持 Bearer 和 `access_token` cookie；当前脚手架提供中间件但未默认挂载示例路由。
+- `optionalAuthMiddleware` 适合“登录用户和匿名用户都能访问，但返回内容略有差异”的接口，支持 Bearer 和 `access_token` cookie；当前脚手架提供中间件但未默认挂载示例路由。公开内容读接口（新闻/定价）本身无需登录，也不走该中间件。
 - 资源归属校验放在 service 层，例如只能修改自己的资料、只能删除自己的上传任务、只能访问自己的项目与文档。
 - 如果业务后续出现管理员后台、多角色协作或租户权限，再按业务引入 role/permission，不作为前台 Web App starter 的默认复杂度。
 
@@ -206,6 +211,7 @@ pnpm test:unit
 | ------------ | ------------------------------------------------------------------------------- | -------------------------------------------------------------- |
 | 核心必留     | health/ready、env 校验、统一错误、requestId、日志、Zod 校验、OpenAPI、migration | 普通 Web App API 的基础设施，不建议删除                        |
 | Web App 基础 | auth、access/refresh token、`/api/me`、用户资料、工作台项目、编辑器文档         | 与 `nuxt-modern-starter` 前端默认联调的主路径                  |
+| 公开内容     | `/api/content/news`、`/api/content/pricing`、可选 Nuxt revalidate               | 营销站新闻/定价页；当前为内存数据源，可按业务换成 CMS/数据库   |
 | 常用增强     | 普通图片上传、头像上传、Redis JWT 黑名单                                        | 需要用户资料图、登出立即失效时保留                             |
 | 可选增强     | 大文件分片上传、秒传、本地 `.data` 会话                                         | 适合网盘、素材、视频等场景；普通内容站或 SaaS 表单应用可以删除 |
 
@@ -232,8 +238,9 @@ pnpm test:unit
 cp .env.production.example .env.production
 ```
 
-务必替换 `JWT_SECRET`、`DB_PWD`、`MYSQL_ROOT_PASSWORD`、`REDIS_PASSWORD` 等占位值；生产启动时会拒绝 `replace_with` / `change_me` 这类模板值。
+务必替换 `JWT_SECRET`、`DB_PWD`、`MYSQL_ROOT_PASSWORD`、`REDIS_PASSWORD`、`REVALIDATE_SECRET` 等占位值；生产启动时会拒绝 `replace_with` / `change_me` 这类模板值。
 生产环境建议显式配置 `CORS_ORIGINS`、`REQUEST_BODY_LIMIT`、`TRUST_PROXY`、`RATE_LIMIT_MAX`、`AUTH_RATE_LIMIT_MAX`、`ACCESS_TOKEN_TTL_SECONDS`、`REFRESH_TOKEN_TTL_SECONDS`、`AUTH_COOKIE_SECURE`，并根据真实流量调整请求体大小限制、限流窗口和登录态有效期。
+若前端依赖新闻写操作后的 SWR 缓存失效，还需配置可达的 `NUXT_REVALIDATE_URL` 与匹配的 `REVALIDATE_SECRET`。
 默认 `AUTH_TOKEN_BLACKLIST_ENABLED=true`，服务会依赖 Redis 记录登出后的 JWT 黑名单。只有确认业务接受“已签发 JWT 在过期前无法主动失效”时，才建议改为 `false`。
 
 2. 构建并执行数据库迁移：
@@ -275,5 +282,7 @@ pnpm docker:prod:down
 如果业务不需要普通文件上传，可以移除 `src/modules/upload/upload.routes.ts` 中 `/uploads`、`/uploads/profiles` 相关路由，以及 `src/modules/upload/upload.controller.ts`、`src/modules/upload/upload.config.ts` 和 `/uploads` 静态目录挂载。
 
 如果业务不需要大文件分片上传，可以移除 `src/modules/upload/large-upload.controller.ts`、`src/modules/upload/large-upload.service.ts`、`src/modules/upload/large-upload.multer.ts`、`src/modules/upload/large-upload.schema.ts`、`src/modules/upload/largeUpload.ts` 以及 `src/modules/upload/upload.routes.ts` 中 `/uploads/large/*` 路由。
+
+如果业务不需要公开新闻/定价内容，可以移除 `src/modules/content/`、`src/app.ts` 中的 `contentRoutes` 挂载、`src/openapi.ts` 中对应 paths，以及不再需要的 `NUXT_REVALIDATE_URL` / `REVALIDATE_SECRET`。
 
 当前上传实现使用本地磁盘和 `.data` 会话文件，适合单实例部署。多实例或容器弹性伸缩场景请改为对象存储（S3、OSS、MinIO 等），并把大文件上传会话迁移到 Redis、数据库或对象存储 multipart 机制。

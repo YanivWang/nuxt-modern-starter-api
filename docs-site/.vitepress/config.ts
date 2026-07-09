@@ -41,6 +41,7 @@ export default defineConfig({
         items: [
           { text: "认证模块", link: "/modules/auth" },
           { text: "用户模块", link: "/modules/user" },
+          { text: "公开内容模块", link: "/modules/content" },
           { text: "工作台模块", link: "/modules/workspace" },
           { text: "文档模块", link: "/modules/document" },
           { text: "上传模块", link: "/modules/upload" },

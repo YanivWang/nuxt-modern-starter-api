@@ -87,6 +87,8 @@ MySQL 是主业务数据库。Sequelize 负责：
 - `Projects`：项目元数据，关联工作区与用户。
 - `Documents`：编辑器文档内容，与项目一对一关联。
 
+公开内容模块（新闻/定价）当前**不落库**，数据来自 `src/modules/content/` 的内存常量；写操作成功后可通过 `NUXT_REVALIDATE_URL` 通知前端清缓存。
+
 ### Umzug
 
 Umzug 管理数据库迁移。迁移记录存放在数据库中，迁移文件位于 `src/migrations/`。

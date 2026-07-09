@@ -135,12 +135,14 @@ pnpm openapi:check
 Authorization: Bearer <accessToken>
 ```
 
-Cookie + CSRF 的 Web App 接入细节在 README 和本文档认证章节说明。
+Cookie + CSRF 的 Web App 接入细节在 README 和 [认证模块](/modules/auth) 说明。
 
 这是有意选择：
 
 - OpenAPI 更适合描述通用 HTTP API 和 Bearer 客户端。
 - Cookie + CSRF 涉及浏览器、同站策略、前端读取 Cookie、CORS credentials，需要更长解释。
+
+当前 OpenAPI `paths` 覆盖的业务域包括：认证、当前用户/资料、公开内容（新闻/定价）、项目、文档、普通上传与大文件分片上传。
 
 ## 与 VitePress 文档的关系
 

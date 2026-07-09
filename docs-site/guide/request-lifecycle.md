@@ -123,6 +123,8 @@ Cookie 认证适合同站 Web App，但有额外 CSRF 规则：
 
 它不做 CSRF 校验，因此不应该用于需要登录保护的写操作。
 
+当前脚手架提供该中间件，但**没有默认挂载示例路由**。公开内容读接口（`/api/content/news`、`/api/content/pricing`）本身无需登录，也不经过 `optionalAuthMiddleware`。
+
 ## asyncHandler
 
 Express 4 默认不会自动捕获异步 controller 中 rejected Promise。

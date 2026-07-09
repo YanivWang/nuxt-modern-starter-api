@@ -71,16 +71,26 @@ cp .env.production.example .env.production
 | `TRUST_PROXY`        | Express trust proxy 配置       |
 | `REQUEST_BODY_LIMIT` | JSON/urlencoded 请求体大小限制 |
 
+### Nuxt 缓存失效（公开内容写操作）
+
+| 变量                  | 说明                                                                 |
+| --------------------- | -------------------------------------------------------------------- |
+| `NUXT_REVALIDATE_URL` | Nuxt revalidate 接口地址；未配置时新闻写操作跳过缓存失效             |
+| `REVALIDATE_SECRET`   | 与前端约定的密钥，请求头 `x-revalidate-secret`；未配置时跳过并打 warning |
+
 开发环境示例（与 `nuxt-modern-starter` 联调）：
 
 ```env
 CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173
+NUXT_REVALIDATE_URL=http://localhost:3000/api/revalidate
+REVALIDATE_SECRET=dev_revalidate_secret_replace_with_random_string
 ```
 
 - `http://localhost:3000`：Nuxt 前端开发地址。
 - `http://localhost:5173`：VitePress 文档站本地预览地址。
+- `NUXT_REVALIDATE_URL` / `REVALIDATE_SECRET`：新闻创建/更新/删除后通知前端清 SWR 缓存；密钥需与前端一致。
 
-修改 `.env.development` 后，Docker 开发环境需要 `--force-recreate api` 才会重新加载 CORS 配置。
+修改 `.env.development` 后，Docker 开发环境需要 `--force-recreate api` 才会重新加载 CORS 与 revalidate 配置。
 
 部署在 Nginx 或负载均衡后面时，通常需要 `TRUST_PROXY=1`，否则 `req.ip` 和限流客户端识别会退化为代理 IP。
 

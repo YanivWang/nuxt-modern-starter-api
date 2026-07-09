@@ -19,10 +19,12 @@ src/modules/
     注册、登录、accessToken/refreshToken、Cookie、CSRF、登出
   user/
     当前用户、用户扩展资料
+  content/
+    公开新闻与定价页内容（内存数据源 + 可选 Nuxt revalidate）
   upload/
     普通图片上传、大文件分片上传、秒传索引
   workspace/
-    默认个人空间、项目 CRUD（列表/创建/详情/删除）
+    默认个人空间、项目 CRUD（列表/创建/详情/更新/删除）
   document/
     编辑器文档读取与保存
 
@@ -69,10 +71,12 @@ helmet / Swagger CSP 例外
   -> compression
   -> json/urlencoded body parser
   -> Swagger
-  -> /api auth/user/workspace/document/upload
+  -> /api auth/content/user/workspace/document/upload
   -> 404
   -> errorMiddleware
 ```
+
+`src/app.ts` 中业务路由挂载顺序为：`auth` → `content` → `user` → `workspace` → `document` → `upload`。
 
 几个关键点：
 
@@ -212,7 +216,7 @@ OpenAPI 由 `src/openapi.ts` 生成，`docs/openapi.yaml` 是生成物。修改�
 
 - 单体 Express API 服务。
 - 普通 Web App 后端。
-- 登录态、用户资料、工作台项目、编辑器文档、文件上传类需求。
+- 登录态、用户资料、公开营销内容、工作台项目、编辑器文档、文件上传类需求。
 - 单实例或小规模部署。
 - 后续按业务裁剪或扩展。
 

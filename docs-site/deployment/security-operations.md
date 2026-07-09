@@ -226,6 +226,21 @@ uploads/
 - 多实例前必须改共享存储。
 - 大文件临时目录需要考虑清理策略。
 
+## 公开内容与 revalidate
+
+新闻/定价读接口公开；新闻写接口需要登录。数据当前在进程内存中，**不是** MySQL 表。
+
+若配置了：
+
+```text
+NUXT_REVALIDATE_URL
+REVALIDATE_SECRET
+```
+
+新闻创建/更新/删除成功后会通知 Nuxt 清除相关 SWR 路径。未配置时写接口仍成功，只是跳过缓存失效。
+
+生产环境若依赖该联动，需保证 API 能访问到 Nuxt revalidate 地址，且密钥与前端一致。
+
 ## Nginx 与代理
 
 Nginx 会转发：
@@ -254,6 +269,7 @@ TRUST_PROXY=1
 - `JWT_SECRET` 已替换为强随机值。
 - `DB_PWD`、`MYSQL_ROOT_PASSWORD`、`REDIS_PASSWORD` 已替换。
 - `CORS_ORIGINS` 是真实前端域名。
+- 若使用新闻 revalidate：`NUXT_REVALIDATE_URL` 可达，且 `REVALIDATE_SECRET` 与前端一致。
 - `AUTH_COOKIE_SECURE=true` 且启用 HTTPS。
 - `AUTH_TOKEN_BLACKLIST_ENABLED` 的取值符合业务风险。
 - 生产迁移已执行。

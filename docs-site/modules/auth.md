@@ -247,6 +247,7 @@ POST /api/logout
 - `/api/documents/:documentId`
 - `/api/uploads`
 - `/api/uploads/large/*`
+- `POST/PATCH/DELETE /api/content/news`（新闻写操作）
 
 它会：
 
@@ -260,7 +261,7 @@ POST /api/logout
 
 用于“登录用户和匿名用户都能访问”的接口。
 
-当前项目提供中间件，但没有默认示例路由。后续比如文章详情、商品详情、公开资料页可以使用它。
+当前项目提供中间件，但没有默认示例路由。公开新闻/定价的**读**接口直接匿名访问，不经过该中间件；后续比如“登录用户看到额外字段”的公开页可以使用它。
 
 ## 常见扩展方式
 

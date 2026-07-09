@@ -113,9 +113,9 @@ src/modules/workspace/
 
 - 每个用户会自动拥有一个 `type = personal` 的默认 Workspace；创建项目时会写入该空间。
 - 创建项目时在同一个事务里创建 Project 和 Document。
-- 列表、详情与删除都按 `ownerId = req.user.id` 过滤，避免跨用户访问。
+- 列表、详情、更新与删除都按 `ownerId = req.user.id` 过滤，避免跨用户访问。
 - 删除项目时通过 Sequelize 级联删除关联 Document；删除成功后 `data` 为 `null`。
-- 访问不存在的项目或他人项目时，详情与删除均返回 `404 项目不存在`。
+- 访问不存在的项目或他人项目时，详情、更新与删除均返回 `404 项目不存在`。
 - `editPath` 与 `previewPath` 是前端路由提示，供 Nuxt 工作台直接跳转。
 
 ## 与前端协作
