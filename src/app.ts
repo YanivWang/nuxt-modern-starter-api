@@ -35,9 +35,15 @@ if (tp === "1" || tp?.toLowerCase() === "true") {
 
 const defaultHelmet = helmet();
 const swaggerHelmet = helmet({ contentSecurityPolicy: false });
+// 上传静态资源会被前端（另一 origin）以 <img> 等方式加载；helmet 默认 CORP=same-origin 会触发
+// net::ERR_BLOCKED_BY_RESPONSE.NotSameOrigin，因此仅对 /uploads 放宽为 cross-origin。
+const uploadsHelmet = helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+});
 const helmetPick: RequestHandler = (req, res, next) => {
   // Swagger UI 会内联脚本/样式；仅对文档页放宽 CSP，其他接口继续使用默认安全头。
   if (req.path.startsWith("/api-docs")) return swaggerHelmet(req, res, next);
+  if (req.path.startsWith("/uploads")) return uploadsHelmet(req, res, next);
   return defaultHelmet(req, res, next);
 };
 app.use(helmetPick);

@@ -15,7 +15,11 @@
     "coverage/**",
     ".gitignore",
     "pnpm-lock.yaml",
-    "scripts/**"
+    "scripts/**",
+    "uploads/**",
+    ".data/**",
+    "docs/**",
+    "docs-site/**"
   ],
   "events": {
     "start": "echo 'Starting app...'",

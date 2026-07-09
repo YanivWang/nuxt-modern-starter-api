@@ -159,7 +159,7 @@ Authorization: Bearer <accessToken>
 - `body`：两侧语言各至少一段非空字符串。
 - `publishedAt`：非空字符串。
 
-成功返回 `201`，`data.article` 为完整双语原文（未按 locale 折叠）。
+成功时 HTTP 状态为 `201`，业务信封 `code` 为 `200`，`data.article` 为完整双语原文（未按 locale 折叠）。
 
 slug 已存在时返回 `409 新闻 slug 已存在`。
 

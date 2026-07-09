@@ -84,6 +84,7 @@ helmet / Swagger CSP 例外
 - `/health` 和 `/ready` 放在全局限流前，避免探针被业务流量影响。
 - body parser 放在上传路由之前不会处理 multipart，multipart 由 multer 处理。
 - Swagger UI 需要放宽 CSP，因此对 `/api-docs` 使用独立 helmet 配置。
+- `/uploads` 需要被前端跨域加载，因此对该路径将 CORP 设为 `cross-origin`。
 - 所有未匹配路由最终进入 404，再由统一错误中间件输出 `{ code, message, data }`。
 
 ## 模块内部结构

@@ -76,11 +76,11 @@ src/modules/workspace/
 - `slideCount`：`0`
 - `accent`：`blue`
 
-创建成功时返回 `201`，`data` 同时包含 `project` 与 `document`：
+创建成功时 HTTP 状态为 `201`，业务信封 `code` 为 `200`，`data` 同时包含 `project` 与 `document`：
 
 ```json
 {
-  "code": 201,
+  "code": 200,
   "message": "创建项目成功",
   "data": {
     "project": {

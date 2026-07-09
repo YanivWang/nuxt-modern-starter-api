@@ -44,7 +44,12 @@ Express 负责 HTTP 路由、中间件装配和错误处理。项目没有引入
 
 ### helmet
 
-`helmet` 提供常见安全响应头。项目中对 Swagger UI 做了特殊处理：文档页需要内联脚本和样式，所以 `src/app.ts` 对 `/api-docs` 放宽 CSP，其他接口继续使用默认安全头。
+`helmet` 提供常见安全响应头。项目中有两处例外：
+
+- `/api-docs`：Swagger UI 需要内联脚本和样式，因此放宽 CSP。
+- `/uploads`：上传图片会被前端跨域以 `<img>` 等方式加载，因此将 `Cross-Origin-Resource-Policy` 设为 `cross-origin`，避免浏览器报 `NotSameOrigin`。
+
+其他接口继续使用默认安全头。
 
 ### cors
 

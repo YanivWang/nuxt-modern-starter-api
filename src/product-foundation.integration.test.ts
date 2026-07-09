@@ -109,7 +109,7 @@ describe("product foundation API", () => {
       .expect(201);
 
     expect(createRes.body).toMatchObject({
-      code: 201,
+      code: 200,
       message: "创建项目成功",
       data: {
         project: {
