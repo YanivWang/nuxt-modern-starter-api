@@ -25,6 +25,8 @@ src/modules/workspace/
     Projects 模型
 ```
 
+`workspace.model.ts` 和 `project.model.ts` 只定义模型与关联所需字段；模型注册入口在 `src/db/models.ts`，业务代码统一从 `src/db/index.ts` 取得 `Workspace`、`Project`、`Document` 与 `sequelize`。
+
 ## 接口
 
 所有接口都需要 `authMiddleware`。
@@ -134,3 +136,7 @@ src/modules/workspace/
 
 - 前端 `NUXT_PUBLIC_API_BASE=http://localhost:2026/api`
 - 后端 `CORS_ORIGINS` 包含 `http://localhost:3000`
+
+## 测试现状
+
+`tests/integration/product-foundation.integration.test.ts` 覆盖项目创建、列表、详情、删除、关联 Document 初始化、删除级联清理，以及跨用户读取/删除隔离。项目 PATCH 逻辑由 service 按 `ownerId` 过滤，当前仍建议在后续补充 PATCH 越权集成断言。

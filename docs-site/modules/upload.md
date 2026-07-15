@@ -2,6 +2,8 @@
 
 上传模块位于 `src/modules/upload/`，包含普通图片上传、头像/资料图上传和大文件分片上传。
 
+模块内已经按职责拆开：普通图片上传只关心图片类型、数量和公开 URL；大文件上传负责分片会话、MD5、合并、秒传和幂等；本地磁盘路径统一放在 `storage/local-storage.service.ts`，为未来替换对象存储留下边界。
+
 ## 文件职责
 
 ```text
@@ -37,6 +39,18 @@ src/modules/upload/
 ## 上传路由
 
 所有上传接口都需要登录。
+
+路由中间件顺序遵循：
+
+```text
+authMiddleware
+  -> validate(schema)       # 大文件接口
+  -> multer                 # multipart 文件落盘
+  -> asyncHandler(controller)
+  -> service
+```
+
+普通图片上传没有额外 Zod body，因为 multipart 文件由 multer 读取；大文件 init/status/merge/delete 会先经过 Zod 校验。
 
 普通上传：
 

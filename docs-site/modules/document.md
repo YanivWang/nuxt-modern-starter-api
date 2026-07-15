@@ -22,6 +22,8 @@ src/modules/document/
     Documents 模型
 ```
 
+`document.model.ts` 定义 Documents 表，注册由 `src/db/models.ts` 统一完成。文档 service 从 `src/db/index.ts` 取得 `Document`、`Project` 和 `sequelize`，并在事务中保持文档标题与项目标题同步。
+
 ## 接口
 
 所有接口都需要 `authMiddleware`。
@@ -82,3 +84,7 @@ src/modules/document/
 编辑器页面 `/app/workspace/:projectId/edit` 会先 `GET /api/projects/:projectId` 拿到 `documentId`，再加载并保存文档。预览页会对同一文档内容做 HTML 预览（`v-html`），不是 PPT 幻灯片引擎。
 
 独立 deep link 路由 `/app/editor?documentId=...` 也使用该接口，并使用 `editor` layout；未提供 `documentId` 时会重定向到 `/app/workspace`。
+
+## 测试现状
+
+`tests/integration/product-foundation.integration.test.ts` 覆盖通过项目拿到 `documentId` 后读取和保存自己的文档，并验证删除项目后关联 Document 被清理。Cookie 认证下 PATCH 文档的 CSRF 行为仍是当前测试 gap。

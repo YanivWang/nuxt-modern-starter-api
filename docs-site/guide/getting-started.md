@@ -105,16 +105,18 @@ pnpm docs:preview
 ## 常用质量命令
 
 ```bash
-pnpm run typecheck
-pnpm run lint
-pnpm run format:check
-pnpm run openapi:check
+pnpm typecheck
+pnpm lint
+pnpm format:check
+pnpm openapi:check
 pnpm test
-pnpm run build
-pnpm run check
+pnpm build
+pnpm check
 ```
 
-`pnpm run check` 是完整质量门禁，会依次运行类型检查、lint、格式检查、OpenAPI 同步检查、测试和构建。CI 也执行这个命令。
+`pnpm check` 是完整质量门禁，会依次运行类型检查、lint、格式检查、OpenAPI 同步检查、测试和构建。CI 中执行的是等价的 `pnpm run check`。
+
+测试文件不放在 `src/` 下：`tests/unit/` 承载不依赖外部服务的单元测试，`tests/integration/` 承载依赖 MySQL/Redis 的 API 集成测试。
 
 ## 数据库迁移命令
 

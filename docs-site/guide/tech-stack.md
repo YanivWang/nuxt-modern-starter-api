@@ -27,10 +27,10 @@
 TypeScript 配置拆成三层：
 
 - `tsconfig.base.json`：基础规则，开启 `strict`，使用 `NodeNext`。
-- `tsconfig.json`：开发和类型检查使用，`noEmit: true`，包含 `src` 与 `scripts`。
+- `tsconfig.json`：开发和类型检查使用，`noEmit: true`，包含 `src`、`scripts` 与 `tests`。
 - `tsconfig.build.json`：生产构建使用，输出 `dist/`。
 
-这套拆分让开发阶段能检查脚本和测试相关代码，生产构建则只产出 API 运行所需的 `src` 编译结果。
+这套拆分让开发阶段能检查运行时代码、脚本和测试代码，生产构建则只产出 API 运行所需的 `src` 编译结果。
 
 ## Web 框架与中间件
 
@@ -82,6 +82,8 @@ MySQL 是主业务数据库。Sequelize 负责：
 - 模型定义。
 - 模型关联。
 - 查询和事务。
+
+数据库基础设施集中在 `src/db/`：`index.ts` 创建连接并导出模型，`models.ts` 按依赖顺序注册模块内模型，`migrator.ts` 配置 Umzug，`migrations/` 保存迁移文件。
 
 当前核心表：
 
@@ -184,6 +186,8 @@ Zod 是请求校验的单一来源。路由通过 `validate(schema)` 校验：
 
 普通图片上传和大文件分片上传都基于 multer。
 
+上传模块的本地磁盘路径统一由 `src/modules/upload/storage/local-storage.service.ts` 封装；普通图片的 multer 配置在 `image-upload.config.ts`，分片上传的 multer 配置在 `large-upload.multer.ts`。
+
 普通上传限制：
 
 - 支持 `jpeg/png/gif/webp`。
@@ -210,8 +214,8 @@ Zod 是请求校验的单一来源。路由通过 `validate(schema)` 校验：
 
 测试分两类：
 
-- 单元测试：不依赖外部服务。
-- 集成测试：依赖 MySQL 和 Redis。
+- `tests/unit/`：不依赖外部服务，当前覆盖 OpenAPI、Redis 环境变量与 revalidate 工具。
+- `tests/integration/`：依赖 MySQL 和 Redis，当前覆盖 auth、content、workspace/document 这些真实 HTTP 行为。
 
 CI 中会启动 MySQL 与 Redis services，然后运行完整 `pnpm run check`。
 

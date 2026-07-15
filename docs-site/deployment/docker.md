@@ -165,7 +165,7 @@ deps
   安装完整依赖和 native 编译工具
 
 build
-  复制源码并运行 pnpm run build
+  复制源码并运行 pnpm run build，产出 dist/
 
 prod-deps
   只安装生产依赖并 prune store
@@ -175,6 +175,8 @@ runtime
   创建非 root 用户 nodejs
   运行 node dist/server.js
 ```
+
+运行镜像不会复制 `src/`、`tests/` 或 `docs-site/`。运行时需要的接口文档来自 `docs/openapi.yaml`，API 实际启动入口是 `dist/server.js`；数据库迁移命令使用 `dist/migrate.js`。
 
 运行阶段默认：
 

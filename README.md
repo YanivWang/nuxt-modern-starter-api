@@ -1,6 +1,6 @@
 # Nuxt Modern Starter API
 
-独立 Express API 服务脚手架，保留普通 Web App 后端常用能力：auth、user、content（公开新闻/定价）、workspace、document、health、Swagger、MySQL、可选 Redis、JWT access/refresh token、文件上传和 Docker 部署。
+独立 Express API 服务脚手架，保留普通 Web App 后端常用能力：auth、user、content（公开新闻/定价）、workspace、document、health、Swagger、MySQL、可选 Redis、JWT access/refresh token、文件上传、分片上传和 Docker 部署。
 
 ## 快速开始
 
@@ -59,7 +59,7 @@ pnpm docs:preview # 预览构建产物
 
 ## 架构总览
 
-请求入口是 `src/server.ts`：连接 MySQL、按配置连接 Redis、准备上传目录，然后启动 `src/app.ts` 组装出的 Express 应用。`src/app.ts` 负责横切中间件和路由挂载，业务代码按模块放在 `src/modules/`。
+请求入口是 `src/server.ts`：连接 MySQL、按配置连接 Redis、准备上传目录，然后启动 `src/app.ts` 组装出的 Express 应用。`src/app.ts` 负责横切中间件和路由挂载，业务代码按模块放在 `src/modules/`，数据库连接、模型注册和迁移集中放在 `src/db/`。
 
 主要请求链路：
 
@@ -90,6 +90,32 @@ server.ts
 | `src/modules/document/`            | 编辑器文档读取与保存                                              |
 | `src/openapi.ts`、`src/swagger.ts` | 运行时 Swagger 与 `docs/openapi.yaml` 的统一生成来源              |
 
+当前源码目录结构：
+
+```text
+src/
+  app.ts                    # Express 应用装配
+  server.ts                 # 进程启动、依赖连接、优雅关闭
+  env.ts                    # 环境变量加载与 fail-fast 校验
+  redis.ts                  # JWT 黑名单 Redis 客户端
+  db/
+    index.ts                # Sequelize 连接与模型导出
+    models.ts               # 模型初始化顺序与关联注册入口
+    migrator.ts             # Umzug 迁移器
+    migrations/             # 数据库迁移文件
+  middlewares/              # auth、validate、error、rate limit、requestId、日志、压缩
+  modules/
+    auth/                   # 注册、登录、refresh、logout、JWT/Cookie/CSRF
+    user/                   # /api/me 与用户扩展资料
+    content/                # 新闻/定价公开内容与 revalidate
+    workspace/              # 默认个人空间与项目 CRUD
+    document/               # 编辑器文档读取与保存
+    upload/                 # 普通图片、头像、大文件分片、本地存储封装
+  routes/                   # /health 与 /ready
+  types/                    # Express/JWT 共享类型扩展
+  utils/                    # 响应、日志、校验读取、路径、revalidate 等工具
+```
+
 辅助文件职责：
 
 | 路径                          | 职责                                                                   |
@@ -102,9 +128,24 @@ server.ts
 | `vitest*.config.ts`           | 区分不依赖外部服务的单元测试与依赖 MySQL/Redis 的集成测试              |
 | `eslint.config.js`            | TypeScript 类型感知 lint、Prettier 兼容和测试/脚本例外规则             |
 
+测试目录结构：
+
+```text
+tests/
+  unit/
+    openapi.test.ts
+    env.redis.test.ts
+    utils/revalidate.test.ts
+  integration/
+    auth.integration.test.ts
+    content.integration.test.ts
+    product-foundation.integration.test.ts
+```
+
 目录维护约定：
 
 - 新增业务能力默认放入 `src/modules/<domain>/`，并按 `routes -> controller -> service -> schema -> model` 组织；只有跨业务复用的能力才进入 `src/middlewares/`、`src/utils/` 或 `src/types/`。
+- 数据库模型由模块内的 `*.model.ts` 定义，但必须通过 `src/db/models.ts` 统一注册，再由 `src/db/index.ts` 对外导出，避免业务文件各自创建 Sequelize 实例。
 - 测试统一放在顶层 `tests/`，`tests/unit/` 承载不依赖外部服务的单元测试，`tests/integration/` 承载依赖 MySQL/Redis 的 API 集成测试；`src/` 只保留运行时代码。
 - 企业级 SaaS 后续扩展如 `organization`、`member`、`audit`、`billing` 仍按 `src/modules/<domain>/` 落地；没有真实业务前不空建目录。
 - `dist/`、`logs/`、`uploads/`、`.data/`、`docs-site/.vitepress/dist/` 属于构建产物或运行时数据，只能由命令生成，不作为可维护源码提交。
@@ -286,7 +327,7 @@ pnpm docker:prod:down
 
 如果你要彻底删除 Redis 依赖，再移除 `src/redis.ts`、`src/modules/auth/auth-token.service.ts` 的 Redis 调用、Docker Compose 中的 Redis service，以及相关环境变量。
 
-如果业务不需要普通图片上传，可以移除 `src/modules/upload/upload.routes.ts` 中 `/uploads`、`/uploads/profiles` 相关路由，以及 `src/modules/upload/image-upload.controller.ts`、`src/modules/upload/image-upload.config.ts` 和 `/uploads` 静态目录挂载。
+如果业务不需要普通图片上传，可以移除 `src/modules/upload/upload.routes.ts` 中 `/uploads`、`/uploads/profiles` 相关路由，以及 `src/modules/upload/image-upload.controller.ts`、`src/modules/upload/image-upload.config.ts` 和 `/uploads` 静态目录挂载。`storage/local-storage.service.ts` 同时被普通上传和大文件上传复用，只有两类上传都删除时才移除。
 
 如果业务不需要大文件分片上传，可以移除 `src/modules/upload/large-upload.controller.ts`、`src/modules/upload/large-upload.service.ts`、`src/modules/upload/large-upload.multer.ts`、`src/modules/upload/large-upload.schema.ts`、`src/modules/upload/large-upload.constants.ts` 以及 `src/modules/upload/upload.routes.ts` 中 `/uploads/large/*` 路由。
 

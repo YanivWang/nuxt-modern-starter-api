@@ -33,6 +33,12 @@ src/db/ / src/redis.ts / src/env.ts
 
 src/openapi.ts / src/swagger.ts
   负责接口文档生成与 Swagger UI
+
+tests/
+  unit/
+    不依赖外部服务的单元测试
+  integration/
+    依赖 MySQL/Redis 的 API 集成测试
 ```
 
 ## 进程启动链路
@@ -130,6 +136,8 @@ src/modules/<domain>/
 - `src/utils/`：不依赖具体业务领域的工具函数。
 - `src/types/`：跨模块共享的类型扩展。
 - `src/db/`：数据库连接、模型注册、迁移器和迁移文件。
+
+数据库模型的边界略有特殊：模型定义仍在所属业务模块内，例如 `src/modules/user/user.model.ts`、`src/modules/workspace/project.model.ts`；`src/db/models.ts` 只负责按依赖顺序统一初始化这些模型和关联，`src/db/index.ts` 再统一导出 Sequelize 实例和模型对象。
 
 测试不进入 `src/`，统一放在顶层 `tests/`。`tests/unit/` 承载不依赖外部服务的单元测试，`tests/integration/` 承载依赖 MySQL/Redis 的 API 集成测试。这样 `src/` 始终保持运行时代码视野，测试作为外部消费者验证模块和 HTTP 行为。
 

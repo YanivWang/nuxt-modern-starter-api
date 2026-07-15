@@ -15,7 +15,7 @@ hero:
 
 features:
   - title: 清晰的后端分层
-    details: server/app 负责启动与装配，middlewares 承载横切能力，modules 按 auth/user/content/workspace/document/upload 分业务边界。
+    details: server/app 负责启动与装配，db 统一管理连接和迁移，middlewares 承载横切能力，modules 按 auth/user/content/workspace/document/upload 分业务边界。
   - title: Web App 登录态
     details: JWT access token、数据库 refresh token 会话、Cookie + CSRF、Redis 黑名单共同组成认证体系。
   - title: 完整工程闭环
@@ -25,6 +25,8 @@ features:
 ## 这份文档解决什么问题
 
 这个仓库是一个独立的 Express API 服务脚手架，适合承载普通 Web App 后端常见能力：注册登录、当前用户、用户资料、公开新闻/定价内容、工作台项目、编辑器文档、图片上传、大文件分片上传、健康检查、Swagger 文档、MySQL 持久化、可选 Redis、Docker 部署和 CI 检查。
+
+当前源码按照“运行时入口、基础设施、横切中间件、业务模块、测试目录”组织：`src/db/` 负责 Sequelize、模型注册和迁移，`src/modules/` 只放业务域，`tests/unit/` 与 `tests/integration/` 从源码目录外部验证行为。
 
 如果你是第一次接触这个项目，建议按下面顺序阅读：
 
@@ -36,7 +38,7 @@ features:
 
 ## 项目一句话
 
-`nuxt-modern-starter-api` 是一个 TypeScript ESM 后端模板：它把 Express 的路由、中间件、认证、公开内容、工作台项目、编辑器文档、数据库迁移、接口文档、上传、测试、容器化部署整理成一套可裁剪的基础工程。
+`nuxt-modern-starter-api` 是一个 TypeScript ESM 后端模板：它把 Express 的路由、中间件、认证、公开内容、工作台项目、编辑器文档、数据库迁移、接口文档、上传、测试、容器化部署整理成一套可裁剪的 SaaS API 基础工程。
 
 ## 文档和源码的关系
 

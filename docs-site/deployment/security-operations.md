@@ -187,6 +187,8 @@ bcrypt.hash(password, 10)
 
 生产环境不会在 API 启动时自动执行迁移。
 
+迁移器位于 `src/db/migrator.ts`，生产构建后对应 `dist/db/migrator.js`；迁移文件来自 `src/db/migrations/` 编译后的 `dist/db/migrations/`。生产部署前应使用构建产物执行迁移，而不是依赖 API 启动时自动改表。
+
 部署流程应包含：
 
 ```bash

@@ -31,6 +31,8 @@ src/modules/user/
     UserProfiles Sequelize 模型与 Users 一对一关联
 ```
 
+`user.model.ts` 和 `user-profile.model.ts` 只定义模型；实际初始化顺序由 `src/db/models.ts` 控制，并由 `src/db/index.ts` 统一导出 `User` 与 `UserProfile`。service 层只依赖这个统一入口。
+
 ## 对外接口
 
 当前用户模块提供：
@@ -219,6 +221,10 @@ controller 返回用户信息时只返回安全字段：
 - `nickname`
 
 这是避免敏感字段泄露的基本边界。
+
+## 测试现状
+
+当前用户基础能力主要由 `tests/integration/auth.integration.test.ts` 间接覆盖：注册、登录后访问 `/api/me`、Bearer 与 Cookie 登录态都会验证不会返回 `password`。`/api/me/profile` 的 GET/PATCH 仍属于当前集成测试 gap，开发用户资料字段时应补充对应测试。
 
 ## 常见扩展方式
 

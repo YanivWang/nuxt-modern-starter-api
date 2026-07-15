@@ -165,6 +165,23 @@ new Sequelize(DB_NAME, DB_USER, DB_PWD, {
 
 测试环境关闭 Sequelize SQL logging，避免测试输出过多。
 
+数据库目录职责：
+
+```text
+src/db/
+  index.ts
+    创建 Sequelize 连接，调用 initModels，并统一导出 sequelize 与模型对象
+
+  models.ts
+    从各业务模块导入 define*Model()，按依赖顺序注册模型和关联
+
+  migrator.ts
+    配置 Umzug、迁移 glob、迁移记录存储和日志适配
+
+  migrations/
+    保存 createTable / addIndex 等结构变更脚本
+```
+
 模型注册：
 
 ```text

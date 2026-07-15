@@ -21,10 +21,10 @@ pnpm check
 最重要的是：
 
 ```bash
-pnpm run check
+pnpm check
 ```
 
-它也是 CI 执行的命令。
+它与 CI 执行的 `pnpm run check` 等价。
 
 ## check 做了什么
 
@@ -67,8 +67,9 @@ tsc --noEmit -p tsconfig.json
 - `src/**/*.ts`
 - `src/types/**/*.d.ts`
 - `scripts/**/*.ts`
+- `tests/**/*.ts`
 
-这样脚本也会被类型检查覆盖。
+这样运行时代码、脚本和测试都会被类型检查覆盖。生产构建使用 `tsconfig.build.json`，只编译 `src/**/*.ts` 到 `dist/`。
 
 ## lint
 
@@ -92,6 +93,7 @@ eslint.config.js
 - 禁止误用 promises。
 - 关闭 require-await。
 - 对脚本和测试放宽少量 unsafe 规则。
+- 测试例外规则只匹配 `tests/**/*.ts`，运行时代码不再混放 `.test.ts`。
 
 忽略目录：
 
@@ -160,8 +162,8 @@ cross-env APP_ENV=test NODE_ENV=test vitest run
 
 当前覆盖：
 
-- OpenAPI 生成一致性
-- Redis 环境变量行为
+- OpenAPI 生成一致性（含 `docs/openapi.yaml` 同步检查）
+- Redis 环境变量行为（含关闭黑名单时允许不配置 Redis）
 - Nuxt revalidate 路径与跳过逻辑（`tests/unit/utils/revalidate.test.ts`）
 
 ## 集成测试

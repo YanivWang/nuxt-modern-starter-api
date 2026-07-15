@@ -21,6 +21,8 @@ tests/unit/openapi.test.ts
   验证 OpenAPI schema 复用 Zod，并检查 docs/openapi.yaml 是否同步
 ```
 
+注意：测试文件现在统一在顶层 `tests/`，OpenAPI 相关测试不再放在 `src/` 下；`src/` 只保留运行时代码和生成逻辑。
+
 ## 为什么从源码生成文档
 
 项目中的请求校验基于 Zod。OpenAPI 也复用这些 Zod schema。

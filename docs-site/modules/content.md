@@ -32,6 +32,8 @@ src/utils/revalidate.ts
   新闻变更后通知 Nuxt 清除 SWR 页面缓存
 ```
 
+公开内容模块当前不包含 `*.model.ts`，也不会在 `src/db/models.ts` 中注册数据库模型。它是进程内数据源示例，适合前端联调和脚手架演示；接入 CMS 或 MySQL 时，优先替换 `content.service.ts` 的数据读写，不要先改变 HTTP 契约。
+
 ## 对外接口
 
 | 方法     | 路径                      | 鉴权 | 说明                 |
@@ -218,6 +220,10 @@ revalidate 失败只记日志，不影响新闻写接口本身的成功响应。
 NUXT_REVALIDATE_URL=http://localhost:3000/api/revalidate
 REVALIDATE_SECRET=dev_revalidate_secret_replace_with_random_string
 ```
+
+## 测试现状
+
+`tests/integration/content.integration.test.ts` 覆盖公开读接口、本地化解析、未知 slug 404、登录后新闻创建/更新/删除，以及 revalidate 请求体中的中英文新闻列表和详情路径。`tests/unit/utils/revalidate.test.ts` 额外覆盖 revalidate 未配置时的跳过逻辑。
 
 密钥需与前端一致。
 
