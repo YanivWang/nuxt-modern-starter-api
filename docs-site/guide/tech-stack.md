@@ -96,7 +96,7 @@ MySQL 是主业务数据库。Sequelize 负责：
 
 ### Umzug
 
-Umzug 管理数据库迁移。迁移记录存放在数据库中，迁移文件位于 `src/migrations/`。
+Umzug 管理数据库迁移。迁移记录存放在数据库中，迁移文件位于 `src/db/migrations/`。
 
 当前共 3 个迁移文件，直接使用 `createTable` / `addIndex` 建表，**不含** `tableExists` 等幂等守卫；开发阶段若需重建 schema，请使用 `pnpm db:drop-create` 或重建数据库 volume。
 

@@ -66,7 +66,7 @@ export default tseslint.config(
   },
   eslintConfigPrettier,
   {
-    files: ["*.config.ts", "scripts/**/*.ts", "src/**/*.test.ts"],
+    files: ["*.config.ts", "scripts/**/*.ts", "tests/**/*.ts"],
     rules: {
       "@typescript-eslint/no-unsafe-assignment": "off",
       "@typescript-eslint/no-unsafe-call": "off",

@@ -11,7 +11,7 @@
     "dev:debug": "cross-env NODE_ENV=development nodemon --inspect=0.0.0.0:9229 --exec tsx src/server.ts",
     "check": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run openapi:check && pnpm run test && pnpm run build",
     "test": "pnpm run test:unit && pnpm run test:integration && pnpm run test:env",
-    "test:unit": "cross-env APP_ENV=test NODE_ENV=test vitest run --exclude \"src/**/*.integration.test.ts\"",
+    "test:unit": "cross-env APP_ENV=test NODE_ENV=test vitest run",
     "test:integration": "cross-env APP_ENV=test NODE_ENV=test vitest run --config vitest.integration.config.ts",
     "test:env": "cross-env APP_ENV=test NODE_ENV=test node --import tsx scripts/test-env.ts",
     "lint": "eslint .",

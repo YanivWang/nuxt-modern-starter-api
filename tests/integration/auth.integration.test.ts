@@ -5,8 +5,8 @@
 import request from "supertest";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import type { connectDatabase, sequelize, User, UserProfile, UserRefreshToken } from "./db.js";
-import type { connectRedis, disconnectRedis } from "./redis.js";
+import type { connectDatabase, sequelize, User, UserProfile, UserRefreshToken } from "../../src/db/index.js";
+import type { connectRedis, disconnectRedis } from "../../src/redis.js";
 import type { Express } from "express";
 
 type DbModule = {
@@ -56,9 +56,9 @@ async function registerAndLogin(username = uniqueUsername(), password = "passwor
 
 describe("auth and current user API", () => {
   beforeAll(async () => {
-    db = await import("./db.js");
-    redisModule = await import("./redis.js");
-    const appModule = await import("./app.js");
+    db = await import("../../src/db/index.js");
+    redisModule = await import("../../src/redis.js");
+    const appModule = await import("../../src/app.js");
     app = appModule.default;
 
     await db.connectDatabase();

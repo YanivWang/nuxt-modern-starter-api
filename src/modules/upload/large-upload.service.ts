@@ -8,7 +8,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { finished } from "node:stream/promises";
 
-import { filePathToPublicUrl, uploadsRoot } from "./upload.config.js";
+import { filePathToPublicUrl, uploadsRoot } from "./storage/local-storage.service.js";
 import { createHttpError } from "../../middlewares/error.middleware.js";
 import { projectRoot } from "../../utils/projectRoot.js";
 

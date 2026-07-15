@@ -117,8 +117,7 @@ export const pricingPageContent: PricingPageContent = {
       },
       description: {
         "zh-CN": "适合需要账号体系、请求封装、部署验证与质量门禁的小团队产品前台。",
-        "en-US":
-          "Best for small teams that need auth, request helpers, deployment validation, and quality gates.",
+        "en-US": "Best for small teams that need auth, request helpers, deployment validation, and quality gates.",
       },
       cta: {
         "zh-CN": "查看能力清单",
@@ -161,8 +160,7 @@ export const pricingPageContent: PricingPageContent = {
       },
       description: {
         "zh-CN": "适合需要品牌主题、CMS 接入、复杂权限或多区域部署的企业项目。",
-        "en-US":
-          "Best for enterprise projects that need brand theming, CMS integration, or multi-region deployment.",
+        "en-US": "Best for enterprise projects that need brand theming, CMS integration, or multi-region deployment.",
       },
       cta: {
         "zh-CN": "沟通需求",

@@ -9,7 +9,7 @@ const ORIGINAL_ENV = { ...process.env };
 async function importFreshEnv(env: NodeJS.ProcessEnv) {
   vi.resetModules();
   process.env = { ...ORIGINAL_ENV, ...env };
-  return import("./env.js");
+  return import("../../src/env.js");
 }
 
 afterEach(() => {
@@ -66,7 +66,7 @@ describe("redis env configuration", () => {
       AUTH_TOKEN_BLACKLIST_ENABLED: "false",
     });
 
-    const { blacklistJwt, isJwtBlacklisted } = await import("./modules/auth/auth-token.service.js");
+    const { blacklistJwt, isJwtBlacklisted } = await import("../../src/modules/auth/auth-token.service.js");
 
     await expect(blacklistJwt("token-id", 60)).resolves.toBeUndefined();
     await expect(isJwtBlacklisted("token-id")).resolves.toBe(false);

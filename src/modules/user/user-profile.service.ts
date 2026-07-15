@@ -4,7 +4,7 @@
  */
 import { Transaction } from "sequelize";
 
-import { sequelize, User, UserProfile } from "../../db.js";
+import { sequelize, User, UserProfile } from "../../db/index.js";
 import { createHttpError } from "../../middlewares/error.middleware.js";
 
 import type { PatchUserProfileBody } from "./user-profile.schema.js";

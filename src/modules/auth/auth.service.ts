@@ -4,7 +4,7 @@
  */
 import bcrypt from "bcrypt";
 
-import { User } from "../../db.js";
+import { User } from "../../db/index.js";
 import { createHttpError } from "../../middlewares/error.middleware.js";
 import { logger } from "../../utils/logger.js";
 

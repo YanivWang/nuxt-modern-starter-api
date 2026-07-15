@@ -28,8 +28,8 @@ src/modules/
   document/
     编辑器文档读取与保存
 
-src/db.ts / src/redis.ts / src/env.ts / src/migrator.ts
-  负责配置、数据库、Redis 和迁移等基础设施
+src/db/ / src/redis.ts / src/env.ts
+  负责配置、数据库、模型注册、迁移和 Redis 等基础设施
 
 src/openapi.ts / src/swagger.ts
   负责接口文档生成与 Swagger UI
@@ -111,6 +111,49 @@ helmet / Swagger CSP 例外
 
 这个结构避免 controller 直接塞满数据库逻辑，也避免 service 依赖 Express 的请求/响应对象。
 
+## 目录组织约定
+
+新增业务能力默认进入 `src/modules/<domain>/`。一个可维护模块至少应把 HTTP 路由、请求校验、控制器、业务服务和数据模型分清楚：
+
+```text
+src/modules/<domain>/
+  <domain>.routes.ts
+  <domain>.controller.ts
+  <domain>.service.ts
+  <domain>.schema.ts
+  <domain>.model.ts
+```
+
+不属于单个业务领域的能力再进入共享目录：
+
+- `src/middlewares/`：Express 横切中间件，例如认证、限流、错误处理、请求日志。
+- `src/utils/`：不依赖具体业务领域的工具函数。
+- `src/types/`：跨模块共享的类型扩展。
+- `src/db/`：数据库连接、模型注册、迁移器和迁移文件。
+
+测试不进入 `src/`，统一放在顶层 `tests/`。`tests/unit/` 承载不依赖外部服务的单元测试，`tests/integration/` 承载依赖 MySQL/Redis 的 API 集成测试。这样 `src/` 始终保持运行时代码视野，测试作为外部消费者验证模块和 HTTP 行为。
+
+企业级 SaaS 的后续领域扩展也遵守 `src/modules/<domain>/` 规则，但不提前空建目录。只有当真实业务落地时，才新增例如：
+
+```text
+src/modules/organization/
+src/modules/member/
+src/modules/audit/
+src/modules/billing/
+```
+
+其中 `organization` / `member` 适合承载组织、成员和协作关系，`audit` 适合承载操作审计，`billing` 适合承载套餐、订阅、用量和支付回调。
+
+构建产物和运行时数据不进入源码结构讨论，也不应提交：
+
+```text
+dist/
+logs/
+uploads/
+.data/
+docs-site/.vitepress/dist/
+```
+
 ## 基础设施边界
 
 ### 环境变量
@@ -125,7 +168,7 @@ helmet / Swagger CSP 例外
 
 ### 数据库
 
-`src/db.ts` 创建 Sequelize 实例，并调用 `initModels()` 注册模型。非生产环境自动执行迁移，生产环境只验证连接。
+`src/db/index.ts` 创建 Sequelize 实例，并调用 `src/db/models.ts` 注册模型。非生产环境自动执行迁移，生产环境只验证连接。
 
 ### Redis
 
@@ -133,7 +176,7 @@ helmet / Swagger CSP 例外
 
 ### 迁移
 
-`src/migrator.ts` 配置 Umzug，迁移文件在 `src/migrations/`。`src/migrate.ts` 提供命令行入口。
+`src/db/migrator.ts` 配置 Umzug，迁移文件在 `src/db/migrations/`。`src/migrate.ts` 提供命令行入口。
 
 迁移文件直接使用 `createTable` / `addIndex` 建表，不做 `tableExists` 条件判断。若本地 schema 与迁移不一致，使用 `pnpm db:drop-create` 或重建数据库后再迁移。
 

@@ -79,14 +79,14 @@ server.ts
 | 路径                               | 职责                                                              |
 | ---------------------------------- | ----------------------------------------------------------------- |
 | `src/env.ts`                       | 加载 `.env.{APP_ENV}` 与 `.env.{APP_ENV}.local`，集中校验运行环境 |
-| `src/db.ts`、`src/migrator.ts`     | Sequelize 连接、模型注册和 Umzug 迁移                             |
+| `src/db/`                          | Sequelize 连接、模型注册、Umzug 迁移器和迁移文件                  |
 | `src/redis.ts`                     | JWT 黑名单 Redis 连接；关闭黑名单时可不启用 Redis                 |
 | `src/middlewares/`                 | 统一错误、认证、限流、请求 ID、日志、Zod 校验等横切能力           |
 | `src/modules/auth/`                | 注册、登录、access/refresh token、Cookie/CSRF、登出黑名单         |
 | `src/modules/user/`                | `/api/me`、用户资料（头像仅存 `Users.avatar`）                    |
 | `src/modules/content/`             | 公开新闻/定价内容（内存数据源）；写操作可触发 Nuxt revalidate     |
 | `src/modules/upload/`              | 普通图片上传、头像上传、大文件分片上传和秒传索引                  |
-| `src/modules/workspace/`           | 默认个人空间、项目 CRUD（列表/创建/详情/更新/删除）                |
+| `src/modules/workspace/`           | 默认个人空间、项目 CRUD（列表/创建/详情/更新/删除）               |
 | `src/modules/document/`            | 编辑器文档读取与保存                                              |
 | `src/openapi.ts`、`src/swagger.ts` | 运行时 Swagger 与 `docs/openapi.yaml` 的统一生成来源              |
 
@@ -101,6 +101,13 @@ server.ts
 | `.github/workflows/ci.yml`    | 运行 `pnpm run check` 的质量门禁，包含 MySQL 与 Redis services         |
 | `vitest*.config.ts`           | 区分不依赖外部服务的单元测试与依赖 MySQL/Redis 的集成测试              |
 | `eslint.config.js`            | TypeScript 类型感知 lint、Prettier 兼容和测试/脚本例外规则             |
+
+目录维护约定：
+
+- 新增业务能力默认放入 `src/modules/<domain>/`，并按 `routes -> controller -> service -> schema -> model` 组织；只有跨业务复用的能力才进入 `src/middlewares/`、`src/utils/` 或 `src/types/`。
+- 测试统一放在顶层 `tests/`，`tests/unit/` 承载不依赖外部服务的单元测试，`tests/integration/` 承载依赖 MySQL/Redis 的 API 集成测试；`src/` 只保留运行时代码。
+- 企业级 SaaS 后续扩展如 `organization`、`member`、`audit`、`billing` 仍按 `src/modules/<domain>/` 落地；没有真实业务前不空建目录。
+- `dist/`、`logs/`、`uploads/`、`.data/`、`docs-site/.vitepress/dist/` 属于构建产物或运行时数据，只能由命令生成，不作为可维护源码提交。
 
 注释维护约定：
 
@@ -147,7 +154,7 @@ pnpm openapi:check    # 校验 docs/openapi.yaml 是否与源码同步
 
 ## 数据库迁移
 
-项目使用 Umzug 管理数据库结构，迁移文件位于 `src/migrations/`。
+项目使用 Umzug 管理数据库结构，迁移文件位于 `src/db/migrations/`。
 
 ```bash
 pnpm db:migrate          # 执行所有待执行迁移
@@ -182,9 +189,9 @@ pnpm test:unit
 
 只运行 API 集成测试时，可以运行 `pnpm test:integration`。当前集成测试包括：
 
-- `auth-user.integration.test.ts`：注册/登录/refresh/logout、Bearer 与 Cookie、CSRF、黑名单。
-- `product-foundation.integration.test.ts`：项目/文档 CRUD、项目删除级联清理与跨用户读取/删除隔离。
-- `content.integration.test.ts`：公开新闻/定价本地化读取，以及登录后新闻创建/更新/删除与 revalidate 触发。
+- `tests/integration/auth.integration.test.ts`：注册/登录/refresh/logout、Bearer 与 Cookie、CSRF、黑名单。
+- `tests/integration/product-foundation.integration.test.ts`：项目/文档 CRUD、项目删除级联清理与跨用户读取/删除隔离。
+- `tests/integration/content.integration.test.ts`：公开新闻/定价本地化读取，以及登录后新闻创建/更新/删除与 revalidate 触发。
 
 ## Web App 授权约定
 
@@ -279,10 +286,10 @@ pnpm docker:prod:down
 
 如果你要彻底删除 Redis 依赖，再移除 `src/redis.ts`、`src/modules/auth/auth-token.service.ts` 的 Redis 调用、Docker Compose 中的 Redis service，以及相关环境变量。
 
-如果业务不需要普通文件上传，可以移除 `src/modules/upload/upload.routes.ts` 中 `/uploads`、`/uploads/profiles` 相关路由，以及 `src/modules/upload/upload.controller.ts`、`src/modules/upload/upload.config.ts` 和 `/uploads` 静态目录挂载。
+如果业务不需要普通图片上传，可以移除 `src/modules/upload/upload.routes.ts` 中 `/uploads`、`/uploads/profiles` 相关路由，以及 `src/modules/upload/image-upload.controller.ts`、`src/modules/upload/image-upload.config.ts` 和 `/uploads` 静态目录挂载。
 
-如果业务不需要大文件分片上传，可以移除 `src/modules/upload/large-upload.controller.ts`、`src/modules/upload/large-upload.service.ts`、`src/modules/upload/large-upload.multer.ts`、`src/modules/upload/large-upload.schema.ts`、`src/modules/upload/largeUpload.ts` 以及 `src/modules/upload/upload.routes.ts` 中 `/uploads/large/*` 路由。
+如果业务不需要大文件分片上传，可以移除 `src/modules/upload/large-upload.controller.ts`、`src/modules/upload/large-upload.service.ts`、`src/modules/upload/large-upload.multer.ts`、`src/modules/upload/large-upload.schema.ts`、`src/modules/upload/large-upload.constants.ts` 以及 `src/modules/upload/upload.routes.ts` 中 `/uploads/large/*` 路由。
 
 如果业务不需要公开新闻/定价内容，可以移除 `src/modules/content/`、`src/app.ts` 中的 `contentRoutes` 挂载、`src/openapi.ts` 中对应 paths，以及不再需要的 `NUXT_REVALIDATE_URL` / `REVALIDATE_SECRET`。
 
-当前上传实现使用本地磁盘和 `.data` 会话文件，适合单实例部署。多实例或容器弹性伸缩场景请改为对象存储（S3、OSS、MinIO 等），并把大文件上传会话迁移到 Redis、数据库或对象存储 multipart 机制。
+当前上传实现使用 `src/modules/upload/storage/local-storage.service.ts` 封装本地磁盘路径，并用 `.data` 保存大文件上传会话，适合单实例部署。多实例或容器弹性伸缩场景请新增真实对象存储实现（S3、OSS、MinIO 等），并把大文件上传会话迁移到 Redis、数据库或对象存储 multipart 机制。

@@ -73,9 +73,9 @@ cp .env.production.example .env.production
 
 ### Nuxt 缓存失效（公开内容写操作）
 
-| 变量                  | 说明                                                                 |
-| --------------------- | -------------------------------------------------------------------- |
-| `NUXT_REVALIDATE_URL` | Nuxt revalidate 接口地址；未配置时新闻写操作跳过缓存失效             |
+| 变量                  | 说明                                                                     |
+| --------------------- | ------------------------------------------------------------------------ |
+| `NUXT_REVALIDATE_URL` | Nuxt revalidate 接口地址；未配置时新闻写操作跳过缓存失效                 |
 | `REVALIDATE_SECRET`   | 与前端约定的密钥，请求头 `x-revalidate-secret`；未配置时跳过并打 warning |
 
 开发环境示例（与 `nuxt-modern-starter` 联调）：
@@ -153,7 +153,7 @@ REVALIDATE_SECRET=dev_revalidate_secret_replace_with_random_string
 
 ## Sequelize 连接
 
-`src/db.ts` 创建 Sequelize 实例：
+`src/db/index.ts` 创建 Sequelize 实例：
 
 ```text
 new Sequelize(DB_NAME, DB_USER, DB_PWD, {
@@ -194,7 +194,7 @@ initModels(sequelize)
 迁移文件：
 
 ```text
-src/migrations/*.ts
+src/db/migrations/*.ts
 ```
 
 迁移上下文是 Sequelize QueryInterface。

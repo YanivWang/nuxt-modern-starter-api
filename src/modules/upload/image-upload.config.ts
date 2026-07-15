@@ -8,20 +8,13 @@ import path from "node:path";
 
 import multer from "multer";
 
-import { projectRoot } from "../../utils/projectRoot.js";
-
-/** 上传根目录：当前仓库根 `uploads/` */
-export const uploadsRoot = path.join(projectRoot, "uploads");
+import { uploadsRoot } from "./storage/local-storage.service.js";
 
 /** 通用图片：`POST /api/uploads` → `<uploadsRoot>/common/<年>/<月>/` → `/uploads/common/...` */
 export const commonUploadDiskSegment = "common";
 
 /** 用户头像等：`POST /api/uploads/profiles` → `<uploadsRoot>/profiles/<年>/<月>/` → `/uploads/profiles/...` */
 export const profileUploadDiskSegment = "profiles";
-
-export function ensureUploadsRoot() {
-  fs.mkdirSync(uploadsRoot, { recursive: true });
-}
 
 const fileFilter: multer.Options["fileFilter"] = (_req, file, cb) => {
   const ok = /^image\/(jpeg|png|gif|webp)$/i.test(file.mimetype);
@@ -68,11 +61,3 @@ export const uploadProfileImagesMiddleware = multer({
   limits: { fileSize: 8 * 1024 * 1024, files: 1 },
   fileFilter,
 }).array("files", 1);
-
-export function filePathToPublicUrl(absPath: string) {
-  const rel = path.relative(uploadsRoot, absPath).split(path.sep).join("/");
-  if (rel.startsWith("..") || path.isAbsolute(rel)) {
-    throw new Error("非法上传路径");
-  }
-  return `/uploads/${rel}`;
-}

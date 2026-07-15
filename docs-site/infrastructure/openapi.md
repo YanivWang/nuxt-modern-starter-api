@@ -17,7 +17,7 @@ scripts/generate-openapi.ts
 docs/openapi.yaml
   生成物，供外部工具或文档平台读取
 
-src/openapi.test.ts
+tests/unit/openapi.test.ts
   验证 OpenAPI schema 复用 Zod，并检查 docs/openapi.yaml 是否同步
 ```
 
@@ -161,7 +161,7 @@ OpenAPI 讲接口契约：
 
 ## 测试保障
 
-`src/openapi.test.ts` 覆盖两件事：
+`tests/unit/openapi.test.ts` 覆盖两件事：
 
 1. 请求 schema 是否来自 Zod 校验规则。
 2. `docs/openapi.yaml` 是否与运行时生成结果一致。

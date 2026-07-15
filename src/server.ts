@@ -3,9 +3,9 @@
  * 启动顺序为数据库、Redis、上传目录、HTTP 监听，并负责 SIGTERM/SIGINT 下的优雅退出。
  */
 import app from "./app.js";
-import { ensureUploadsRoot } from "./modules/upload/upload.config.js";
-import { connectDatabase, sequelize } from "./db.js";
+import { connectDatabase, sequelize } from "./db/index.js";
 import { APP_ENV, PORT } from "./env.js";
+import { ensureUploadsRoot } from "./modules/upload/storage/local-storage.service.js";
 import { connectRedis, disconnectRedis } from "./redis.js";
 import { logger, serializeError } from "./utils/logger.js";
 

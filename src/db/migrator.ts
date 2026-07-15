@@ -7,8 +7,9 @@ import { fileURLToPath } from "node:url";
 
 import { SequelizeStorage, Umzug } from "umzug";
 
-import { sequelize } from "./db.js";
-import { logger } from "./utils/logger.js";
+import { logger } from "../utils/logger.js";
+
+import { sequelize } from "./index.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

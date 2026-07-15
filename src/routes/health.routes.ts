@@ -4,7 +4,7 @@
  */
 import { Router } from "express";
 
-import { sequelize } from "../db.js";
+import { sequelize } from "../db/index.js";
 import { redis } from "../redis.js";
 
 const router = Router();

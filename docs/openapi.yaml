@@ -36,7 +36,7 @@ components:
         message:
           type: string
         data:
-          type: 'null'
+          type: "null"
       required:
         - code
         - message
@@ -49,48 +49,48 @@ paths:
         - 探针
       summary: 存活探针
       responses:
-        '200':
+        "200":
           description: ok
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessBody'
-        '400':
+                $ref: "#/components/schemas/SuccessBody"
+        "400":
           description: 请求参数错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
-        '500':
+                $ref: "#/components/schemas/ErrorBody"
+        "500":
           description: 服务器内部错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
+                $ref: "#/components/schemas/ErrorBody"
   /ready:
     get:
       tags:
         - 探针
       summary: 就绪探针
       responses:
-        '200':
+        "200":
           description: ok
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessBody'
-        '400':
+                $ref: "#/components/schemas/SuccessBody"
+        "400":
           description: 请求参数错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
-        '500':
+                $ref: "#/components/schemas/ErrorBody"
+        "500":
           description: 服务器内部错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
+                $ref: "#/components/schemas/ErrorBody"
   /api/register:
     post:
       tags:
@@ -115,24 +115,24 @@ paths:
                 - username
                 - password
       responses:
-        '200':
+        "200":
           description: 注册成功
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessBody'
-        '400':
+                $ref: "#/components/schemas/SuccessBody"
+        "400":
           description: 请求参数错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
-        '500':
+                $ref: "#/components/schemas/ErrorBody"
+        "500":
           description: 服务器内部错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
+                $ref: "#/components/schemas/ErrorBody"
   /api/login:
     post:
       tags:
@@ -157,24 +157,24 @@ paths:
                 - username
                 - password
       responses:
-        '200':
+        "200":
           description: 登录成功，返回 accessToken、refreshToken，并写入 httpOnly cookie
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessBody'
-        '400':
+                $ref: "#/components/schemas/SuccessBody"
+        "400":
           description: 请求参数错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
-        '500':
+                $ref: "#/components/schemas/ErrorBody"
+        "500":
           description: 服务器内部错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
+                $ref: "#/components/schemas/ErrorBody"
   /api/refresh:
     post:
       tags:
@@ -191,24 +191,24 @@ paths:
                   type: string
                   minLength: 1
       responses:
-        '200':
+        "200":
           description: 刷新成功，返回新的 accessToken、refreshToken，并写入 httpOnly cookie
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessBody'
-        '400':
+                $ref: "#/components/schemas/SuccessBody"
+        "400":
           description: 请求参数错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
-        '500':
+                $ref: "#/components/schemas/ErrorBody"
+        "500":
           description: 服务器内部错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
+                $ref: "#/components/schemas/ErrorBody"
   /api/logout:
     post:
       tags:
@@ -227,24 +227,24 @@ paths:
                   type: string
                   minLength: 1
       responses:
-        '200':
+        "200":
           description: 退出登录成功
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessBody'
-        '400':
+                $ref: "#/components/schemas/SuccessBody"
+        "400":
           description: 请求参数错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
-        '500':
+                $ref: "#/components/schemas/ErrorBody"
+        "500":
           description: 服务器内部错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
+                $ref: "#/components/schemas/ErrorBody"
   /api/me:
     get:
       tags:
@@ -253,24 +253,24 @@ paths:
       security:
         - bearerAuth: []
       responses:
-        '200':
+        "200":
           description: 当前用户基础资料
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessBody'
-        '400':
+                $ref: "#/components/schemas/SuccessBody"
+        "400":
           description: 请求参数错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
-        '500':
+                $ref: "#/components/schemas/ErrorBody"
+        "500":
           description: 服务器内部错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
+                $ref: "#/components/schemas/ErrorBody"
   /api/me/profile:
     get:
       tags:
@@ -279,24 +279,24 @@ paths:
       security:
         - bearerAuth: []
       responses:
-        '200':
+        "200":
           description: 当前用户扩展资料
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessBody'
-        '400':
+                $ref: "#/components/schemas/SuccessBody"
+        "400":
           description: 请求参数错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
-        '500':
+                $ref: "#/components/schemas/ErrorBody"
+        "500":
           description: 服务器内部错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
+                $ref: "#/components/schemas/ErrorBody"
     patch:
       tags:
         - 当前用户
@@ -312,17 +312,17 @@ paths:
               properties:
                 nickname:
                   anyOf:
-                    - type: 'null'
+                    - type: "null"
                     - type: string
                       maxLength: 100
                 avatar:
                   anyOf:
-                    - type: 'null'
+                    - type: "null"
                     - type: string
                       maxLength: 500
                 gender:
                   anyOf:
-                    - type: 'null'
+                    - type: "null"
                     - type: string
                       enum:
                         - male
@@ -330,68 +330,68 @@ paths:
                         - unknown
                 birthday:
                   anyOf:
-                    - type: 'null'
+                    - type: "null"
                     - type: string
                       pattern: ^\d{4}-\d{2}-\d{2}$
                 bio:
                   anyOf:
-                    - type: 'null'
+                    - type: "null"
                     - type: string
                       maxLength: 65535
                 address:
                   anyOf:
-                    - type: 'null'
+                    - type: "null"
                     - type: string
                       maxLength: 255
                 company:
                   anyOf:
-                    - type: 'null'
+                    - type: "null"
                     - type: string
                       maxLength: 255
                 jobTitle:
                   anyOf:
-                    - type: 'null'
+                    - type: "null"
                     - type: string
                       maxLength: 255
                 isMarried:
                   anyOf:
                     - type: boolean
-                    - type: 'null'
+                    - type: "null"
                 mom:
                   anyOf:
-                    - type: 'null'
+                    - type: "null"
                     - type: string
                       maxLength: 255
                 father:
                   anyOf:
-                    - type: 'null'
+                    - type: "null"
                     - type: string
                       maxLength: 255
                 university:
                   anyOf:
-                    - type: 'null'
+                    - type: "null"
                     - type: string
                       maxLength: 255
               additionalProperties: false
       responses:
-        '200':
+        "200":
           description: 更新当前用户扩展资料
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessBody'
-        '400':
+                $ref: "#/components/schemas/SuccessBody"
+        "400":
           description: 请求参数错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
-        '500':
+                $ref: "#/components/schemas/ErrorBody"
+        "500":
           description: 服务器内部错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
+                $ref: "#/components/schemas/ErrorBody"
   /api/content/news:
     get:
       tags:
@@ -407,24 +407,24 @@ paths:
               - zh-CN
               - en-US
       responses:
-        '200':
+        "200":
           description: 本地化新闻列表
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessBody'
-        '400':
+                $ref: "#/components/schemas/SuccessBody"
+        "400":
           description: 请求参数错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
-        '500':
+                $ref: "#/components/schemas/ErrorBody"
+        "500":
           description: 服务器内部错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
+                $ref: "#/components/schemas/ErrorBody"
     post:
       tags:
         - 公开内容
@@ -494,24 +494,24 @@ paths:
                 - body
                 - publishedAt
       responses:
-        '200':
+        "200":
           description: 创建新闻
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessBody'
-        '400':
+                $ref: "#/components/schemas/SuccessBody"
+        "400":
           description: 请求参数错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
-        '500':
+                $ref: "#/components/schemas/ErrorBody"
+        "500":
           description: 服务器内部错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
+                $ref: "#/components/schemas/ErrorBody"
   /api/content/pricing:
     get:
       tags:
@@ -527,24 +527,24 @@ paths:
               - zh-CN
               - en-US
       responses:
-        '200':
+        "200":
           description: 本地化定价页内容
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessBody'
-        '400':
+                $ref: "#/components/schemas/SuccessBody"
+        "400":
           description: 请求参数错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
-        '500':
+                $ref: "#/components/schemas/ErrorBody"
+        "500":
           description: 服务器内部错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
+                $ref: "#/components/schemas/ErrorBody"
   /api/content/news/{slug}:
     get:
       tags:
@@ -567,24 +567,24 @@ paths:
               - zh-CN
               - en-US
       responses:
-        '200':
+        "200":
           description: 本地化新闻详情
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessBody'
-        '400':
+                $ref: "#/components/schemas/SuccessBody"
+        "400":
           description: 请求参数错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
-        '500':
+                $ref: "#/components/schemas/ErrorBody"
+        "500":
           description: 服务器内部错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
+                $ref: "#/components/schemas/ErrorBody"
     patch:
       tags:
         - 公开内容
@@ -652,24 +652,24 @@ paths:
                   type: string
                   minLength: 1
       responses:
-        '200':
+        "200":
           description: 更新新闻
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessBody'
-        '400':
+                $ref: "#/components/schemas/SuccessBody"
+        "400":
           description: 请求参数错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
-        '500':
+                $ref: "#/components/schemas/ErrorBody"
+        "500":
           description: 服务器内部错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
+                $ref: "#/components/schemas/ErrorBody"
     delete:
       tags:
         - 公开内容
@@ -685,24 +685,24 @@ paths:
             minLength: 1
             pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
       responses:
-        '200':
+        "200":
           description: 删除新闻
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessBody'
-        '400':
+                $ref: "#/components/schemas/SuccessBody"
+        "400":
           description: 请求参数错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
-        '500':
+                $ref: "#/components/schemas/ErrorBody"
+        "500":
           description: 服务器内部错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
+                $ref: "#/components/schemas/ErrorBody"
   /api/projects:
     get:
       tags:
@@ -711,24 +711,24 @@ paths:
       security:
         - bearerAuth: []
       responses:
-        '200':
+        "200":
           description: 当前用户项目列表
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessBody'
-        '400':
+                $ref: "#/components/schemas/SuccessBody"
+        "400":
           description: 请求参数错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
-        '500':
+                $ref: "#/components/schemas/ErrorBody"
+        "500":
           description: 服务器内部错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
+                $ref: "#/components/schemas/ErrorBody"
     post:
       tags:
         - 项目
@@ -752,24 +752,24 @@ paths:
               required:
                 - title
       responses:
-        '200':
+        "200":
           description: 创建项目成功
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessBody'
-        '400':
+                $ref: "#/components/schemas/SuccessBody"
+        "400":
           description: 请求参数错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
-        '500':
+                $ref: "#/components/schemas/ErrorBody"
+        "500":
           description: 服务器内部错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
+                $ref: "#/components/schemas/ErrorBody"
   /api/projects/{projectId}:
     get:
       tags:
@@ -787,24 +787,24 @@ paths:
             pattern: >-
               ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
       responses:
-        '200':
+        "200":
           description: 项目详情
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessBody'
-        '400':
+                $ref: "#/components/schemas/SuccessBody"
+        "400":
           description: 请求参数错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
-        '500':
+                $ref: "#/components/schemas/ErrorBody"
+        "500":
           description: 服务器内部错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
+                $ref: "#/components/schemas/ErrorBody"
     patch:
       tags:
         - 项目
@@ -835,24 +835,24 @@ paths:
                   type: string
                   maxLength: 500
       responses:
-        '200':
+        "200":
           description: 更新项目成功
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessBody'
-        '400':
+                $ref: "#/components/schemas/SuccessBody"
+        "400":
           description: 请求参数错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
-        '500':
+                $ref: "#/components/schemas/ErrorBody"
+        "500":
           description: 服务器内部错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
+                $ref: "#/components/schemas/ErrorBody"
     delete:
       tags:
         - 项目
@@ -869,24 +869,24 @@ paths:
             pattern: >-
               ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
       responses:
-        '200':
+        "200":
           description: 删除项目成功
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessBody'
-        '400':
+                $ref: "#/components/schemas/SuccessBody"
+        "400":
           description: 请求参数错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
-        '500':
+                $ref: "#/components/schemas/ErrorBody"
+        "500":
           description: 服务器内部错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
+                $ref: "#/components/schemas/ErrorBody"
   /api/documents/{documentId}:
     get:
       tags:
@@ -904,24 +904,24 @@ paths:
             pattern: >-
               ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
       responses:
-        '200':
+        "200":
           description: 文档详情
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessBody'
-        '400':
+                $ref: "#/components/schemas/SuccessBody"
+        "400":
           description: 请求参数错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
-        '500':
+                $ref: "#/components/schemas/ErrorBody"
+        "500":
           description: 服务器内部错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
+                $ref: "#/components/schemas/ErrorBody"
     patch:
       tags:
         - 文档
@@ -952,24 +952,24 @@ paths:
                   type: string
                   maxLength: 10000000
       responses:
-        '200':
+        "200":
           description: 保存文档成功
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessBody'
-        '400':
+                $ref: "#/components/schemas/SuccessBody"
+        "400":
           description: 请求参数错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
-        '500':
+                $ref: "#/components/schemas/ErrorBody"
+        "500":
           description: 服务器内部错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
+                $ref: "#/components/schemas/ErrorBody"
   /api/uploads:
     post:
       tags:
@@ -992,24 +992,24 @@ paths:
               required:
                 - files
       responses:
-        '200':
+        "200":
           description: 上传通用图片，返回 /uploads/common/... URL
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessBody'
-        '400':
+                $ref: "#/components/schemas/SuccessBody"
+        "400":
           description: 请求参数错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
-        '500':
+                $ref: "#/components/schemas/ErrorBody"
+        "500":
           description: 服务器内部错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
+                $ref: "#/components/schemas/ErrorBody"
   /api/uploads/profiles:
     post:
       tags:
@@ -1032,24 +1032,24 @@ paths:
               required:
                 - files
       responses:
-        '200':
+        "200":
           description: 上传用户头像/资料图
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessBody'
-        '400':
+                $ref: "#/components/schemas/SuccessBody"
+        "400":
           description: 请求参数错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
-        '500':
+                $ref: "#/components/schemas/ErrorBody"
+        "500":
           description: 服务器内部错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
+                $ref: "#/components/schemas/ErrorBody"
   /api/uploads/large/init:
     post:
       tags:
@@ -1090,24 +1090,24 @@ paths:
                 - chunkSize
                 - fileMd5
       responses:
-        '200':
+        "200":
           description: 创建大文件分片上传任务或秒传
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessBody'
-        '400':
+                $ref: "#/components/schemas/SuccessBody"
+        "400":
           description: 请求参数错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
-        '500':
+                $ref: "#/components/schemas/ErrorBody"
+        "500":
           description: 服务器内部错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
+                $ref: "#/components/schemas/ErrorBody"
   /api/uploads/large/{uploadId}/status:
     get:
       tags:
@@ -1125,24 +1125,24 @@ paths:
             pattern: >-
               ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
       responses:
-        '200':
+        "200":
           description: 查询上传状态
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessBody'
-        '400':
+                $ref: "#/components/schemas/SuccessBody"
+        "400":
           description: 请求参数错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
-        '500':
+                $ref: "#/components/schemas/ErrorBody"
+        "500":
           description: 服务器内部错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
+                $ref: "#/components/schemas/ErrorBody"
   /api/uploads/large/{uploadId}/chunks/{chunkIndex}:
     put:
       tags:
@@ -1187,24 +1187,24 @@ paths:
               required:
                 - chunk
       responses:
-        '200':
+        "200":
           description: 分片已接收
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessBody'
-        '400':
+                $ref: "#/components/schemas/SuccessBody"
+        "400":
           description: 请求参数错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
-        '500':
+                $ref: "#/components/schemas/ErrorBody"
+        "500":
           description: 服务器内部错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
+                $ref: "#/components/schemas/ErrorBody"
   /api/uploads/large/{uploadId}/merge:
     post:
       tags:
@@ -1222,24 +1222,24 @@ paths:
             pattern: >-
               ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
       responses:
-        '200':
+        "200":
           description: 合并完成
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessBody'
-        '400':
+                $ref: "#/components/schemas/SuccessBody"
+        "400":
           description: 请求参数错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
-        '500':
+                $ref: "#/components/schemas/ErrorBody"
+        "500":
           description: 服务器内部错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
+                $ref: "#/components/schemas/ErrorBody"
   /api/uploads/large/{uploadId}:
     delete:
       tags:
@@ -1257,21 +1257,21 @@ paths:
             pattern: >-
               ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
       responses:
-        '200':
+        "200":
           description: 已取消
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessBody'
-        '400':
+                $ref: "#/components/schemas/SuccessBody"
+        "400":
           description: 请求参数错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
-        '500':
+                $ref: "#/components/schemas/ErrorBody"
+        "500":
           description: 服务器内部错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorBody'
+                $ref: "#/components/schemas/ErrorBody"

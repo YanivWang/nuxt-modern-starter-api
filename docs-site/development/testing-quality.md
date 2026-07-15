@@ -132,6 +132,12 @@ test:env
   单独验证环境变量导入与校验
 ```
 
+测试文件按目录边界摆放：
+
+- `tests/unit/`：不依赖外部服务的单元测试。
+- `tests/integration/`：依赖 MySQL/Redis 的 API 集成测试。
+- `src/`：只保留运行时代码，不放测试文件。
+
 总命令：
 
 ```bash
@@ -149,14 +155,14 @@ pnpm test:unit
 执行：
 
 ```bash
-cross-env APP_ENV=test NODE_ENV=test vitest run --exclude "src/**/*.integration.test.ts"
+cross-env APP_ENV=test NODE_ENV=test vitest run
 ```
 
 当前覆盖：
 
 - OpenAPI 生成一致性
 - Redis 环境变量行为
-- Nuxt revalidate 路径与跳过逻辑（`src/utils/revalidate.test.ts`）
+- Nuxt revalidate 路径与跳过逻辑（`tests/unit/utils/revalidate.test.ts`）
 
 ## 集成测试
 
@@ -178,7 +184,7 @@ cross-env APP_ENV=test NODE_ENV=test vitest run --config vitest.integration.conf
 - Redis
 - `.env.test`
 
-当前 `auth-user.integration.test.ts` 覆盖：
+当前 `tests/integration/auth.integration.test.ts` 覆盖：
 
 - 注册用户。
 - 重复用户名返回 409。
@@ -192,7 +198,7 @@ cross-env APP_ENV=test NODE_ENV=test vitest run --config vitest.integration.conf
 - 登出后 access token 被黑名单拒绝。
 - 登出后 refresh token 被撤销。
 
-当前 `product-foundation.integration.test.ts` 覆盖：
+当前 `tests/integration/product-foundation.integration.test.ts` 覆盖：
 
 - 标准 `{ code, message, data }` 响应 envelope。
 - 登录用户创建项目，并在同一事务中初始化关联 Document。
@@ -200,7 +206,7 @@ cross-env APP_ENV=test NODE_ENV=test vitest run --config vitest.integration.conf
 - 删除自己的项目，并验证关联 Document 被级联清理。
 - 跨用户无法读取、删除他人的项目或文档（当前集成测试覆盖 GET/DELETE 隔离，PATCH 越权由 service 层按 `ownerId` 过滤并在代码审查中约束）。
 
-当前 `content.integration.test.ts` 覆盖：
+当前 `tests/integration/content.integration.test.ts` 覆盖：
 
 - 无需登录即可按 `Accept-Language` / `locale` 获取本地化新闻列表与详情。
 - 未知新闻 slug 返回 404。

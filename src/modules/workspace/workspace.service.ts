@@ -2,7 +2,7 @@
  * 文件职责：工作区与项目领域服务。
  * 保持 controller 轻量，把默认空间创建、项目聚合和 DTO 转换集中在这里。
  */
-import { Document, Project, Workspace, sequelize } from "../../db.js";
+import { Document, Project, Workspace, sequelize } from "../../db/index.js";
 
 import type { Model } from "sequelize";
 

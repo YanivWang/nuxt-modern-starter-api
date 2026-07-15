@@ -34,14 +34,14 @@ src/utils/revalidate.ts
 
 ## 对外接口
 
-| 方法     | 路径                         | 鉴权 | 说明                         |
-| -------- | ---------------------------- | ---- | ---------------------------- |
-| `GET`    | `/api/content/news`          | 否   | 本地化新闻列表               |
-| `GET`    | `/api/content/news/:slug`    | 否   | 本地化新闻详情               |
-| `GET`    | `/api/content/pricing`       | 否   | 本地化定价页内容             |
-| `POST`   | `/api/content/news`          | 是   | 创建新闻（内存写入）         |
-| `PATCH`  | `/api/content/news/:slug`    | 是   | 更新新闻（内存写入）         |
-| `DELETE` | `/api/content/news/:slug`    | 是   | 删除新闻（内存删除）         |
+| 方法     | 路径                      | 鉴权 | 说明                 |
+| -------- | ------------------------- | ---- | -------------------- |
+| `GET`    | `/api/content/news`       | 否   | 本地化新闻列表       |
+| `GET`    | `/api/content/news/:slug` | 否   | 本地化新闻详情       |
+| `GET`    | `/api/content/pricing`    | 否   | 本地化定价页内容     |
+| `POST`   | `/api/content/news`       | 是   | 创建新闻（内存写入） |
+| `PATCH`  | `/api/content/news/:slug` | 是   | 更新新闻（内存写入） |
+| `DELETE` | `/api/content/news/:slug` | 是   | 删除新闻（内存删除） |
 
 写接口（`POST` / `PATCH` / `DELETE`）挂 `authMiddleware`；读接口公开访问。
 
@@ -201,10 +201,10 @@ Body: { "paths": ["/news", "/news/{slug}", "/en/news", "/en/news/{slug}"] }
 
 配置来自环境变量：
 
-| 变量                   | 说明                                      |
-| ---------------------- | ----------------------------------------- |
-| `NUXT_REVALIDATE_URL`  | Nuxt revalidate 接口地址；未配置则跳过    |
-| `REVALIDATE_SECRET`    | 与前端约定的密钥；未配置则跳过并打 warning |
+| 变量                  | 说明                                       |
+| --------------------- | ------------------------------------------ |
+| `NUXT_REVALIDATE_URL` | Nuxt revalidate 接口地址；未配置则跳过     |
+| `REVALIDATE_SECRET`   | 与前端约定的密钥；未配置则跳过并打 warning |
 
 revalidate 失败只记日志，不影响新闻写接口本身的成功响应。
 

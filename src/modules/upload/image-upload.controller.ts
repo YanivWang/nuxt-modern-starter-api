@@ -2,9 +2,9 @@
  * 文件职责：普通图片上传控制器。
  * multer 完成文件落盘后，这里把磁盘路径转换成可公开访问的 /uploads URL。
  */
-import { filePathToPublicUrl } from "./upload.config.js";
 import { createHttpError } from "../../middlewares/error.middleware.js";
 import { success } from "../../utils/response.js";
+import { filePathToPublicUrl } from "./storage/local-storage.service.js";
 
 import type { Request, Response } from "express";
 

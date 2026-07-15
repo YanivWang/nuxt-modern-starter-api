@@ -5,7 +5,7 @@
 import express from "express";
 
 import { largeUploadChunkMulter } from "./large-upload.multer.js";
-import { uploadImagesMiddleware, uploadProfileImagesMiddleware } from "./upload.config.js";
+import { uploadImagesMiddleware, uploadProfileImagesMiddleware } from "./image-upload.config.js";
 import {
   deleteLargeUpload,
   getLargeUploadStatusHandler,
@@ -13,7 +13,7 @@ import {
   postLargeUploadMerge,
   putLargeUploadChunk,
 } from "./large-upload.controller.js";
-import { uploadImages } from "./upload.controller.js";
+import { uploadImages } from "./image-upload.controller.js";
 import { asyncHandler } from "../../middlewares/asyncHandler.js";
 import { authMiddleware } from "../../middlewares/auth.middleware.js";
 import { validate } from "../../middlewares/validate.middleware.js";

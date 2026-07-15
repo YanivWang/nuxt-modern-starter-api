@@ -4,7 +4,7 @@
  */
 import { z } from "zod";
 
-import { LARGE_UPLOAD_MAX_FILE_BYTES } from "./largeUpload.js";
+import { LARGE_UPLOAD_MAX_FILE_BYTES } from "./large-upload.constants.js";
 
 const MIN_CHUNK_BYTES = 1024 * 1024;
 const MAX_CHUNK_BYTES = 8 * 1024 * 1024;

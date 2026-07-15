@@ -20,8 +20,7 @@ export const newsArticles: NewsArticle[] = [
       "en-US": "Nuxt Modern Starter v0.1 is officially ready",
     },
     description: {
-      "zh-CN":
-        "首个公开版本聚焦营销页、内容页、SEO、多语言与可选鉴权，为 SaaS 官网与产品前台提供完整起点。",
+      "zh-CN": "首个公开版本聚焦营销页、内容页、SEO、多语言与可选鉴权，为 SaaS 官网与产品前台提供完整起点。",
       "en-US":
         "The first public release focuses on marketing pages, content hubs, SEO, i18n, and optional auth for SaaS websites and product frontends.",
     },
@@ -72,8 +71,7 @@ export const newsArticles: NewsArticle[] = [
       "en-US": "i18n routing design: default Chinese plus /en English prefix",
     },
     description: {
-      "zh-CN":
-        "项目采用默认语言无前缀、次要语言带前缀的路由策略，并统一 localePath 与 hreflang 生成规则。",
+      "zh-CN": "项目采用默认语言无前缀、次要语言带前缀的路由策略，并统一 localePath 与 hreflang 生成规则。",
       "en-US":
         "The starter uses unprefixed default-locale routes, prefixed secondary locales, and shared localePath and hreflang rules.",
     },

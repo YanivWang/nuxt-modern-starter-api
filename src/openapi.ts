@@ -17,7 +17,11 @@ import {
   newsSlugSchema,
   patchNewsSchema,
 } from "./modules/content/content.schema.js";
-import { createProjectSchema, patchProjectSchema, projectIdParamsSchema } from "./modules/workspace/workspace.schema.js";
+import {
+  createProjectSchema,
+  patchProjectSchema,
+  projectIdParamsSchema,
+} from "./modules/workspace/workspace.schema.js";
 import { documentIdParamsSchema, patchDocumentSchema } from "./modules/document/document.schema.js";
 import { loginSchema, logoutSchema, refreshSchema, registerSchema } from "./modules/auth/auth.schema.js";
 import { patchMyProfileSchema } from "./modules/user/user-profile.schema.js";

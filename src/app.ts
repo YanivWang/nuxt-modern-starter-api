@@ -6,7 +6,7 @@ import cors from "cors";
 import express, { type RequestHandler } from "express";
 import helmet from "helmet";
 
-import { uploadsRoot } from "./modules/upload/upload.config.js";
+import { uploadsRoot } from "./modules/upload/storage/local-storage.service.js";
 import { REQUEST_BODY_LIMIT, TRUST_PROXY, getCorsOriginOption } from "./env.js";
 import { compressionMiddleware } from "./middlewares/compression.middleware.js";
 import { createHttpError, errorMiddleware } from "./middlewares/error.middleware.js";

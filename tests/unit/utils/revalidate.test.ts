@@ -10,7 +10,7 @@ describe("revalidate utils", () => {
   });
 
   it("returns localized news paths for a slug", async () => {
-    const { getNewsRevalidatePaths } = await import("./revalidate.js");
+    const { getNewsRevalidatePaths } = await import("../../../src/utils/revalidate.js");
 
     expect(getNewsRevalidatePaths("starter-release")).toEqual([
       "/news",
@@ -30,7 +30,7 @@ describe("revalidate utils", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const module = await import("./revalidate.js");
+    const module = await import("../../../src/utils/revalidate.js");
     await module.revalidatePaths(["/news", "/news/demo"]);
 
     expect(fetchMock).toHaveBeenCalledWith("http://localhost:3000/api/revalidate", {
@@ -50,7 +50,7 @@ describe("revalidate utils", () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
-    const module = await import("./revalidate.js");
+    const module = await import("../../../src/utils/revalidate.js");
     await module.revalidatePaths(["/news"]);
 
     expect(fetchMock).not.toHaveBeenCalled();

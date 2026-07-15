@@ -4,9 +4,10 @@
  */
 import { Sequelize } from "sequelize";
 
-import { APP_ENV, DB_HOST, DB_NAME, DB_PORT, DB_PWD, DB_USER } from "./env.js";
-import { initModels } from "./models/index.js";
-import { logger } from "./utils/logger.js";
+import { APP_ENV, DB_HOST, DB_NAME, DB_PORT, DB_PWD, DB_USER } from "../env.js";
+import { logger } from "../utils/logger.js";
+
+import { initModels } from "./models.js";
 
 const sequelize = new Sequelize(DB_NAME, DB_USER, DB_PWD, {
   host: DB_HOST,

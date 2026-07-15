@@ -9,13 +9,13 @@ src/modules/upload/
   upload.routes.ts
     注册所有上传路由
 
-  upload.config.ts
-    普通图片 multer 配置、上传根目录、公开 URL 转换
+  image-upload.config.ts
+    普通图片 multer 配置、图片类型和数量限制
 
-  upload.controller.ts
+  image-upload.controller.ts
     普通图片上传响应
 
-  largeUpload.ts
+  large-upload.constants.ts
     大文件上传容量常量
 
   large-upload.schema.ts
@@ -29,6 +29,9 @@ src/modules/upload/
 
   large-upload.service.ts
     分片会话、状态、合并、秒传索引、清理逻辑
+
+  storage/local-storage.service.ts
+    本地磁盘上传根目录、目录初始化和公开 URL 转换
 ```
 
 ## 上传路由
@@ -417,5 +420,5 @@ init 阶段如果发现相同 MD5 且文件仍存在，就直接返回已有 URL
 推荐方向：
 
 - 小规模单机：保留当前实现。
-- 多实例：使用对象存储，如 S3、OSS、MinIO。
+- 多实例：新增真实对象存储实现，如 S3、OSS、MinIO，并同步迁移大文件上传会话与秒传索引。
 - 大规模视频/素材业务：使用对象存储 multipart 能力，不建议自己维护所有分片状态。

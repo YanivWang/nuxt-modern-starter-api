@@ -8,7 +8,7 @@ import path from "node:path";
 import yaml from "js-yaml";
 import { describe, expect, it } from "vitest";
 
-import { projectRoot } from "./utils/projectRoot.js";
+import { projectRoot } from "../../src/utils/projectRoot.js";
 
 type TestOpenApiSchema = {
   properties?: Record<string, TestOpenApiSchema>;
@@ -29,7 +29,7 @@ function expectJsonRequestSchema(operation: {
 
 describe("openapi generation", () => {
   it("builds request schemas from zod validation schemas", async () => {
-    const { generateOpenApiSpec } = await import("./openapi.js");
+    const { generateOpenApiSpec } = await import("../../src/openapi.js");
 
     const spec = generateOpenApiSpec();
     const registerBody = expectJsonRequestSchema(spec.paths["/api/register"].post);
@@ -60,7 +60,7 @@ describe("openapi generation", () => {
   });
 
   it("keeps docs/openapi.yaml in sync with the generated spec", async () => {
-    const { openApiYaml } = await import("./openapi.js");
+    const { openApiYaml } = await import("../../src/openapi.js");
     const current = fs.readFileSync(path.join(projectRoot, "docs", "openapi.yaml"), "utf8");
 
     expect(yaml.load(current)).toEqual(yaml.load(openApiYaml()));

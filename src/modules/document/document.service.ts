@@ -2,7 +2,7 @@
  * 文件职责：文档领域服务。
  * 文档读取和保存必须按 ownerId 过滤，避免用户越权访问其他人的内容。
  */
-import { Document, Project, sequelize } from "../../db.js";
+import { Document, Project, sequelize } from "../../db/index.js";
 import { toDocumentDto } from "../workspace/workspace.service.js";
 
 export async function findDocumentForUser(userId: number, documentId: string) {

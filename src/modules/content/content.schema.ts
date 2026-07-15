@@ -6,14 +6,8 @@ import { z } from "zod";
 const localeSchema = z.enum(["zh-CN", "en-US"]);
 
 const localizedTextSchema = z.object({
-  "zh-CN": z
-    .string({ error: "中文标题不能为空" })
-    .trim()
-    .min(1, "中文标题不能为空"),
-  "en-US": z
-    .string({ error: "英文标题不能为空" })
-    .trim()
-    .min(1, "英文标题不能为空"),
+  "zh-CN": z.string({ error: "中文标题不能为空" }).trim().min(1, "中文标题不能为空"),
+  "en-US": z.string({ error: "英文标题不能为空" }).trim().min(1, "英文标题不能为空"),
 });
 
 const localizedBodySchema = z.object({
@@ -54,10 +48,7 @@ export const createNewsSchema = z.object({
     title: localizedTextSchema,
     description: localizedTextSchema,
     body: localizedBodySchema,
-    publishedAt: z
-      .string({ error: "发布时间不能为空" })
-      .trim()
-      .min(1, "发布时间不能为空"),
+    publishedAt: z.string({ error: "发布时间不能为空" }).trim().min(1, "发布时间不能为空"),
   }),
 });
 

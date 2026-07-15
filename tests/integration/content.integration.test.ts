@@ -4,8 +4,8 @@
 import request from "supertest";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
-import type { connectDatabase, sequelize, User, UserProfile, UserRefreshToken } from "../../db.js";
-import type { connectRedis, disconnectRedis } from "../../redis.js";
+import type { connectDatabase, sequelize, User, UserProfile, UserRefreshToken } from "../../src/db/index.js";
+import type { connectRedis, disconnectRedis } from "../../src/redis.js";
 import type { Express } from "express";
 
 type DbModule = {
@@ -53,9 +53,9 @@ async function registerAndLogin() {
 
 describe("public content API", () => {
   beforeAll(async () => {
-    db = await import("../../db.js");
-    redisModule = await import("../../redis.js");
-    const appModule = await import("../../app.js");
+    db = await import("../../src/db/index.js");
+    redisModule = await import("../../src/redis.js");
+    const appModule = await import("../../src/app.js");
     app = appModule.default;
 
     await db.connectDatabase();
@@ -200,10 +200,7 @@ describe("public content API", () => {
 
     expect(patchRes.body.data.article.description["zh-CN"]).toBe("更新后的摘要");
 
-    await request(app)
-      .delete(`/api/content/news/${slug}`)
-      .set("Authorization", `Bearer ${accessToken}`)
-      .expect(200);
+    await request(app).delete(`/api/content/news/${slug}`).set("Authorization", `Bearer ${accessToken}`).expect(200);
 
     const missingRes = await request(app).get(`/api/content/news/${slug}`).expect(404);
     expect(missingRes.body.message).toBe("新闻不存在");
