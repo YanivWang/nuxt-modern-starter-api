@@ -13,6 +13,7 @@ import type { Sequelize } from "sequelize";
 
 export function initModels(sequelize: Sequelize) {
   const User = defineUserModel(sequelize);
+  // 关联在各模型定义函数内部完成；初始化顺序要先有 User，再挂依赖 User 的 profile/token/workspace 等模型。
   const UserProfile = defineUserProfileModel(sequelize, User);
   const UserRefreshToken = defineUserRefreshTokenModel(sequelize, User);
   const Workspace = defineWorkspaceModel(sequelize, User);

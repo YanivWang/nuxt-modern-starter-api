@@ -1,5 +1,6 @@
 /**
  * 文件职责：通知 Nuxt server 清除 SWR 页面缓存。
+ * 该工具只做 best-effort 通知，调用方不应因为前端缓存刷新失败而回滚 API 写操作。
  */
 import { NUXT_REVALIDATE_URL, REVALIDATE_SECRET } from "../env.js";
 import { logger } from "./logger.js";
@@ -59,5 +60,6 @@ export async function revalidatePaths(paths: readonly string[]) {
 }
 
 export function revalidateNewsPaths(slug: string) {
+  // 内容写接口采用 fire-and-forget，避免 Nuxt 暂时不可达时拖慢或打断 API 响应。
   void revalidatePaths(getNewsRevalidatePaths(slug));
 }

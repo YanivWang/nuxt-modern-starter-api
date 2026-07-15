@@ -298,6 +298,7 @@ export async function initLargeUpload(body: LargeUploadInitBody, _userId: number
 export async function getLargeUploadStatus(uploadId: string, userId: number) {
   const markerFile = doneMarkerPath(uploadId);
   try {
+    // 合并完成后临时目录会被删除，status 必须先看 done marker 才能支持客户端轮询/刷新后的幂等查询。
     const raw = await fs.readFile(markerFile, "utf8");
     const rec = JSON.parse(raw) as { userId: number; url: string; chunkTotal?: number };
     if (rec.userId === userId && typeof rec.url === "string") {
@@ -388,6 +389,7 @@ export async function finalizeChunkWrite(
 export async function mergeLargeUpload(uploadId: string, userId: number) {
   const markerFile = doneMarkerPath(uploadId);
   try {
+    // merge 可能因网络重试重复提交；已完成任务直接返回旧 URL，不再触碰已清理的临时分片。
     const raw = await fs.readFile(markerFile, "utf8");
     const rec = JSON.parse(raw) as { userId: number; url: string };
     if (rec.userId === userId && typeof rec.url === "string") {
@@ -402,6 +404,7 @@ export async function mergeLargeUpload(uploadId: string, userId: number) {
     meta = await readMeta(uploadId);
   } catch (err) {
     try {
+      // readMeta 与清理临时目录存在时间窗口，再读一次 marker 覆盖“刚合并完成”的竞争态。
       const raw = await fs.readFile(markerFile, "utf8");
       const rec = JSON.parse(raw) as { userId: number; url: string };
       if (rec.userId === userId && typeof rec.url === "string") {

@@ -87,6 +87,7 @@ export async function createProjectForUser(
   },
 ) {
   return sequelize.transaction(async (transaction) => {
+    // 项目和编辑器文档是一对一默认产物，必须在同一事务内创建，避免前端拿到无文档项目。
     const workspace = await ensurePersonalWorkspace(userId);
     const project = await Project.create(
       {
@@ -175,6 +176,7 @@ export async function updateProjectForUser(
       const document = project.get("document") as Model | null | undefined;
 
       if (document) {
+        // 项目标题是列表展示字段，文档标题是编辑器标题；当前产品约定二者同步。
         await Document.update(
           { title: payload.title },
           {

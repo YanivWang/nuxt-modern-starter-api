@@ -1,5 +1,6 @@
 /**
  * 文件职责：公开内容 HTTP 控制器。
+ * 公开读接口无需登录；新闻写接口由路由层挂 authMiddleware，并在写入后异步触发 Nuxt revalidate。
  */
 import { createHttpError } from "../../middlewares/error.middleware.js";
 import { getValidated } from "../../utils/getValidated.js";
@@ -65,6 +66,7 @@ export async function createNews(req: Request, res: Response) {
     throw createHttpError(409, "新闻 slug 已存在");
   }
 
+  // 内容仍存于进程内数组；revalidate 只是通知前端清缓存，不代表数据已持久化。
   revalidateNewsPaths(article.slug);
 
   return success(res, "创建新闻成功", { article }, 201);
@@ -78,6 +80,7 @@ export async function patchNews(req: Request, res: Response) {
     throw createHttpError(404, "新闻不存在");
   }
 
+  // 不等待前端缓存刷新，避免内容 API 因 Nuxt revalidate 短暂失败而整体失败。
   revalidateNewsPaths(article.slug);
 
   return success(res, "更新新闻成功", { article });

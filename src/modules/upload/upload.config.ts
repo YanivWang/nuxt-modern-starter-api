@@ -45,6 +45,7 @@ function createYmDiskStorage(diskSegment: string): multer.StorageEngine {
     filename(_req, file, cb) {
       const ext = path.extname(file.originalname || "").toLowerCase();
       const allowed = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
+      // 扩展名只用于浏览器/静态资源识别；真实类型仍以前面的 mimetype 白名单为准。
       const suffix = allowed.includes(ext) ? ext : "";
       cb(null, `${Date.now()}-${randomBytes(8).toString("hex")}${suffix}`);
     },

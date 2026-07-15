@@ -1,5 +1,6 @@
 /**
- * 文件职责：公开内容读取与本地化映射。
+ * 文件职责：公开内容读取、内存写入与本地化映射。
+ * 当前新闻/定价数据不是数据库模型，写操作只修改进程内数组，适合作为前端联调和内容 API 形态示例。
  */
 import { newsArticles, type NewsArticle, type SupportedLocale } from "./content.data.js";
 import { pricingPageContent, type PricingPlan } from "./pricing.data.js";
@@ -17,6 +18,7 @@ export function resolveLocale(acceptLanguage: string | undefined, queryLocale?: 
     return "en-US";
   }
 
+  // 默认中文，匹配 nuxt-modern-starter 营销页的默认语言路径。
   return "zh-CN";
 }
 

@@ -41,6 +41,7 @@ export async function updateDocumentForUser(
       { transaction },
     );
 
+    // 文档保存后同步项目标题，让工作台列表、编辑页和预览路径展示同一个名称来源。
     await Project.update(
       {
         title: nextTitle,
