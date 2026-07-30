@@ -23,7 +23,7 @@ services:
     volumes:
       - ./nginx/gateway.docker.conf:/etc/nginx/nginx.conf:ro
     ports:
-      - "${GATEWAY_HOST_PORT:-2026}:2026"
+      - "${GATEWAY_HOST_PORT:-2027}:2027"
     depends_on:
       api:
         condition: service_healthy

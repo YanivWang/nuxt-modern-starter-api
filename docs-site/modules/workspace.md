@@ -134,7 +134,7 @@ src/modules/workspace/
 
 本地联调默认配置：
 
-- 前端 `NUXT_PUBLIC_API_BASE=http://localhost:2026/api`
+- 前端 `NUXT_PUBLIC_API_BASE=http://localhost:2027/api`
 - 后端 `CORS_ORIGINS` 包含 `http://localhost:3000`
 
 ## 测试现状

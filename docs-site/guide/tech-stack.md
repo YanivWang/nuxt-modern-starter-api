@@ -233,4 +233,4 @@ ESLint 使用 TypeScript 类型感知规则，Prettier 负责统一格式。
 - 运行阶段只保留 `dist`、生产依赖、`docs` 和 `package.json`。
 - 运行用户是非 root 用户。
 
-Compose 中 Nginx 作为网关，只暴露 `2026`，API 的 `3000` 端口在 Compose 网络内部使用。
+Compose 中 Nginx 作为网关，只暴露 `2027`，API 的 `3000` 端口在 Compose 网络内部使用。

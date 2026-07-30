@@ -50,7 +50,7 @@ CORS_ORIGINS=https://app.example.com
 CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 ```
 
-如果前端与 API 网关端口不同，浏览器请求仍来自 Nuxt 的 `http://localhost:3000`，而不是 API 的 `http://localhost:2026`。
+如果前端与 API 网关端口不同，浏览器请求仍来自 Nuxt 的 `http://localhost:3000`，而不是 API 的 `http://localhost:2027`。
 
 如果前端和 API 跨站且使用 Cookie：
 

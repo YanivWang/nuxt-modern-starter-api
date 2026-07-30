@@ -51,15 +51,15 @@ pnpm docker:dev
 - MySQL：宿主机 `3306`
 - Redis：宿主机 `6379`
 - REST API：容器内 `3000`
-- Nginx 网关：宿主机 `2026`
+- Nginx 网关：宿主机 `2027`
 - Node 调试端口：宿主机 `9229`
 
 访问地址：
 
 - 本机 API：`http://localhost:3000`
-- Docker 网关：`http://localhost:2026`
-- Swagger：`http://localhost:3000/api-docs` 或经网关 `http://localhost:2026/api-docs`
-- OpenAPI YAML：`http://localhost:3000/openapi.yaml` 或 `http://localhost:2026/openapi.yaml`
+- Docker 网关：`http://localhost:2027`
+- Swagger：`http://localhost:3000/api-docs` 或经网关 `http://localhost:2027/api-docs`
+- OpenAPI YAML：`http://localhost:3000/openapi.yaml` 或 `http://localhost:2027/openapi.yaml`
 
 ## 与 Nuxt 前端联调
 
@@ -67,10 +67,10 @@ pnpm docker:dev
 
 | 配置项                      | 推荐值                       |
 | --------------------------- | ---------------------------- |
-| 前端 `NUXT_PUBLIC_API_BASE` | `http://localhost:2026/api`  |
+| 前端 `NUXT_PUBLIC_API_BASE` | `http://localhost:2027/api`  |
 | 后端 `CORS_ORIGINS`         | 包含 `http://localhost:3000` |
 | 前端开发地址                | `http://localhost:3000`      |
-| API Docker 网关             | `http://localhost:2026`      |
+| API Docker 网关             | `http://localhost:2027`      |
 
 修改 `.env.development` 后需要重建 API 容器，而不是仅 `restart`：
 

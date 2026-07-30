@@ -170,7 +170,7 @@ export function generateOpenApiSpec(): OpenApiSpec {
     },
     servers: [
       { url: "http://127.0.0.1:3000", description: "本地 API 服务" },
-      { url: "http://127.0.0.1:2026", description: "Docker Nginx 网关" },
+      { url: "http://127.0.0.1:2027", description: "Docker Nginx 网关" },
     ],
     components: {
       securitySchemes: {

@@ -23,12 +23,12 @@ pnpm docker:dev
 端口约定：
 
 - 本机 `pnpm dev` 直连 API：`http://localhost:3000`
-- Docker Nginx 网关：`http://localhost:2026`
+- Docker Nginx 网关：`http://localhost:2027`
 - Docker 开发环境额外暴露 MySQL `3306`、Redis `6379` 和 Node 调试端口 `9229`
 
 与 `nuxt-modern-starter` 前端本地联调时，请保持以下配置一致：
 
-- 前端 `.env.dev`：`NUXT_PUBLIC_API_BASE=http://localhost:2026/api`
+- 前端 `.env.dev`：`NUXT_PUBLIC_API_BASE=http://localhost:2027/api`
 - 后端 `.env.development`：`CORS_ORIGINS` 包含 `http://localhost:3000`
 - 修改 `.env.development` 后需要重建 API 容器：`docker compose ... up -d --force-recreate api`
 
@@ -47,7 +47,7 @@ pnpm docker:dev
 pnpm docker:prod
 ```
 
-Swagger: `http://localhost:3000/api-docs` 或经 Docker 网关 `http://localhost:2026/api-docs`；OpenAPI 同理可通过 `/openapi.yaml` 访问。
+Swagger: `http://localhost:3000/api-docs` 或经 Docker 网关 `http://localhost:2027/api-docs`；OpenAPI 同理可通过 `/openapi.yaml` 访问。
 
 VitePress 架构文档位于 `docs-site/`，面向新人系统介绍项目架构、技术栈、功能模块、部署设计和运维边界：
 
@@ -311,7 +311,7 @@ pnpm docker:prod:down
 ```
 
 生产 Compose 会启动 MySQL、Redis、API 应用和 Nginx 网关。`api` 服务暴露 `/health` 健康检查，网关会等待 API healthy 后再启动。应用还提供 `/ready`，用于检查 MySQL 和启用状态下的 Redis；当 `AUTH_TOKEN_BLACKLIST_ENABLED=false` 时，Redis 检查会标记为 `disabled`。
-生产 Compose 默认只把 Nginx 网关映射到宿主机 `GATEWAY_HOST_PORT`（默认 `2026`），`api` 的 3000 端口只在 Compose 网络内部使用。
+生产 Compose 默认只把 Nginx 网关映射到宿主机 `GATEWAY_HOST_PORT`（默认 `2027`），`api` 的 3000 端口只在 Compose 网络内部使用。
 
 ### 部署约定
 

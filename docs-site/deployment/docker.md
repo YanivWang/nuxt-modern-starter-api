@@ -125,7 +125,7 @@ redis-cli -a "$REDIS_PASSWORD" ping
 - 源码通过 volume 挂载到 `/app`
 - `node_modules` 使用独立 volume
 - 容器启动时执行 `pnpm install` 和 `pnpm dev`
-- Nginx 网关暴露宿主机 `2026`
+- Nginx 网关暴露宿主机 `2027`
 
 开发环境适合：
 
@@ -148,7 +148,7 @@ redis-cli -a "$REDIS_PASSWORD" ping
 生产环境暴露：
 
 ```text
-GATEWAY_HOST_PORT，默认 2026
+GATEWAY_HOST_PORT，默认 2027
 ```
 
 ## 生产镜像
@@ -198,7 +198,7 @@ docker/nginx/gateway.docker.conf
 监听：
 
 ```text
-2026
+2027
 ```
 
 反向代理到：

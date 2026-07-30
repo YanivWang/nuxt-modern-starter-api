@@ -90,8 +90,8 @@ http://localhost:3000/openapi.yaml
 Docker 网关下：
 
 ```text
-http://localhost:2026/api-docs
-http://localhost:2026/openapi.yaml
+http://localhost:2027/api-docs
+http://localhost:2027/openapi.yaml
 ```
 
 `/api-docs` 使用 Swagger UI。
