@@ -1,68 +1,60 @@
-/**
- * 文件职责：注册普通上传和大文件分片上传路由。
- * 所有上传接口都要求登录；multipart 文件先由 multer 写盘，再进入 controller/service 做业务校验。
- */
 import express from "express";
 
-import { largeUploadChunkMulter } from "./large-upload.multer.js";
-import { uploadImagesMiddleware, uploadProfileImagesMiddleware } from "./image-upload.config.js";
-import {
-  deleteLargeUpload,
-  getLargeUploadStatusHandler,
-  postLargeUploadInit,
-  postLargeUploadMerge,
-  putLargeUploadChunk,
-} from "./large-upload.controller.js";
-import { uploadImages } from "./image-upload.controller.js";
 import { asyncHandler } from "../../middlewares/asyncHandler.js";
-import { authMiddleware } from "../../middlewares/auth.middleware.js";
 import { validate } from "../../middlewares/validate.middleware.js";
+import { createImageUploadMiddlewares } from "./image-upload.config.js";
+import { createImageUploadController } from "./image-upload.controller.js";
+import { createLargeUploadChunkMiddleware } from "./large-upload.multer.js";
+import { createLargeUploadController } from "./large-upload.controller.js";
 import {
   largeUploadChunkParamsSchema,
   largeUploadIdParamsSchema,
   largeUploadInitSchema,
 } from "./large-upload.schema.js";
 
-const router = express.Router();
+import type { AuthMiddleware } from "../../middlewares/auth.middleware.js";
+import type { FileStorage } from "./ports/file-storage.port.js";
+import type { LargeUploadStorage } from "./ports/large-upload-storage.port.js";
 
-router.post("/uploads", authMiddleware, uploadImagesMiddleware, asyncHandler(uploadImages, "上传失败"));
+export function createUploadRoutes(auth: AuthMiddleware, files: FileStorage, largeFiles: LargeUploadStorage) {
+  const router = express.Router();
+  const imageMiddleware = createImageUploadMiddlewares(files);
+  const uploadImages = createImageUploadController(files);
+  const large = createLargeUploadController(largeFiles);
+  const chunkMiddleware = createLargeUploadChunkMiddleware(largeFiles);
 
-router.post("/uploads/profiles", authMiddleware, uploadProfileImagesMiddleware, asyncHandler(uploadImages, "上传失败"));
-
-router.post(
-  "/uploads/large/init",
-  authMiddleware,
-  validate(largeUploadInitSchema),
-  asyncHandler(postLargeUploadInit, "创建上传任务失败"),
-);
-
-router.get(
-  "/uploads/large/:uploadId/status",
-  authMiddleware,
-  validate(largeUploadIdParamsSchema),
-  asyncHandler(getLargeUploadStatusHandler, "查询状态失败"),
-);
-
-router.put(
-  "/uploads/large/:uploadId/chunks/:chunkIndex",
-  authMiddleware,
-  validate(largeUploadChunkParamsSchema),
-  largeUploadChunkMulter,
-  asyncHandler(putLargeUploadChunk, "上传分片失败"),
-);
-
-router.post(
-  "/uploads/large/:uploadId/merge",
-  authMiddleware,
-  validate(largeUploadIdParamsSchema),
-  asyncHandler(postLargeUploadMerge, "合并失败"),
-);
-
-router.delete(
-  "/uploads/large/:uploadId",
-  authMiddleware,
-  validate(largeUploadIdParamsSchema),
-  asyncHandler(deleteLargeUpload, "取消上传失败"),
-);
-
-export default router;
+  router.post("/uploads", auth, imageMiddleware.common, asyncHandler(uploadImages, "上传失败"));
+  router.post("/uploads/profiles", auth, imageMiddleware.profile, asyncHandler(uploadImages, "上传失败"));
+  router.post(
+    "/uploads/large/init",
+    auth,
+    validate(largeUploadInitSchema),
+    asyncHandler(large.init, "创建上传任务失败"),
+  );
+  router.get(
+    "/uploads/large/:uploadId/status",
+    auth,
+    validate(largeUploadIdParamsSchema),
+    asyncHandler(large.status, "查询状态失败"),
+  );
+  router.put(
+    "/uploads/large/:uploadId/chunks/:chunkIndex",
+    auth,
+    validate(largeUploadChunkParamsSchema),
+    chunkMiddleware,
+    asyncHandler(large.chunk, "上传分片失败"),
+  );
+  router.post(
+    "/uploads/large/:uploadId/merge",
+    auth,
+    validate(largeUploadIdParamsSchema),
+    asyncHandler(large.merge, "合并失败"),
+  );
+  router.delete(
+    "/uploads/large/:uploadId",
+    auth,
+    validate(largeUploadIdParamsSchema),
+    asyncHandler(large.abort, "取消上传失败"),
+  );
+  return router;
+}

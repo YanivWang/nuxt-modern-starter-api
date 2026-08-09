@@ -1,31 +1,27 @@
-/**
- * 文件职责：注册当前用户与用户资料路由。
- * 这些接口都必须登录，并在进入 controller 前完成 Zod 校验。
- */
 import express from "express";
 
-import { getMe, getMyProfile, patchMyProfile } from "./user.controller.js";
 import { asyncHandler } from "../../middlewares/asyncHandler.js";
-import { authMiddleware } from "../../middlewares/auth.middleware.js";
 import { validate } from "../../middlewares/validate.middleware.js";
 import { getMyProfileSchema, patchMyProfileSchema } from "./user-profile.schema.js";
 import { getMeSchema } from "./user.schema.js";
 
-const router = express.Router();
+import type { AuthMiddleware } from "../../middlewares/auth.middleware.js";
+import type { UserController } from "./user.controller.js";
 
-router.get("/me", authMiddleware, validate(getMeSchema), asyncHandler(getMe, "获取当前用户失败"));
-
-router.get(
-  "/me/profile",
-  authMiddleware,
-  validate(getMyProfileSchema),
-  asyncHandler(getMyProfile, "获取用户扩展资料失败"),
-);
-router.patch(
-  "/me/profile",
-  authMiddleware,
-  validate(patchMyProfileSchema),
-  asyncHandler(patchMyProfile, "更新用户资料失败"),
-);
-
-export default router;
+export function createUserRoutes(controller: UserController, auth: AuthMiddleware) {
+  const router = express.Router();
+  router.get("/me", auth, validate(getMeSchema), asyncHandler(controller.getMe, "获取当前用户失败"));
+  router.get(
+    "/me/profile",
+    auth,
+    validate(getMyProfileSchema),
+    asyncHandler(controller.getProfile, "获取用户扩展资料失败"),
+  );
+  router.patch(
+    "/me/profile",
+    auth,
+    validate(patchMyProfileSchema),
+    asyncHandler(controller.patchProfile, "更新用户资料失败"),
+  );
+  return router;
+}

@@ -16,9 +16,9 @@ const sequelize = new Sequelize(DB_NAME, DB_USER, DB_PWD, {
   logging: APP_ENV === "test" ? false : undefined,
 });
 
-const { User, UserProfile, UserRefreshToken, Workspace, Project, Document } = initModels(sequelize);
+const models = initModels(sequelize);
 
-export async function connectDatabase() {
+async function connect() {
   await sequelize.authenticate();
   if (APP_ENV !== "production") {
     // 开发/测试环境自动追迁移，降低本地启动成本；生产环境必须显式执行迁移，避免启动时改表。
@@ -28,4 +28,16 @@ export async function connectDatabase() {
   }
 }
 
-export { sequelize, User, UserProfile, UserRefreshToken, Workspace, Project, Document };
+async function disconnect() {
+  await sequelize.close();
+}
+
+export const database = {
+  sequelize,
+  models,
+  connect,
+  disconnect,
+};
+
+export type AppDatabase = typeof database;
+export type AppModels = typeof models;

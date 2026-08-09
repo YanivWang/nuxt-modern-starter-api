@@ -16,12 +16,12 @@
   -> globalRateLimitMiddleware
   -> compressionMiddleware
   -> express.json / express.urlencoded
-  -> userRoutes
-  -> authMiddleware
+  -> runtime 注入的 user.routes
+  -> createAuthMiddleware(verifier) 生成的 authMiddleware
   -> validate(getMeSchema)
   -> asyncHandler(getMe)
-  -> user.controller.ts
-  -> user.service.ts
+  -> user.controller.ts（工厂闭包持有 UserService）
+  -> user.service.ts（组合根注入 AppDatabase）
   -> Sequelize 查询 Users + UserProfiles
   -> success(res, "获取当前用户成功", { user })
   -> httpRequestLogMiddleware 在 finish 事件写日志
@@ -58,9 +58,8 @@
 
 multipart 上传请求不由 body parser 解析，而是由 multer 处理：
 
-- 普通图片：`uploadImagesMiddleware`
-- 头像图片：`uploadProfileImagesMiddleware`
-- 大文件分片：`largeUploadChunkMulter`
+- 普通图片/头像：`createImageUploadMiddlewares(FileStorage)`
+- 大文件分片：`createLargeUploadChunkMiddleware(LargeUploadStorage)`
 
 所以上传接口的中间件顺序非常重要：multer 必须在 controller 前执行。
 
@@ -133,7 +132,7 @@ Express 4 默认不会自动捕获异步 controller 中 rejected Promise。
 
 - 成功时正常返回。
 - 抛错时转交 `next(error)`。
-- 如果错误本身没有 `failureMessage`，会补充路由默认失败文案。
+- 未知异常会被包装为不对外暴露的 `INTERNAL AppError`，路由默认文案仅写入内部错误。
 
 最终错误统一进入 `errorMiddleware`。
 
@@ -148,8 +147,8 @@ Express 4 默认不会自动捕获异步 controller 中 rejected Promise。
 特殊处理：
 
 - Multer 错误：转成上传相关中文文案。
-- Sequelize 唯一键冲突：返回 `409 用户名已存在`。
-- `createHttpError()` 创建的业务错误：可把 message 暴露给客户端。
+- `AppError`：按 BAD_REQUEST、UNAUTHORIZED、FORBIDDEN、NOT_FOUND、CONFLICT、GONE、INTERNAL 映射状态码。
+- Sequelize 未被业务 Service 转换的唯一键冲突：返回通用 `409 资源已存在`。
 - 未知错误：返回统一 500，详细错误只写日志。
 
 这套机制避免内部错误细节泄露给客户端。
@@ -214,7 +213,7 @@ Express 4 默认不会自动捕获异步 controller 中 rejected Promise。
 所有未匹配路由会进入：
 
 ```ts
-next(createHttpError(404, "接口不存在"));
+next(notFound("接口不存在"));
 ```
 
 再由 `errorMiddleware` 输出统一响应。

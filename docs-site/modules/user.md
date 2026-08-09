@@ -31,7 +31,7 @@ src/modules/user/
     UserProfiles Sequelize 模型与 Users 一对一关联
 ```
 
-`user.model.ts` 和 `user-profile.model.ts` 只定义模型；实际初始化顺序由 `src/db/models.ts` 控制，并由 `src/db/index.ts` 统一导出 `User` 与 `UserProfile`。service 层只依赖这个统一入口。
+`user.model.ts` 和 `user-profile.model.ts` 只定义模型；实际初始化顺序由 `src/db/models.ts` 控制。`runtime.ts` 把 `AppDatabase` 注入 `createUserModule()`，Service 不再导入全局模型命名导出。
 
 ## 对外接口
 

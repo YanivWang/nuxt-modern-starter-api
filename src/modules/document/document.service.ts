@@ -1,60 +1,35 @@
-/**
- * 文件职责：文档领域服务。
- * 文档读取和保存必须按 ownerId 过滤，避免用户越权访问其他人的内容。
- */
-import { Document, Project, sequelize } from "../../db/index.js";
-import { toDocumentDto } from "../workspace/workspace.service.js";
+import { toDocumentDto } from "./document.contract.js";
 
-export async function findDocumentForUser(userId: number, documentId: string) {
-  const document = await Document.findOne({
-    where: { id: documentId, ownerId: userId },
-  });
+import type { AppDatabase } from "../../db/index.js";
 
-  return document ? toDocumentDto(document) : null;
-}
+export function createDocumentService(database: AppDatabase) {
+  const { Document, Project } = database.models;
 
-export async function updateDocumentForUser(
-  userId: number,
-  documentId: string,
-  payload: {
-    title?: string;
-    content?: string;
-  },
-) {
-  return sequelize.transaction(async (transaction) => {
-    const document = await Document.findOne({
-      where: { id: documentId, ownerId: userId },
-      transaction,
-      lock: transaction.LOCK.UPDATE,
-    });
+  async function findForUser(userId: number, documentId: string) {
+    const document = await Document.findOne({ where: { id: documentId, ownerId: userId } });
+    return document ? toDocumentDto(document) : null;
+  }
 
-    if (!document) return null;
-
-    const nextTitle = payload.title ?? (document.get("title") as string);
-    const nextContent = payload.content ?? (document.get("content") as string);
-
-    await document.update(
-      {
-        title: nextTitle,
-        content: nextContent,
-      },
-      { transaction },
-    );
-
-    // 文档保存后同步项目标题，让工作台列表、编辑页和预览路径展示同一个名称来源。
-    await Project.update(
-      {
-        title: nextTitle,
-      },
-      {
-        where: {
-          id: document.get("projectId"),
-          ownerId: userId,
-        },
+  async function updateForUser(userId: number, documentId: string, payload: { title?: string; content?: string }) {
+    return database.sequelize.transaction(async (transaction) => {
+      const document = await Document.findOne({
+        where: { id: documentId, ownerId: userId },
         transaction,
-      },
-    );
+        lock: transaction.LOCK.UPDATE,
+      });
+      if (!document) return null;
 
-    return toDocumentDto(document);
-  });
+      const title = payload.title ?? (document.get("title") as string);
+      await document.update(
+        { title, content: payload.content ?? (document.get("content") as string) },
+        { transaction },
+      );
+      await Project.update({ title }, { where: { id: document.get("projectId"), ownerId: userId }, transaction });
+      return toDocumentDto(document);
+    });
+  }
+
+  return { findForUser, updateForUser };
 }
+
+export type DocumentService = ReturnType<typeof createDocumentService>;

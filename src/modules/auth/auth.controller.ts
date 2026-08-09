@@ -1,34 +1,25 @@
-/**
- * 文件职责：认证 HTTP 控制器。
- * 负责把请求/响应、Cookie、CSRF、登录上下文与 auth service 串起来，具体凭证创建和校验逻辑放在 service 层。
- */
-import { createHttpError } from "../../middlewares/error.middleware.js";
-import { revokeRefreshToken, rotateRefreshToken, type AuthTokenPair } from "./auth-session.service.js";
-import { blacklistJwt } from "./auth-token.service.js";
-import { loginUser, registerUser } from "./auth.service.js";
-import { clearAuthCookies, csrfTokensMatch, readRefreshTokenCookie, setAuthCookies } from "./authCookie.js";
+import { forbidden, unauthorized } from "../../shared/errors/app-error.js";
 import { getValidated } from "../../utils/getValidated.js";
 import { success } from "../../utils/response.js";
+import { clearAuthCookies, csrfTokensMatch, readRefreshTokenCookie, setAuthCookies } from "./authCookie.js";
 
+import type { AuthSessionService, AuthTokenPair } from "./auth-session.service.js";
+import type { AuthService } from "./auth.service.js";
 import type {
   ValidatedLoginSchema,
   ValidatedLogoutSchema,
   ValidatedRefreshSchema,
   ValidatedRegisterSchema,
 } from "./auth.schema.js";
+import type { TokenBlacklist } from "./ports/token-blacklist.port.js";
 import type { AppJwtUser } from "../../types/jwt-user.js";
 import type { Request, Response } from "express";
 
-function authContext(req: Request) {
-  return {
-    userAgent: req.get("user-agent"),
-    ipAddress: req.ip,
-  };
-}
+const authContext = (req: Request) => ({ userAgent: req.get("user-agent"), ipAddress: req.ip });
 
-function sendTokenPair(res: Response, msg: string, pair: AuthTokenPair) {
+function sendTokenPair(res: Response, message: string, pair: AuthTokenPair) {
   setAuthCookies(res, pair);
-  return success(res, msg, {
+  return success(res, message, {
     accessToken: pair.accessToken,
     refreshToken: pair.refreshToken,
     accessTokenExpiresIn: pair.accessTokenExpiresIn,
@@ -36,51 +27,35 @@ function sendTokenPair(res: Response, msg: string, pair: AuthTokenPair) {
   });
 }
 
-export async function register(req: Request, res: Response) {
-  const { body } = getValidated<ValidatedRegisterSchema>(req);
-  await registerUser(body);
-  return success(res, "注册成功");
+export function createAuthController(auth: AuthService, sessions: AuthSessionService, blacklist: TokenBlacklist) {
+  return {
+    register: async (req: Request, res: Response) => {
+      await auth.register(getValidated<ValidatedRegisterSchema>(req).body);
+      return success(res, "注册成功");
+    },
+    login: async (req: Request, res: Response) => {
+      const pair = await auth.login(getValidated<ValidatedLoginSchema>(req).body, authContext(req));
+      return sendTokenPair(res, "登录成功", pair);
+    },
+    refresh: async (req: Request, res: Response) => {
+      const validated = getValidated<ValidatedRefreshSchema>(req);
+      const bodyToken = validated.body?.refreshToken;
+      const refreshToken = bodyToken ?? readRefreshTokenCookie(req);
+      if (!refreshToken) throw unauthorized("refresh token 无效或已过期");
+      if (!bodyToken && !csrfTokensMatch(req)) throw forbidden("CSRF token 无效或缺失");
+      return sendTokenPair(res, "刷新成功", await sessions.rotate(refreshToken, authContext(req)));
+    },
+    logout: async (req: Request, res: Response) => {
+      const validated = getValidated<ValidatedLogoutSchema>(req);
+      const { jti, exp } = req.user as AppJwtUser;
+      if (!jti || !exp) throw unauthorized("无效登录凭证");
+      const ttlSeconds = exp - Math.floor(Date.now() / 1000);
+      if (ttlSeconds > 0) await blacklist.add(jti, ttlSeconds);
+      await sessions.revoke(validated.body?.refreshToken ?? readRefreshTokenCookie(req));
+      clearAuthCookies(res);
+      return success(res, "退出登录成功");
+    },
+  };
 }
 
-export async function login(req: Request, res: Response) {
-  const { body } = getValidated<ValidatedLoginSchema>(req);
-  const pair = await loginUser(body, authContext(req));
-  return sendTokenPair(res, "登录成功", pair);
-}
-
-export async function refresh(req: Request, res: Response) {
-  const validated = getValidated<ValidatedRefreshSchema>(req);
-  const bodyRefreshToken = validated.body?.refreshToken;
-  const refreshToken = bodyRefreshToken ?? readRefreshTokenCookie(req);
-  if (!refreshToken) {
-    throw createHttpError(401, "refresh token 无效或已过期");
-  }
-  if (!bodyRefreshToken && !csrfTokensMatch(req)) {
-    // refreshToken 来自 Cookie 时会被浏览器自动附带，需要 CSRF 头；请求体显式传 token 时按 Bearer 类客户端处理。
-    throw createHttpError(403, "CSRF token 无效或缺失");
-  }
-
-  const pair = await rotateRefreshToken(refreshToken, authContext(req));
-  return sendTokenPair(res, "刷新成功", pair);
-}
-
-export async function logout(req: Request, res: Response) {
-  const validated = getValidated<ValidatedLogoutSchema>(req);
-  const { jti, exp } = req.user as AppJwtUser;
-  if (!jti || !exp) {
-    throw createHttpError(401, "无效登录凭证");
-  }
-
-  const now = Math.floor(Date.now() / 1000);
-  const ttlSeconds = exp - now;
-
-  if (ttlSeconds > 0) {
-    // access token 是无状态 JWT，只能用 jti 黑名单实现“登出后立刻失效”，TTL 与 token 剩余寿命一致。
-    await blacklistJwt(jti, ttlSeconds);
-  }
-
-  await revokeRefreshToken(validated.body?.refreshToken ?? readRefreshTokenCookie(req));
-  clearAuthCookies(res);
-
-  return success(res, "退出登录成功");
-}
+export type AuthController = ReturnType<typeof createAuthController>;

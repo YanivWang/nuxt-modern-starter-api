@@ -28,7 +28,11 @@ src/modules/content/
 相关工具：
 
 ```text
-src/utils/revalidate.ts
+src/modules/content/ports/
+  content-repository.port.ts
+  content-revalidator.port.ts
+src/infrastructure/content/in-memory-content.repository.ts
+src/infrastructure/revalidation/nuxt-content-revalidator.ts
   新闻变更后通知 Nuxt 清除 SWR 页面缓存
 ```
 
@@ -223,7 +227,7 @@ REVALIDATE_SECRET=dev_revalidate_secret_replace_with_random_string
 
 ## 测试现状
 
-`tests/integration/content.integration.test.ts` 覆盖公开读接口、本地化解析、未知 slug 404、登录后新闻创建/更新/删除，以及 revalidate 请求体中的中英文新闻列表和详情路径。`tests/unit/utils/revalidate.test.ts` 额外覆盖 revalidate 未配置时的跳过逻辑。
+`tests/integration/content.integration.test.ts` 覆盖公开读接口、本地化解析、未知 slug 404、登录后新闻创建/更新/删除，以及 revalidate 请求体中的中英文新闻列表和详情路径。`tests/unit/infrastructure/revalidation.test.ts` 覆盖 Nuxt Adapter 的路径、请求和未配置跳过逻辑。
 
 密钥需与前端一致。
 

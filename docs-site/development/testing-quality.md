@@ -164,7 +164,10 @@ cross-env APP_ENV=test NODE_ENV=test vitest run
 
 - OpenAPI 生成一致性（含 `docs/openapi.yaml` 同步检查）
 - Redis 环境变量行为（含关闭黑名单时允许不配置 Redis）
-- Nuxt revalidate 路径与跳过逻辑（`tests/unit/utils/revalidate.test.ts`）
+- Nuxt revalidate Adapter 的路径、请求与跳过逻辑（`tests/unit/infrastructure/revalidation.test.ts`）
+- refresh token 轮换的事务与行锁参数
+- ContentRepository/ContentRevalidator Port 注入
+- Workspace、Project、Document 使用同一个事务
 
 ## 集成测试
 
@@ -185,6 +188,8 @@ cross-env APP_ENV=test NODE_ENV=test vitest run --config vitest.integration.conf
 - MySQL
 - Redis
 - `.env.test`
+
+`tests/integration/support/test-runtime.ts` 会在连接和清表前强制校验 `APP_ENV=test`，并要求 `DB_NAME` 明确包含 `test`；不满足时直接拒绝运行。
 
 当前 `tests/integration/auth.integration.test.ts` 覆盖：
 

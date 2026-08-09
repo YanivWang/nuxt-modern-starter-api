@@ -142,10 +142,7 @@ bcrypt.hash(password, 10)
 
 ## 错误信息暴露边界
 
-项目区分两类错误：
-
-- `createHttpError()`：业务错误，可暴露给客户端。
-- `createInternalServerError()` 或未知异常：只返回统一 500 文案，细节写日志。
+项目使用与 HTTP 解耦的 `AppError`。业务层只声明 BAD_REQUEST、UNAUTHORIZED、FORBIDDEN、NOT_FOUND、CONFLICT、GONE、INTERNAL 分类；`errorMiddleware` 统一映射 HTTP 状态。INTERNAL 和未知异常只返回统一 500 文案，细节写日志。
 
 这样客户端能看到必要业务提示，但不会拿到内部堆栈和数据库错误。
 

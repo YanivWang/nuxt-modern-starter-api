@@ -5,50 +5,26 @@
 import request from "supertest";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import type {
-  connectDatabase,
-  Document,
-  Project,
-  sequelize,
-  User,
-  UserProfile,
-  UserRefreshToken,
-  Workspace,
-} from "../../src/db/index.js";
-import type { connectRedis, disconnectRedis } from "../../src/redis.js";
+import { createTestRuntime } from "./support/test-runtime.js";
+
+import type { AppRuntime } from "../../src/runtime.js";
 import type { Express } from "express";
 
-type DbModule = {
-  connectDatabase: typeof connectDatabase;
-  sequelize: typeof sequelize;
-  User: typeof User;
-  UserProfile: typeof UserProfile;
-  UserRefreshToken: typeof UserRefreshToken;
-  Workspace: typeof Workspace;
-  Project: typeof Project;
-  Document: typeof Document;
-};
-
-type RedisModule = {
-  connectRedis: typeof connectRedis;
-  disconnectRedis: typeof disconnectRedis;
-};
-
 let app: Express;
-let db: DbModule;
-let redisModule: RedisModule;
+let runtime: AppRuntime;
 
 function uniqueUsername() {
   return `product_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
 
 async function cleanDatabase() {
-  await db.Document.destroy({ where: {} });
-  await db.Project.destroy({ where: {} });
-  await db.Workspace.destroy({ where: {} });
-  await db.UserRefreshToken.destroy({ where: {} });
-  await db.UserProfile.destroy({ where: {} });
-  await db.User.destroy({ where: {} });
+  const { Document, Project, Workspace, UserRefreshToken, UserProfile, User } = runtime.database.models;
+  await Document.destroy({ where: {} });
+  await Project.destroy({ where: {} });
+  await Workspace.destroy({ where: {} });
+  await UserRefreshToken.destroy({ where: {} });
+  await UserProfile.destroy({ where: {} });
+  await User.destroy({ where: {} });
 }
 
 async function registerAndLogin(username = uniqueUsername(), password = "password123") {
@@ -64,13 +40,9 @@ async function registerAndLogin(username = uniqueUsername(), password = "passwor
 
 describe("product foundation API", () => {
   beforeAll(async () => {
-    db = await import("../../src/db/index.js");
-    redisModule = await import("../../src/redis.js");
-    const appModule = await import("../../src/app.js");
-    app = appModule.default;
-
-    await db.connectDatabase();
-    await redisModule.connectRedis();
+    runtime = createTestRuntime();
+    app = runtime.app;
+    await runtime.connect();
   });
 
   beforeEach(async () => {
@@ -79,8 +51,7 @@ describe("product foundation API", () => {
 
   afterAll(async () => {
     await cleanDatabase().catch(() => {});
-    await redisModule.disconnectRedis().catch(() => {});
-    await db.sequelize.close().catch(() => {});
+    await runtime.disconnect();
   });
 
   it("uses the standard code/message/data response envelope", async () => {

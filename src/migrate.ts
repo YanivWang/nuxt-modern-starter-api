@@ -2,7 +2,7 @@
  * 文件职责：命令行迁移入口。
  * 支持 up/down/pending/executed，执行结束后主动关闭 Sequelize 连接。
  */
-import { sequelize } from "./db/index.js";
+import { database } from "./db/index.js";
 import { migrator } from "./db/migrator.js";
 import { logger, serializeError } from "./utils/logger.js";
 
@@ -45,5 +45,5 @@ main()
     process.exitCode = 1;
   })
   .finally(async () => {
-    await sequelize.close().catch(() => {});
+    await database.disconnect().catch(() => {});
   });

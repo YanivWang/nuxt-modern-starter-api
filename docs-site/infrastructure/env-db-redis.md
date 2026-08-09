@@ -220,12 +220,12 @@ src/db/migrations/*.ts
 
 开发/测试环境：
 
-- `connectDatabase()` 会自动运行 pending migrations。
+- `database.connect()` 会自动运行 pending migrations。
 - 这样本地和测试启动成本更低。
 
 生产环境：
 
-- `connectDatabase()` 只验证连接。
+- `database.connect()` 只验证连接。
 - 不自动改表。
 - 部署前必须显式运行迁移。
 
@@ -306,14 +306,14 @@ true
 
 false
   -> redis = null
-  -> connectRedis() 只写 warning，不连接
+  -> redisConnection.connect() 只写 warning，不连接
 ```
 
 关闭 Redis 时：
 
 ```text
-disconnectRedis()
-  -> redis.quit()
+redisConnection.disconnect()
+  -> client.quit()
 ```
 
 ## Redis 当前只做什么

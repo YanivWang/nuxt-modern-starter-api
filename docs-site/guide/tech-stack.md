@@ -186,7 +186,7 @@ Zod 是请求校验的单一来源。路由通过 `validate(schema)` 校验：
 
 普通图片上传和大文件分片上传都基于 multer。
 
-上传模块的本地磁盘路径统一由 `src/modules/upload/storage/local-storage.service.ts` 封装；普通图片的 multer 配置在 `image-upload.config.ts`，分片上传的 multer 配置在 `large-upload.multer.ts`。
+上传模块通过 `FileStorage` 和 `LargeUploadStorage` Ports 描述能力；本地实现位于 `src/infrastructure/storage/`。普通图片和分片 multer 都由工厂接收对应 Port，不直接导入本地实现。
 
 普通上传限制：
 

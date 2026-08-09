@@ -1,91 +1,52 @@
-/**
- * 文件职责：大文件分片上传 HTTP 控制器。
- * 负责登录态校验、读取 validate/multer 结果，并把 service 返回值包装成统一响应。
- */
-import { createHttpError } from "../../middlewares/error.middleware.js";
-import {
-  abortLargeUpload,
-  finalizeChunkWrite,
-  getLargeUploadStatus,
-  initLargeUpload,
-  mergeLargeUpload,
-} from "./large-upload.service.js";
+import { badRequest, unauthorized } from "../../shared/errors/app-error.js";
 import { success } from "../../utils/response.js";
 
 import type { LargeUploadInitBody } from "./large-upload.schema.js";
+import type { LargeUploadStorage } from "./ports/large-upload-storage.port.js";
 import type { Request, Response } from "express";
 
-export async function postLargeUploadInit(req: Request, res: Response) {
-  const userId = req.user?.id;
-  if (userId == null) {
-    throw createHttpError(401, "未登录或无效登录凭证");
-  }
-  const body = (req.validated as { body: LargeUploadInitBody }).body;
-  const data = await initLargeUpload(body, userId);
-  if (data.instant) {
-    return success(res, "文件已存在，秒传完成", {
-      instant: true,
-      publicUrl: data.publicUrl,
-      chunkTotal: data.chunkTotal,
-      expiresAt: data.expiresAt,
-    });
-  }
-  return success(res, "已创建上传任务", {
-    instant: false,
-    uploadId: data.uploadId,
-    chunkTotal: data.chunkTotal,
-    expiresAt: data.expiresAt,
-  });
+function currentUserId(req: Request) {
+  const id = req.user?.id;
+  if (id == null) throw unauthorized("未登录或无效登录凭证");
+  return id;
 }
 
-export async function getLargeUploadStatusHandler(req: Request, res: Response) {
-  const userId = req.user?.id;
-  if (userId == null) {
-    throw createHttpError(401, "未登录或无效登录凭证");
-  }
-  const { uploadId } = (req.validated as { params: { uploadId: string } }).params;
-  const data = await getLargeUploadStatus(uploadId, userId);
-  return success(res, "ok", data);
-}
-
-export async function putLargeUploadChunk(req: Request, res: Response) {
-  const userId = req.user?.id;
-  if (userId == null) {
-    throw createHttpError(401, "未登录或无效登录凭证");
-  }
-  const validated = req.validated as {
-    params: { uploadId: string; chunkIndex: number };
-    headers: { "x-chunk-md5": string };
+export function createLargeUploadController(storage: LargeUploadStorage) {
+  return {
+    init: async (req: Request, res: Response) => {
+      const data = await storage.init((req.validated as { body: LargeUploadInitBody }).body, currentUserId(req));
+      return success(res, data.instant ? "文件已存在，秒传完成" : "已创建上传任务", data);
+    },
+    status: async (req: Request, res: Response) => {
+      const { uploadId } = (req.validated as { params: { uploadId: string } }).params;
+      return success(res, "ok", await storage.getStatus(uploadId, currentUserId(req)));
+    },
+    chunk: async (req: Request, res: Response) => {
+      const validated = req.validated as {
+        params: { uploadId: string; chunkIndex: number };
+        headers: { "x-chunk-md5": string };
+      };
+      if (!req.file?.path) throw badRequest("请选择分片文件（表单字段名 chunk）");
+      await storage.finalizeChunk(
+        validated.params.uploadId,
+        validated.params.chunkIndex,
+        currentUserId(req),
+        req.file.path,
+        validated.headers["x-chunk-md5"],
+      );
+      return success(res, "分片已接收", { chunkIndex: validated.params.chunkIndex });
+    },
+    merge: async (req: Request, res: Response) => {
+      const { uploadId } = (req.validated as { params: { uploadId: string } }).params;
+      const data = await storage.merge(uploadId, currentUserId(req));
+      return success(res, data.merged ? "合并完成" : "任务已完成", data);
+    },
+    abort: async (req: Request, res: Response) => {
+      const { uploadId } = (req.validated as { params: { uploadId: string } }).params;
+      await storage.abort(uploadId, currentUserId(req));
+      return success(res, "已取消", {});
+    },
   };
-  const { uploadId, chunkIndex } = validated.params;
-  const chunkMd5 = validated.headers["x-chunk-md5"];
-  const file = req.file;
-  if (!file?.path) {
-    throw createHttpError(400, "请选择分片文件（表单字段名 chunk）");
-  }
-  await finalizeChunkWrite(uploadId, chunkIndex, userId, file.path, chunkMd5);
-  return success(res, "分片已接收", { chunkIndex });
 }
 
-export async function postLargeUploadMerge(req: Request, res: Response) {
-  const userId = req.user?.id;
-  if (userId == null) {
-    throw createHttpError(401, "未登录或无效登录凭证");
-  }
-  const { uploadId } = (req.validated as { params: { uploadId: string } }).params;
-  const data = await mergeLargeUpload(uploadId, userId);
-  return success(res, data.merged ? "合并完成" : "任务已完成", {
-    url: data.url,
-    merged: data.merged,
-  });
-}
-
-export async function deleteLargeUpload(req: Request, res: Response) {
-  const userId = req.user?.id;
-  if (userId == null) {
-    throw createHttpError(401, "未登录或无效登录凭证");
-  }
-  const { uploadId } = (req.validated as { params: { uploadId: string } }).params;
-  await abortLargeUpload(uploadId, userId);
-  return success(res, "已取消", {});
-}
+export type LargeUploadController = ReturnType<typeof createLargeUploadController>;

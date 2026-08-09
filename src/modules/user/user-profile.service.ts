@@ -4,10 +4,10 @@
  */
 import { Transaction } from "sequelize";
 
-import { sequelize, User, UserProfile } from "../../db/index.js";
-import { createHttpError } from "../../middlewares/error.middleware.js";
+import { internalError } from "../../shared/errors/app-error.js";
 
 import type { PatchUserProfileBody } from "./user-profile.schema.js";
+import type { AppDatabase } from "../../db/index.js";
 import type { Model } from "sequelize";
 
 export type UserProfilePlain = {
@@ -71,68 +71,74 @@ export function userProfileToPlain(row: Model): UserProfilePlain {
   };
 }
 
-const profileInclude = [{ model: User, as: "user", attributes: ["avatar"], required: false }];
+export function createUserProfileService(database: AppDatabase) {
+  const { User, UserProfile } = database.models;
+  const profileInclude = [{ model: User, as: "user", attributes: ["avatar"], required: false }];
 
-export async function findUserProfileByUserId(userId: number): Promise<UserProfilePlain | null> {
-  const row = await UserProfile.findOne({ where: { userId }, include: profileInclude });
-  if (!row) return null;
-  return userProfileToPlain(row);
-}
-
-export async function upsertUserProfileForUser(userId: number, patch: PatchUserProfileBody) {
-  const profilePatch: Record<string, unknown> = {};
-  const profileKeys = [
-    "nickname",
-    "gender",
-    "birthday",
-    "bio",
-    "address",
-    "company",
-    "jobTitle",
-    "isMarried",
-    "mom",
-    "father",
-    "university",
-  ] as const;
-
-  for (const key of profileKeys) {
-    if (patch[key] !== undefined) {
-      profilePatch[key] = patch[key];
-    }
+  async function findByUserId(userId: number): Promise<UserProfilePlain | null> {
+    const row = await UserProfile.findOne({ where: { userId }, include: profileInclude });
+    return row ? userProfileToPlain(row) : null;
   }
 
-  const avatarPatch = patch.avatar;
+  async function upsertForUser(userId: number, patch: PatchUserProfileBody) {
+    const profilePatch: Record<string, unknown> = {};
+    const profileKeys = [
+      "nickname",
+      "gender",
+      "birthday",
+      "bio",
+      "address",
+      "company",
+      "jobTitle",
+      "isMarried",
+      "mom",
+      "father",
+      "university",
+    ] as const;
 
-  await sequelize.transaction(async (transaction) => {
-    if (avatarPatch !== undefined) {
-      await User.update({ avatar: avatarPatch }, { where: { id: userId }, transaction });
-    }
-
-    if (Object.keys(profilePatch).length > 0) {
-      const row = await UserProfile.findOne({
-        where: { userId },
-        transaction,
-        lock: Transaction.LOCK.UPDATE,
-      });
-
-      if (!row) {
-        await UserProfile.create({ userId, ...profilePatch } as Record<string, unknown>, { transaction });
-      } else {
-        await row.update(profilePatch, { transaction });
+    for (const key of profileKeys) {
+      if (patch[key] !== undefined) {
+        profilePatch[key] = patch[key];
       }
-    } else if (avatarPatch !== undefined) {
-      await UserProfile.findOrCreate({
-        where: { userId },
-        defaults: { userId },
-        transaction,
-      });
     }
-  });
 
-  const updated = await UserProfile.findOne({ where: { userId }, include: profileInclude });
-  if (!updated) {
-    throw createHttpError(500, "更新用户资料失败");
+    const avatarPatch = patch.avatar;
+
+    await database.sequelize.transaction(async (transaction) => {
+      if (avatarPatch !== undefined) {
+        await User.update({ avatar: avatarPatch }, { where: { id: userId }, transaction });
+      }
+
+      if (Object.keys(profilePatch).length > 0) {
+        const row = await UserProfile.findOne({
+          where: { userId },
+          transaction,
+          lock: Transaction.LOCK.UPDATE,
+        });
+
+        if (!row) {
+          await UserProfile.create({ userId, ...profilePatch } as Record<string, unknown>, { transaction });
+        } else {
+          await row.update(profilePatch, { transaction });
+        }
+      } else if (avatarPatch !== undefined) {
+        await UserProfile.findOrCreate({
+          where: { userId },
+          defaults: { userId },
+          transaction,
+        });
+      }
+    });
+
+    const updated = await UserProfile.findOne({ where: { userId }, include: profileInclude });
+    if (!updated) {
+      throw internalError("更新用户资料失败");
+    }
+
+    return userProfileToPlain(updated);
   }
 
-  return userProfileToPlain(updated);
+  return { findByUserId, upsertForUser };
 }
+
+export type UserProfileService = ReturnType<typeof createUserProfileService>;

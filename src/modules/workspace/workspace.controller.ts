@@ -1,17 +1,8 @@
-/**
- * 文件职责：工作台项目 HTTP 控制器。
- */
-import { createHttpError } from "../../middlewares/error.middleware.js";
+import { notFound, unauthorized } from "../../shared/errors/app-error.js";
 import { getValidated } from "../../utils/getValidated.js";
 import { success } from "../../utils/response.js";
-import {
-  createProjectForUser,
-  deleteProjectForUser,
-  findProjectForUser,
-  listProjectsForUser,
-  updateProjectForUser,
-} from "./workspace.service.js";
 
+import type { WorkspaceService } from "./workspace.service.js";
 import type {
   ValidatedCreateProjectSchema,
   ValidatedPatchProjectSchema,
@@ -20,53 +11,41 @@ import type {
 import type { Request, Response } from "express";
 
 function currentUserId(req: Request) {
-  const uid = req.user?.id;
-  if (typeof uid !== "number" || !Number.isFinite(uid)) {
-    throw createHttpError(401, "未登录或登录已过期");
-  }
-  return uid;
+  const id = req.user?.id;
+  if (typeof id !== "number" || !Number.isFinite(id)) throw unauthorized("未登录或登录已过期");
+  return id;
 }
 
-export async function listProjects(req: Request, res: Response) {
-  const projects = await listProjectsForUser(currentUserId(req));
-  return success(res, "获取项目列表成功", { projects });
+export function createWorkspaceController(service: WorkspaceService) {
+  return {
+    list: async (req: Request, res: Response) => {
+      return success(res, "获取项目列表成功", { projects: await service.listForUser(currentUserId(req)) });
+    },
+    create: async (req: Request, res: Response) => {
+      const result = await service.createForUser(
+        currentUserId(req),
+        getValidated<ValidatedCreateProjectSchema>(req).body,
+      );
+      return success(res, "创建项目成功", result, 201);
+    },
+    get: async (req: Request, res: Response) => {
+      const { params } = getValidated<ValidatedProjectIdParamsSchema>(req);
+      const project = await service.findForUser(currentUserId(req), params.projectId);
+      if (!project) throw notFound("项目不存在");
+      return success(res, "获取项目成功", { project });
+    },
+    patch: async (req: Request, res: Response) => {
+      const { body, params } = getValidated<ValidatedPatchProjectSchema>(req);
+      const project = await service.updateForUser(currentUserId(req), params.projectId, body);
+      if (!project) throw notFound("项目不存在");
+      return success(res, "更新项目成功", { project });
+    },
+    delete: async (req: Request, res: Response) => {
+      const { params } = getValidated<ValidatedProjectIdParamsSchema>(req);
+      if (!(await service.deleteForUser(currentUserId(req), params.projectId))) throw notFound("项目不存在");
+      return success(res, "删除项目成功");
+    },
+  };
 }
 
-export async function createProject(req: Request, res: Response) {
-  const { body } = getValidated<ValidatedCreateProjectSchema>(req);
-  const result = await createProjectForUser(currentUserId(req), body);
-  return success(res, "创建项目成功", result, 201);
-}
-
-export async function getProject(req: Request, res: Response) {
-  const { params } = getValidated<ValidatedProjectIdParamsSchema>(req);
-  const project = await findProjectForUser(currentUserId(req), params.projectId);
-
-  if (!project) {
-    throw createHttpError(404, "项目不存在");
-  }
-
-  return success(res, "获取项目成功", { project });
-}
-
-export async function patchProject(req: Request, res: Response) {
-  const { body, params } = getValidated<ValidatedPatchProjectSchema>(req);
-  const project = await updateProjectForUser(currentUserId(req), params.projectId, body);
-
-  if (!project) {
-    throw createHttpError(404, "项目不存在");
-  }
-
-  return success(res, "更新项目成功", { project });
-}
-
-export async function deleteProject(req: Request, res: Response) {
-  const { params } = getValidated<ValidatedProjectIdParamsSchema>(req);
-  const deleted = await deleteProjectForUser(currentUserId(req), params.projectId);
-
-  if (!deleted) {
-    throw createHttpError(404, "项目不存在");
-  }
-
-  return success(res, "删除项目成功", null);
-}
+export type WorkspaceController = ReturnType<typeof createWorkspaceController>;

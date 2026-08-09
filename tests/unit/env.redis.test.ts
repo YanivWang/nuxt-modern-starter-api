@@ -66,9 +66,11 @@ describe("redis env configuration", () => {
       AUTH_TOKEN_BLACKLIST_ENABLED: "false",
     });
 
-    const { blacklistJwt, isJwtBlacklisted } = await import("../../src/modules/auth/auth-token.service.js");
+    const { createRedisTokenBlacklist } = await import("../../src/infrastructure/auth/redis-token-blacklist.js");
+    const { redisConnection } = await import("../../src/redis.js");
+    const blacklist = createRedisTokenBlacklist(redisConnection);
 
-    await expect(blacklistJwt("token-id", 60)).resolves.toBeUndefined();
-    await expect(isJwtBlacklisted("token-id")).resolves.toBe(false);
+    await expect(blacklist.add("token-id", 60)).resolves.toBeUndefined();
+    await expect(blacklist.has("token-id")).resolves.toBe(false);
   });
 });

@@ -8,11 +8,17 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { finished } from "node:stream/promises";
 
-import { filePathToPublicUrl, uploadsRoot } from "./storage/local-storage.service.js";
-import { createHttpError } from "../../middlewares/error.middleware.js";
+import { localFileStorage } from "./local-file-storage.adapter.js";
+import { badRequest, conflict, forbidden, gone, internalError, notFound } from "../../shared/errors/app-error.js";
 import { projectRoot } from "../../utils/projectRoot.js";
 
-import type { LargeUploadInitBody } from "./large-upload.schema.js";
+import type { LargeUploadInitBody } from "../../modules/upload/large-upload.schema.js";
+import type {
+  InitLargeUploadResult,
+  LargeUploadStorage,
+} from "../../modules/upload/ports/large-upload-storage.port.js";
+
+const uploadsRoot = localFileStorage.root;
 
 /** 临时分片目录（相对 uploadsRoot） */
 export const LARGE_CHUNKS_TEMP_SEGMENT = "chunks-temp";
@@ -40,7 +46,7 @@ function sessionPath(uploadId: string): string {
 function normalizeFileMd5(md5: string): string {
   const lower = md5.toLowerCase();
   if (!FILE_MD5_RE.test(lower)) {
-    throw createHttpError(400, "fileMd5 须为 32 位十六进制");
+    throw badRequest("fileMd5 须为 32 位十六进制");
   }
   return lower;
 }
@@ -50,11 +56,11 @@ function readSessionFileMd5(uploadId: string): string {
   try {
     raw = fsSync.readFileSync(sessionPath(uploadId), "utf8");
   } catch {
-    throw createHttpError(404, "上传任务不存在或会话已失效");
+    throw notFound("上传任务不存在或会话已失效");
   }
   const j = JSON.parse(raw) as { fileMd5?: string };
   if (typeof j.fileMd5 !== "string") {
-    throw createHttpError(500, "上传会话损坏");
+    throw internalError("上传会话损坏");
   }
   return normalizeFileMd5(j.fileMd5);
 }
@@ -93,10 +99,6 @@ export type LargeUploadMeta = {
   publicUrl?: string;
 };
 
-export type InitLargeUploadResult =
-  | { instant: true; publicUrl: string; chunkTotal: 0; expiresAt: string }
-  | { instant: false; uploadId: string; chunkTotal: number; expiresAt: string };
-
 function tempBaseDir(fileMd5: string, uploadId: string): string {
   // fileMd5 参与目录分层，便于同一内容的临时任务聚集，也避免 uploadId 单层目录过大。
   return path.join(uploadsRoot, LARGE_CHUNKS_TEMP_SEGMENT, fileMd5, uploadId);
@@ -125,7 +127,7 @@ async function deleteSession(uploadId: string): Promise<void> {
 async function resolveTempDir(uploadId: string): Promise<string> {
   const sess = await readSession(uploadId);
   if (!sess) {
-    throw createHttpError(404, "上传任务不存在或会话已失效");
+    throw notFound("上传任务不存在或会话已失效");
   }
   return tempBaseDir(sess.fileMd5, uploadId);
 }
@@ -194,7 +196,7 @@ function safeFileBase(name: string): string {
 function expectedPartSize(meta: LargeUploadMeta, index: number): number {
   const { fileSize, chunkSize, chunkTotal } = meta;
   if (index < 0 || index >= chunkTotal) {
-    throw createHttpError(400, "分片下标越界");
+    throw badRequest("分片下标越界");
   }
   if (index === chunkTotal - 1) {
     const full = chunkSize * (chunkTotal - 1);
@@ -239,12 +241,12 @@ async function readMeta(uploadId: string): Promise<LargeUploadMeta> {
   try {
     raw = await fs.readFile(p, "utf8");
   } catch {
-    throw createHttpError(404, "上传任务不存在或已完成清理");
+    throw notFound("上传任务不存在或已完成清理");
   }
   try {
     return JSON.parse(raw) as LargeUploadMeta;
   } catch {
-    throw createHttpError(500, "上传元数据损坏");
+    throw internalError("上传元数据损坏");
   }
 }
 
@@ -256,7 +258,7 @@ async function writeMeta(uploadId: string, meta: LargeUploadMeta): Promise<void>
 function assertNotExpired(meta: LargeUploadMeta): void {
   const age = Date.now() - new Date(meta.createdAt).getTime();
   if (age > UPLOAD_TTL_MS) {
-    throw createHttpError(410, "上传任务已过期，请重新发起");
+    throw gone("上传任务已过期，请重新发起");
   }
 }
 
@@ -315,7 +317,7 @@ export async function getLargeUploadStatus(uploadId: string, userId: number) {
 
   const meta = await readMeta(uploadId);
   if (meta.userId !== userId) {
-    throw createHttpError(403, "无权访问该上传任务");
+    throw forbidden("无权访问该上传任务");
   }
   assertNotExpired(meta);
   if (meta.status === "done" && meta.publicUrl) {
@@ -359,30 +361,30 @@ export async function finalizeChunkWrite(
 ): Promise<void> {
   const meta = await readMeta(uploadId);
   if (meta.userId !== userId) {
-    throw createHttpError(403, "无权访问该上传任务");
+    throw forbidden("无权访问该上传任务");
   }
   assertNotExpired(meta);
   if (meta.status === "merging") {
-    throw createHttpError(409, "正在合并中，请稍后重试");
+    throw conflict("正在合并中，请稍后重试");
   }
   if (meta.status === "done") {
-    throw createHttpError(409, "上传任务已完成");
+    throw conflict("上传任务已完成");
   }
   if (chunkIndex >= meta.chunkTotal) {
-    throw createHttpError(400, "分片下标越界");
+    throw badRequest("分片下标越界");
   }
   const want = expectedPartSize(meta, chunkIndex);
   const st = await fs.stat(savedAbsPath);
   if (st.size !== want) {
     // multer 已经把文件写入磁盘，校验失败时必须主动删除，避免坏分片被后续 status/merge 误用。
     await fs.unlink(savedAbsPath).catch(() => {});
-    throw createHttpError(400, `分片大小不符，期望 ${want} 字节`);
+    throw badRequest(`分片大小不符，期望 ${want} 字节`);
   }
   const actualMd5 = await md5OfFile(savedAbsPath);
   if (actualMd5 !== expectedChunkMd5) {
     // 分片 MD5 是客户端声明的端到端校验，失败同样清理落盘文件。
     await fs.unlink(savedAbsPath).catch(() => {});
-    throw createHttpError(400, "分片 MD5 与声明不一致，内容可能损坏或传输不完整");
+    throw badRequest("分片 MD5 与声明不一致，内容可能损坏或传输不完整");
   }
 }
 
@@ -417,7 +419,7 @@ export async function mergeLargeUpload(uploadId: string, userId: number) {
   }
 
   if (meta.userId !== userId) {
-    throw createHttpError(403, "无权访问该上传任务");
+    throw forbidden("无权访问该上传任务");
   }
   if (meta.status === "done" && meta.publicUrl) {
     return { url: meta.publicUrl, merged: false };
@@ -426,7 +428,7 @@ export async function mergeLargeUpload(uploadId: string, userId: number) {
 
   if (meta.status === "merging") {
     // 本地文件实现没有分布式锁；merging 状态用于阻止同一 uploadId 的并发合并。
-    throw createHttpError(409, "正在合并中，请稍后重试");
+    throw conflict("正在合并中，请稍后重试");
   }
 
   const dir = await resolveTempDir(uploadId);
@@ -436,11 +438,11 @@ export async function mergeLargeUpload(uploadId: string, userId: number) {
       const st = await fs.stat(p);
       const want = expectedPartSize(meta, i);
       if (st.size !== want) {
-        throw createHttpError(409, `分片 ${i} 缺失或大小不正确`);
+        throw conflict(`分片 ${i} 缺失或大小不正确`);
       }
     } catch (e) {
       if (e instanceof Error && "statusCode" in e) throw e;
-      throw createHttpError(409, `分片 ${i} 未就绪`);
+      throw conflict(`分片 ${i} 未就绪`);
     }
   }
 
@@ -488,13 +490,13 @@ export async function mergeLargeUpload(uploadId: string, userId: number) {
       await fs.unlink(finalTmp).catch(() => {});
       meta.status = "failed";
       await writeMeta(uploadId, meta).catch(() => {});
-      throw createHttpError(500, "合并后 MD5 与声明不一致");
+      throw internalError("合并后 MD5 与声明不一致");
     }
 
     const outStat = await fs.stat(finalTmp);
     if (outStat.size !== meta.fileSize) {
       await fs.unlink(finalTmp).catch(() => {});
-      throw createHttpError(500, "合并后文件大小与声明不一致");
+      throw internalError("合并后文件大小与声明不一致");
     }
     await fs.rename(finalTmp, finalAbs);
   } catch (e) {
@@ -505,7 +507,7 @@ export async function mergeLargeUpload(uploadId: string, userId: number) {
     throw e;
   }
 
-  const publicUrl = filePathToPublicUrl(finalAbs);
+  const publicUrl = localFileStorage.toPublicUrl(finalAbs);
   meta.status = "done";
   meta.publicUrl = publicUrl;
   await fs.mkdir(path.join(projectRoot, ".data", "large-upload-done"), { recursive: true });
@@ -537,7 +539,7 @@ export async function abortLargeUpload(uploadId: string, userId: number): Promis
     return;
   }
   if (meta.userId !== userId) {
-    throw createHttpError(403, "无权访问该上传任务");
+    throw forbidden("无权访问该上传任务");
   }
   if (meta.status === "done") {
     return;
@@ -546,3 +548,13 @@ export async function abortLargeUpload(uploadId: string, userId: number): Promis
   await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
   await deleteSession(uploadId);
 }
+
+export const localLargeUploadStorage: LargeUploadStorage = {
+  resolveChunkDir: syncResolveLargeUploadChunkDir,
+  partFileName,
+  init: initLargeUpload,
+  getStatus: getLargeUploadStatus,
+  finalizeChunk: finalizeChunkWrite,
+  merge: mergeLargeUpload,
+  abort: abortLargeUpload,
+};

@@ -5,33 +5,22 @@
 import multer from "multer";
 import { UniqueConstraintError } from "sequelize";
 
+import { AppError, type AppErrorCode } from "../shared/errors/app-error.js";
 import { expressRoutePath } from "../utils/expressRoutePath.js";
 import { logger, serializeError } from "../utils/logger.js";
 import { fail } from "../utils/response.js";
 
 import type { ErrorRequestHandler } from "express";
 
-export interface HttpAppError extends Error {
-  statusCode?: number;
-  expose?: boolean;
-  failureMessage?: string;
-}
-
-export function createHttpError(statusCode: number, msg: string): HttpAppError {
-  const error = new Error(msg) as HttpAppError;
-  error.statusCode = statusCode;
-  error.expose = true;
-  return error;
-}
-
-/** 仅日志可见详情；返回给客户端的统一文案由 failureMessage 决定 */
-export function createInternalServerError(logMessage: string): HttpAppError {
-  const error = new Error(logMessage) as HttpAppError;
-  error.statusCode = 500;
-  error.expose = false;
-  error.failureMessage = "服务器内部错误";
-  return error;
-}
+const statusByCode: Record<AppErrorCode, number> = {
+  BAD_REQUEST: 400,
+  UNAUTHORIZED: 401,
+  FORBIDDEN: 403,
+  NOT_FOUND: 404,
+  CONFLICT: 409,
+  GONE: 410,
+  INTERNAL: 500,
+};
 
 export const errorMiddleware: ErrorRequestHandler = (error, req, res, next) => {
   if (res.headersSent) {
@@ -63,15 +52,13 @@ export const errorMiddleware: ErrorRequestHandler = (error, req, res, next) => {
   }
 
   if (error instanceof UniqueConstraintError) {
-    fail(res, 409, "用户名已存在");
+    fail(res, 409, "资源已存在");
     return;
   }
 
-  const httpErr = error as HttpAppError;
-  const statusCode = httpErr.statusCode ?? 500;
-  const expose = httpErr.expose === true;
-  // expose=true 的错误可把 message 返回给客户端；其他错误只返回 failureMessage 或统一 500。
-  const msg = expose ? (httpErr.message ?? "请求处理失败") : (httpErr.failureMessage ?? "服务器内部错误");
+  const appError = error instanceof AppError ? error : null;
+  const statusCode = appError ? statusByCode[appError.code] : 500;
+  const msg = appError?.expose ? appError.message : "服务器内部错误";
 
   const logPayload = {
     requestId: req.requestId,

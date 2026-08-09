@@ -8,29 +8,37 @@ import { AUTH_TOKEN_BLACKLIST_ENABLED, REDIS_URL } from "./env.js";
 import { logger, serializeError } from "./utils/logger.js";
 
 // Redis 在当前脚手架里不是通用缓存层，只用于登出后 JWT jti 黑名单。
-export const redis = AUTH_TOKEN_BLACKLIST_ENABLED ? createClient({ url: REDIS_URL }) : null;
+const client = AUTH_TOKEN_BLACKLIST_ENABLED ? createClient({ url: REDIS_URL }) : null;
 
-redis?.on("error", (err) => {
+client?.on("error", (err) => {
   logger.error("redis_client_error", { error: serializeError(err) });
 });
 
-export async function connectRedis() {
-  if (!redis) {
+async function connect() {
+  if (!client) {
     // 关闭黑名单意味着已签发 access token 只能等自然过期，/ready 会把 Redis 标记为 disabled。
     logger.warn("redis_disabled", { reason: "AUTH_TOKEN_BLACKLIST_ENABLED=false" });
     return;
   }
-  if (redis.isOpen) return;
+  if (client.isOpen) return;
 
-  await redis.connect();
-  await redis.ping();
+  await client.connect();
+  await client.ping();
 
   logger.info("redis_connected");
 }
 
-export async function disconnectRedis() {
-  if (!redis) return;
-  if (!redis.isOpen) return;
+async function disconnect() {
+  if (!client) return;
+  if (!client.isOpen) return;
 
-  await redis.quit();
+  await client.quit();
 }
+
+export const redisConnection = {
+  client,
+  connect,
+  disconnect,
+};
+
+export type RedisConnection = typeof redisConnection;

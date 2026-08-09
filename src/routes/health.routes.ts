@@ -1,54 +1,43 @@
-/**
- * 文件职责：提供健康检查和就绪检查路由。
- * /health 只证明进程存活；/ready 会检查 MySQL 与启用状态下的 Redis 是否可用。
- */
+/** 文件职责：创建注入数据库和 Redis 连接的存活/就绪探针路由。 */
 import { Router } from "express";
 
-import { sequelize } from "../db/index.js";
-import { redis } from "../redis.js";
+import type { AppDatabase } from "../db/index.js";
+import type { RedisConnection } from "../redis.js";
 
-const router = Router();
+export function createHealthRoutes(database: AppDatabase, redis: RedisConnection) {
+  const router = Router();
 
-/** 存活探针：不访问数据库 */
-router.get("/health", (_req, res) => {
-  res.status(200).json({ status: "ok" });
-});
-
-/** 就绪探针：校验 MySQL 与启用状态下的 Redis；失败返回 503 并标明各项检查结果 */
-router.get("/ready", async (_req, res) => {
-  const checks: { mysql: "ok" | "failed"; redis: "ok" | "failed" | "disabled" } = {
-    mysql: "failed",
-    redis: redis ? "failed" : "disabled",
-  };
-
-  try {
-    await sequelize.authenticate();
-    checks.mysql = "ok";
-  } catch {
-    checks.mysql = "failed";
-  }
-
-  if (redis) {
+  router.get("/health", (_req, res) => res.status(200).json({ status: "ok" }));
+  router.get("/ready", async (_req, res) => {
+    const checks: { mysql: "ok" | "failed"; redis: "ok" | "failed" | "disabled" } = {
+      mysql: "failed",
+      redis: redis.client ? "failed" : "disabled",
+    };
     try {
-      await redis.ping();
-      checks.redis = "ok";
+      await database.sequelize.authenticate();
+      checks.mysql = "ok";
     } catch {
-      checks.redis = "failed";
+      checks.mysql = "failed";
     }
-  }
-
-  const ready = checks.mysql === "ok" && (checks.redis === "ok" || checks.redis === "disabled");
-  if (ready) {
-    res.status(200).json({ status: "ready", checks });
-    return;
-  }
-
-  const failed = (["mysql", "redis"] as const).filter((k) => checks[k] === "failed");
-  res.status(503).json({
-    status: "not_ready",
-    checks,
-    message: `依赖不可用：${failed.join("、")}`,
+    if (redis.client) {
+      try {
+        await redis.client.ping();
+        checks.redis = "ok";
+      } catch {
+        checks.redis = "failed";
+      }
+    }
+    const ready = checks.mysql === "ok" && checks.redis !== "failed";
+    return res.status(ready ? 200 : 503).json(
+      ready
+        ? { status: "ready", checks }
+        : {
+            status: "not_ready",
+            checks,
+            message: `依赖不可用：${(["mysql", "redis"] as const).filter((key) => checks[key] === "failed").join("、")}`,
+          },
+    );
   });
-});
 
-export default router;
+  return router;
+}

@@ -59,14 +59,16 @@ pnpm docs:preview # 预览构建产物
 
 ## 架构总览
 
-请求入口是 `src/server.ts`：连接 MySQL、按配置连接 Redis、准备上传目录，然后启动 `src/app.ts` 组装出的 Express 应用。`src/app.ts` 负责横切中间件和路由挂载，业务代码按模块放在 `src/modules/`，数据库连接、模型注册和迁移集中放在 `src/db/`。
+请求入口是 `src/server.ts`，唯一组合根是 `src/runtime.ts`。Runtime 显式创建数据库、Redis、内容仓储、缓存刷新和文件存储 Adapter，再把它们注入各业务模块工厂；`src/app.ts` 只负责横切中间件和已组装路由的 Express 装配。
 
 主要请求链路：
 
 ```text
 server.ts
-  -> connectDatabase() / connectRedis() / ensureUploadsRoot()
-  -> app.ts
+  -> createRuntime()
+  -> runtime.connect(): database / redis / fileStorage
+  -> auth/content/user/workspace/document/upload 模块工厂
+  -> createApp(dependencies)
   -> helmet / cors / requestId / HTTP log
   -> /uploads 静态资源、/health /ready 探针
   -> rate limit / compression / body parser / Swagger
@@ -81,6 +83,9 @@ server.ts
 | `src/env.ts`                       | 加载 `.env.{APP_ENV}` 与 `.env.{APP_ENV}.local`，集中校验运行环境 |
 | `src/db/`                          | Sequelize 连接、模型注册、Umzug 迁移器和迁移文件                  |
 | `src/redis.ts`                     | JWT 黑名单 Redis 连接；关闭黑名单时可不启用 Redis                 |
+| `src/runtime.ts`                   | 唯一组合根：创建 Adapter、组装模块并管理依赖生命周期              |
+| `src/infrastructure/`              | Redis、内存内容、Nuxt revalidate、本地文件等 Port 的具体 Adapter  |
+| `src/shared/errors/`               | 与 HTTP 解耦的应用错误；状态码只在错误中间件映射                  |
 | `src/middlewares/`                 | 统一错误、认证、限流、请求 ID、日志、Zod 校验等横切能力           |
 | `src/modules/auth/`                | 注册、登录、access/refresh token、Cookie/CSRF、登出黑名单         |
 | `src/modules/user/`                | `/api/me`、用户资料（头像仅存 `Users.avatar`）                    |
@@ -94,39 +99,43 @@ server.ts
 
 ```text
 src/
-  app.ts                    # Express 应用装配
+  app.ts                    # 纯 Express 应用工厂
+  runtime.ts                # 唯一依赖组合根
   server.ts                 # 进程启动、依赖连接、优雅关闭
   env.ts                    # 环境变量加载与 fail-fast 校验
   redis.ts                  # JWT 黑名单 Redis 客户端
   db/
-    index.ts                # Sequelize 连接与模型导出
+    index.ts                # database 对象、Sequelize 生命周期与模型集合
     models.ts               # 模型初始化顺序与关联注册入口
     migrator.ts             # Umzug 迁移器
     migrations/             # 数据库迁移文件
   middlewares/              # auth、validate、error、rate limit、requestId、日志、压缩
+  infrastructure/           # TokenBlacklist/ContentRepository/Revalidator/FileStorage Adapter
   modules/
     auth/                   # 注册、登录、refresh、logout、JWT/Cookie/CSRF
     user/                   # /api/me 与用户扩展资料
     content/                # 新闻/定价公开内容与 revalidate
     workspace/              # 默认个人空间与项目 CRUD
     document/               # 编辑器文档读取与保存
-    upload/                 # 普通图片、头像、大文件分片、本地存储封装
+    upload/                 # 上传 HTTP/应用层与 FileStorage/LargeUploadStorage Ports
+  shared/errors/            # AppError 与领域无关的错误分类
   routes/                   # /health 与 /ready
   types/                    # Express/JWT 共享类型扩展
-  utils/                    # 响应、日志、校验读取、路径、revalidate 等工具
+  utils/                    # 响应、日志、校验读取与路径工具
 ```
 
 辅助文件职责：
 
-| 路径                          | 职责                                                                   |
-| ----------------------------- | ---------------------------------------------------------------------- |
-| `scripts/generate-openapi.ts` | 生成或校验 `docs/openapi.yaml`，CI 中通过 `openapi:check` 防止文档漂移 |
-| `scripts/reset-db.ts`         | 开发/测试用数据库重建脚本，会 drop 当前库表后重新执行迁移              |
-| `scripts/test-env.ts`         | 单独导入 `src/env.ts`，用于验证环境变量模板和启动期校验                |
-| `docker/`                     | 生产/开发镜像、Compose 组合和 Nginx 网关配置                           |
-| `.github/workflows/ci.yml`    | 运行 `pnpm run check` 的质量门禁，包含 MySQL 与 Redis services         |
-| `vitest*.config.ts`           | 区分不依赖外部服务的单元测试与依赖 MySQL/Redis 的集成测试              |
-| `eslint.config.js`            | TypeScript 类型感知 lint、Prettier 兼容和测试/脚本例外规则             |
+| 路径                                | 职责                                                                   |
+| ----------------------------------- | ---------------------------------------------------------------------- |
+| `scripts/generate-openapi.ts`       | 生成或校验 `docs/openapi.yaml`，CI 中通过 `openapi:check` 防止文档漂移 |
+| `scripts/validate-architecture.mjs` | 强制模块不能依赖 infrastructure、HTTP middleware 或其他模块内部实现    |
+| `scripts/reset-db.ts`               | 开发/测试用数据库重建脚本，会 drop 当前库表后重新执行迁移              |
+| `scripts/test-env.ts`               | 单独导入 `src/env.ts`，用于验证环境变量模板和启动期校验                |
+| `docker/`                           | 生产/开发镜像、Compose 组合和 Nginx 网关配置                           |
+| `.github/workflows/ci.yml`          | 运行 `pnpm run check` 的质量门禁，包含 MySQL 与 Redis services         |
+| `vitest*.config.ts`                 | 区分不依赖外部服务的单元测试与依赖 MySQL/Redis 的集成测试              |
+| `eslint.config.js`                  | TypeScript 类型感知 lint、Prettier 兼容和测试/脚本例外规则             |
 
 测试目录结构：
 
@@ -135,7 +144,10 @@ tests/
   unit/
     openapi.test.ts
     env.redis.test.ts
-    utils/revalidate.test.ts
+    infrastructure/revalidation.test.ts
+    modules/auth-session.service.test.ts
+    modules/content.service.test.ts
+    modules/workspace.service.test.ts
   integration/
     auth.integration.test.ts
     content.integration.test.ts
@@ -144,8 +156,9 @@ tests/
 
 目录维护约定：
 
-- 新增业务能力默认放入 `src/modules/<domain>/`，并按 `routes -> controller -> service -> schema -> model` 组织；只有跨业务复用的能力才进入 `src/middlewares/`、`src/utils/` 或 `src/types/`。
-- 数据库模型由模块内的 `*.model.ts` 定义，但必须通过 `src/db/models.ts` 统一注册，再由 `src/db/index.ts` 对外导出，避免业务文件各自创建 Sequelize 实例。
+- 新增业务能力默认放入 `src/modules/<domain>/`；每个模块通过 `index.ts` 暴露模块工厂，通过 `ports/` 和 `*.contract.ts` 暴露稳定契约，禁止跨模块导入内部 Service。
+- Service 不依赖 Express middleware；业务错误使用 `src/shared/errors/app-error.ts`。只有 `src/runtime.ts` 可以选择并组装 `src/infrastructure/` 的具体 Adapter。
+- 数据库模型仍由模块内的 `*.model.ts` 定义，通过 `src/db/models.ts` 统一注册；Service 由组合根注入 `AppDatabase`，不再导入全局模型命名导出。
 - 测试统一放在顶层 `tests/`，`tests/unit/` 承载不依赖外部服务的单元测试，`tests/integration/` 承载依赖 MySQL/Redis 的 API 集成测试；`src/` 只保留运行时代码。
 - 企业级 SaaS 后续扩展如 `organization`、`member`、`audit`、`billing` 仍按 `src/modules/<domain>/` 落地；没有真实业务前不空建目录。
 - `dist/`、`logs/`、`uploads/`、`.data/`、`docs-site/.vitepress/dist/` 属于构建产物或运行时数据，只能由命令生成，不作为可维护源码提交。
@@ -325,12 +338,12 @@ pnpm docker:prod:down
 
 如果业务不需要 Redis，优先设置 `AUTH_TOKEN_BLACKLIST_ENABLED=false` 并移除 `REDIS_URL`。应用会跳过 Redis 连接，`/ready` 会把 Redis 标记为 `disabled`，`logout` 不再写入黑名单，JWT 校验也不再检查黑名单。这样做意味着已签发 JWT 在过期前无法被服务端主动失效。
 
-如果你要彻底删除 Redis 依赖，再移除 `src/redis.ts`、`src/modules/auth/auth-token.service.ts` 的 Redis 调用、Docker Compose 中的 Redis service，以及相关环境变量。
+如果你要彻底删除 Redis 依赖，再移除 `src/redis.ts`、`src/infrastructure/auth/redis-token-blacklist.ts`、Docker Compose 中的 Redis service，以及相关环境变量，并在 `src/runtime.ts` 注入空实现。
 
-如果业务不需要普通图片上传，可以移除 `src/modules/upload/upload.routes.ts` 中 `/uploads`、`/uploads/profiles` 相关路由，以及 `src/modules/upload/image-upload.controller.ts`、`src/modules/upload/image-upload.config.ts` 和 `/uploads` 静态目录挂载。`storage/local-storage.service.ts` 同时被普通上传和大文件上传复用，只有两类上传都删除时才移除。
+如果业务不需要普通图片上传，可以移除 `src/modules/upload/upload.routes.ts` 中对应路由和图片 HTTP 文件；本地实现位于 `src/infrastructure/storage/local-file-storage.adapter.ts`。
 
-如果业务不需要大文件分片上传，可以移除 `src/modules/upload/large-upload.controller.ts`、`src/modules/upload/large-upload.service.ts`、`src/modules/upload/large-upload.multer.ts`、`src/modules/upload/large-upload.schema.ts`、`src/modules/upload/large-upload.constants.ts` 以及 `src/modules/upload/upload.routes.ts` 中 `/uploads/large/*` 路由。
+如果业务不需要大文件分片上传，可以移除模块内 controller/multer/schema/constants/port、对应路由，以及 `src/infrastructure/storage/local-large-upload.adapter.ts`。
 
-如果业务不需要公开新闻/定价内容，可以移除 `src/modules/content/`、`src/app.ts` 中的 `contentRoutes` 挂载、`src/openapi.ts` 中对应 paths，以及不再需要的 `NUXT_REVALIDATE_URL` / `REVALIDATE_SECRET`。
+如果业务不需要公开新闻/定价内容，可以移除 `src/modules/content/`、`src/infrastructure/content/`、`src/infrastructure/revalidation/`、`src/runtime.ts` 中的模块组装和 `src/openapi.ts` 对应 paths。
 
-当前上传实现使用 `src/modules/upload/storage/local-storage.service.ts` 封装本地磁盘路径，并用 `.data` 保存大文件上传会话，适合单实例部署。多实例或容器弹性伸缩场景请新增真实对象存储实现（S3、OSS、MinIO 等），并把大文件上传会话迁移到 Redis、数据库或对象存储 multipart 机制。
+当前组合根注入 `localFileStorage` 和 `localLargeUploadStorage`，并用 `.data` 保存大文件上传会话，适合单实例部署。多实例场景应实现同一 Ports 的 OSS/S3/MinIO Adapter，并在 `src/runtime.ts` 一次性替换。

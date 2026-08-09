@@ -2,7 +2,7 @@
 
 上传模块位于 `src/modules/upload/`，包含普通图片上传、头像/资料图上传和大文件分片上传。
 
-模块内已经按职责拆开：普通图片上传只关心图片类型、数量和公开 URL；大文件上传负责分片会话、MD5、合并、秒传和幂等；本地磁盘路径统一放在 `storage/local-storage.service.ts`，为未来替换对象存储留下边界。
+模块内只保留 HTTP、校验和 Port：普通图片上传依赖 `FileStorage`，大文件上传依赖 `LargeUploadStorage`。本地磁盘、分片会话、MD5、合并和秒传实现位于 `src/infrastructure/storage/`，替换对象存储只改组合根。
 
 ## 文件职责
 
@@ -29,10 +29,12 @@ src/modules/upload/
   large-upload.controller.ts
     大文件上传 HTTP 控制器
 
-  large-upload.service.ts
+  ports/large-upload-storage.port.ts
     分片会话、状态、合并、秒传索引、清理逻辑
 
-  storage/local-storage.service.ts
+src/infrastructure/storage/
+  local-file-storage.adapter.ts
+  local-large-upload.adapter.ts
     本地磁盘上传根目录、目录初始化和公开 URL 转换
 ```
 

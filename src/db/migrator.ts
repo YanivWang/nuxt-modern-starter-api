@@ -9,7 +9,7 @@ import { SequelizeStorage, Umzug } from "umzug";
 
 import { logger } from "../utils/logger.js";
 
-import { sequelize } from "./index.js";
+import { database } from "./index.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -18,8 +18,8 @@ export const migrator = new Umzug({
   migrations: {
     glob: path.join(__dirname, "migrations/*.{js,ts}"),
   },
-  context: sequelize.getQueryInterface(),
-  storage: new SequelizeStorage({ sequelize }),
+  context: database.sequelize.getQueryInterface(),
+  storage: new SequelizeStorage({ sequelize: database.sequelize }),
   logger: {
     info: (message) => logger.info("migration_info", { message }),
     warn: (message) => logger.warn("migration_warn", { message }),

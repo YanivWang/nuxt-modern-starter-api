@@ -4,26 +4,13 @@
 import request from "supertest";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
-import type { connectDatabase, sequelize, User, UserProfile, UserRefreshToken } from "../../src/db/index.js";
-import type { connectRedis, disconnectRedis } from "../../src/redis.js";
+import { createTestRuntime } from "./support/test-runtime.js";
+
+import type { AppRuntime } from "../../src/runtime.js";
 import type { Express } from "express";
 
-type DbModule = {
-  connectDatabase: typeof connectDatabase;
-  sequelize: typeof sequelize;
-  User: typeof User;
-  UserProfile: typeof UserProfile;
-  UserRefreshToken: typeof UserRefreshToken;
-};
-
-type RedisModule = {
-  connectRedis: typeof connectRedis;
-  disconnectRedis: typeof disconnectRedis;
-};
-
 let app: Express;
-let db: DbModule;
-let redisModule: RedisModule;
+let runtime: AppRuntime;
 
 function uniqueSlug() {
   return `news-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -34,9 +21,9 @@ function uniqueUsername() {
 }
 
 async function cleanDatabase() {
-  await db.UserRefreshToken.destroy({ where: {} });
-  await db.UserProfile.destroy({ where: {} });
-  await db.User.destroy({ where: {} });
+  await runtime.database.models.UserRefreshToken.destroy({ where: {} });
+  await runtime.database.models.UserProfile.destroy({ where: {} });
+  await runtime.database.models.User.destroy({ where: {} });
 }
 
 async function registerAndLogin() {
@@ -53,13 +40,9 @@ async function registerAndLogin() {
 
 describe("public content API", () => {
   beforeAll(async () => {
-    db = await import("../../src/db/index.js");
-    redisModule = await import("../../src/redis.js");
-    const appModule = await import("../../src/app.js");
-    app = appModule.default;
-
-    await db.connectDatabase();
-    await redisModule.connectRedis();
+    runtime = createTestRuntime();
+    app = runtime.app;
+    await runtime.connect();
   });
 
   afterEach(() => {
@@ -68,8 +51,7 @@ describe("public content API", () => {
 
   afterAll(async () => {
     await cleanDatabase().catch(() => {});
-    await redisModule.disconnectRedis().catch(() => {});
-    await db.sequelize.close().catch(() => {});
+    await runtime.disconnect();
   });
 
   it("returns localized news list without auth", async () => {

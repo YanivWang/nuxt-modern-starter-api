@@ -1,10 +1,7 @@
-/**
- * 文件职责：工作区与项目领域服务。
- * 保持 controller 轻量，把默认空间创建、项目聚合和 DTO 转换集中在这里。
- */
-import { Document, Project, Workspace, sequelize } from "../../db/index.js";
+import { toDocumentDto } from "../document/document.contract.js";
 
-import type { Model } from "sequelize";
+import type { AppDatabase } from "../../db/index.js";
+import type { Model, Transaction } from "sequelize";
 
 export type ProjectDto = {
   id: string;
@@ -20,36 +17,18 @@ export type ProjectDto = {
   previewPath: string;
 };
 
-export type DocumentDto = {
-  id: string;
-  projectId: string;
-  title: string;
-  content: string;
-  updatedAt: string;
-};
-
-const toIso = (value: unknown) => {
-  if (value instanceof Date) return value.toISOString();
-  if (typeof value === "string") return new Date(value).toISOString();
-  return new Date().toISOString();
-};
-
-export function toDocumentDto(document: Model): DocumentDto {
-  return {
-    id: document.get("id") as string,
-    projectId: document.get("projectId") as string,
-    title: document.get("title") as string,
-    content: document.get("content") as string,
-    updatedAt: toIso(document.get("updatedAt")),
-  };
-}
+const toIso = (value: unknown) =>
+  value instanceof Date
+    ? value.toISOString()
+    : typeof value === "string"
+      ? new Date(value).toISOString()
+      : new Date().toISOString();
 
 export function toProjectDto(project: Model): ProjectDto {
   const document = project.get("document") as Model | null | undefined;
-  const projectId = project.get("id") as string;
-
+  const id = project.get("id") as string;
   return {
-    id: projectId,
+    id,
     workspaceId: project.get("workspaceId") as string,
     documentId: document ? (document.get("id") as string) : null,
     title: project.get("title") as string,
@@ -58,151 +37,100 @@ export function toProjectDto(project: Model): ProjectDto {
     slideCount: project.get("slideCount") as number,
     accent: project.get("accent") as string,
     updatedAt: toIso(project.get("updatedAt")),
-    editPath: `/app/workspace/${projectId}/edit`,
-    previewPath: `/app/workspace/${projectId}/preview`,
+    editPath: `/app/workspace/${id}/edit`,
+    previewPath: `/app/workspace/${id}/preview`,
   };
 }
 
-export async function ensurePersonalWorkspace(userId: number) {
-  const [workspace] = await Workspace.findOrCreate({
-    where: {
-      ownerId: userId,
-      type: "personal",
-    },
-    defaults: {
-      ownerId: userId,
-      name: "个人空间",
-      type: "personal",
-    },
-  });
+export function createWorkspaceService(database: AppDatabase) {
+  const { Document, Project, Workspace } = database.models;
 
-  return workspace;
-}
+  async function ensurePersonalWorkspace(userId: number, transaction: Transaction) {
+    const [workspace] = await Workspace.findOrCreate({
+      where: { ownerId: userId, type: "personal" },
+      defaults: { ownerId: userId, name: "个人空间", type: "personal" },
+      transaction,
+    });
+    return workspace;
+  }
 
-export async function createProjectForUser(
-  userId: number,
-  payload: {
-    title: string;
-    description?: string;
-  },
-) {
-  return sequelize.transaction(async (transaction) => {
-    // 项目和编辑器文档是一对一默认产物，必须在同一事务内创建，避免前端拿到无文档项目。
-    const workspace = await ensurePersonalWorkspace(userId);
-    const project = await Project.create(
-      {
-        workspaceId: workspace.get("id"),
-        ownerId: userId,
-        title: payload.title,
-        description: payload.description ?? null,
-        status: "draft",
-        slideCount: 0,
-        accent: "blue",
-      },
-      { transaction },
-    );
-    const document = await Document.create(
-      {
-        projectId: project.get("id"),
-        ownerId: userId,
-        title: payload.title,
-        content: "",
-      },
-      { transaction },
-    );
+  async function createForUser(userId: number, payload: { title: string; description?: string }) {
+    return database.sequelize.transaction(async (transaction) => {
+      const workspace = await ensurePersonalWorkspace(userId, transaction);
+      const project = await Project.create(
+        {
+          workspaceId: workspace.get("id"),
+          ownerId: userId,
+          title: payload.title,
+          description: payload.description ?? null,
+          status: "draft",
+          slideCount: 0,
+          accent: "blue",
+        },
+        { transaction },
+      );
+      const document = await Document.create(
+        { projectId: project.get("id"), ownerId: userId, title: payload.title, content: "" },
+        { transaction },
+      );
+      project.setDataValue("document", document);
+      return { project: toProjectDto(project), document: toDocumentDto(document) };
+    });
+  }
 
-    project.setDataValue("document", document);
+  async function listForUser(userId: number) {
+    const projects = await Project.findAll({
+      where: { ownerId: userId },
+      include: [{ model: Document, as: "document", attributes: ["id"], required: false }],
+      order: [["updatedAt", "DESC"]],
+    });
+    return projects.map(toProjectDto);
+  }
 
-    return {
-      project: toProjectDto(project),
-      document: toDocumentDto(document),
-    };
-  });
-}
-
-export async function listProjectsForUser(userId: number) {
-  const projects = await Project.findAll({
-    where: { ownerId: userId },
-    include: [{ model: Document, as: "document", attributes: ["id"], required: false }],
-    order: [["updatedAt", "DESC"]],
-  });
-
-  return projects.map(toProjectDto);
-}
-
-export async function findProjectForUser(userId: number, projectId: string) {
-  const project = await Project.findOne({
-    where: { id: projectId, ownerId: userId },
-    include: [{ model: Document, as: "document", attributes: ["id"], required: false }],
-  });
-
-  return project ? toProjectDto(project) : null;
-}
-
-export async function updateProjectForUser(
-  userId: number,
-  projectId: string,
-  payload: {
-    title?: string;
-    description?: string;
-  },
-) {
-  return sequelize.transaction(async (transaction) => {
+  async function findForUser(userId: number, projectId: string) {
     const project = await Project.findOne({
       where: { id: projectId, ownerId: userId },
       include: [{ model: Document, as: "document", attributes: ["id"], required: false }],
-      transaction,
-      lock: transaction.LOCK.UPDATE,
     });
+    return project ? toProjectDto(project) : null;
+  }
 
-    if (!project) return null;
-
-    const updates: {
-      title?: string;
-      description?: string | null;
-    } = {};
-
-    if (payload.title !== undefined) {
-      updates.title = payload.title;
-    }
-
-    if (payload.description !== undefined) {
-      updates.description = payload.description;
-    }
-
-    await project.update(updates, { transaction });
-
-    if (payload.title !== undefined) {
+  async function updateForUser(userId: number, projectId: string, payload: { title?: string; description?: string }) {
+    return database.sequelize.transaction(async (transaction) => {
+      const project = await Project.findOne({
+        where: { id: projectId, ownerId: userId },
+        include: [{ model: Document, as: "document", attributes: ["id"], required: false }],
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+      if (!project) return null;
+      await project.update(
+        {
+          ...(payload.title !== undefined ? { title: payload.title } : {}),
+          ...(payload.description !== undefined ? { description: payload.description } : {}),
+        },
+        { transaction },
+      );
       const document = project.get("document") as Model | null | undefined;
-
-      if (document) {
-        // 项目标题是列表展示字段，文档标题是编辑器标题；当前产品约定二者同步。
+      if (payload.title !== undefined && document) {
         await Document.update(
           { title: payload.title },
-          {
-            where: {
-              id: document.get("id"),
-              ownerId: userId,
-            },
-            transaction,
-          },
+          { where: { id: document.get("id"), ownerId: userId }, transaction },
         );
       }
-    }
-
-    await project.reload({
-      include: [{ model: Document, as: "document", attributes: ["id"], required: false }],
-      transaction,
+      await project.reload({
+        include: [{ model: Document, as: "document", attributes: ["id"], required: false }],
+        transaction,
+      });
+      return toProjectDto(project);
     });
+  }
 
-    return toProjectDto(project);
-  });
+  async function deleteForUser(userId: number, projectId: string) {
+    return (await Project.destroy({ where: { id: projectId, ownerId: userId } })) > 0;
+  }
+
+  return { createForUser, listForUser, findForUser, updateForUser, deleteForUser };
 }
 
-export async function deleteProjectForUser(userId: number, projectId: string) {
-  const deleted = await Project.destroy({
-    where: { id: projectId, ownerId: userId },
-  });
-
-  return deleted > 0;
-}
+export type WorkspaceService = ReturnType<typeof createWorkspaceService>;

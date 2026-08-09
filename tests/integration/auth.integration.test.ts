@@ -5,26 +5,13 @@
 import request from "supertest";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import type { connectDatabase, sequelize, User, UserProfile, UserRefreshToken } from "../../src/db/index.js";
-import type { connectRedis, disconnectRedis } from "../../src/redis.js";
+import { createTestRuntime } from "./support/test-runtime.js";
+
+import type { AppRuntime } from "../../src/runtime.js";
 import type { Express } from "express";
 
-type DbModule = {
-  connectDatabase: typeof connectDatabase;
-  sequelize: typeof sequelize;
-  User: typeof User;
-  UserProfile: typeof UserProfile;
-  UserRefreshToken: typeof UserRefreshToken;
-};
-
-type RedisModule = {
-  connectRedis: typeof connectRedis;
-  disconnectRedis: typeof disconnectRedis;
-};
-
 let app: Express;
-let db: DbModule;
-let redisModule: RedisModule;
+let runtime: AppRuntime;
 
 function uniqueUsername() {
   return `user_${Date.now()}_${Math.random().toString(16).slice(2)}`;
@@ -36,9 +23,9 @@ function cookieValue(cookies: string[] | undefined, name: string): string | unde
 }
 
 async function cleanDatabase() {
-  await db.UserRefreshToken.destroy({ where: {} });
-  await db.UserProfile.destroy({ where: {} });
-  await db.User.destroy({ where: {} });
+  await runtime.database.models.UserRefreshToken.destroy({ where: {} });
+  await runtime.database.models.UserProfile.destroy({ where: {} });
+  await runtime.database.models.User.destroy({ where: {} });
 }
 
 async function registerAndLogin(username = uniqueUsername(), password = "password123") {
@@ -56,13 +43,9 @@ async function registerAndLogin(username = uniqueUsername(), password = "passwor
 
 describe("auth and current user API", () => {
   beforeAll(async () => {
-    db = await import("../../src/db/index.js");
-    redisModule = await import("../../src/redis.js");
-    const appModule = await import("../../src/app.js");
-    app = appModule.default;
-
-    await db.connectDatabase();
-    await redisModule.connectRedis();
+    runtime = createTestRuntime();
+    app = runtime.app;
+    await runtime.connect();
   });
 
   beforeEach(async () => {
@@ -71,8 +54,7 @@ describe("auth and current user API", () => {
 
   afterAll(async () => {
     await cleanDatabase().catch(() => {});
-    await redisModule.disconnectRedis().catch(() => {});
-    await db.sequelize.close().catch(() => {});
+    await runtime.disconnect();
   });
 
   it("registers a user and rejects duplicate usernames", async () => {

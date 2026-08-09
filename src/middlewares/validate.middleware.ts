@@ -2,7 +2,7 @@
  * 文件职责：统一执行 Zod 请求校验。
  * 校验成功后把清洗后的 body/query/params/headers 写入 req.validated，后续代码不再直接信任原始输入。
  */
-import { createHttpError } from "./error.middleware.js";
+import { badRequest } from "../shared/errors/app-error.js";
 
 import type { NextFunction, Request, Response } from "express";
 import type * as z from "zod";
@@ -27,7 +27,7 @@ export function validate<A extends ParsedParts>(schema: z.ZodType<A>) {
     if (!result.success) {
       const message = result.error.issues.map((issue) => issue.message).join("; ");
       // 校验失败：400，交由全局 error 中间件输出统一错误体
-      next(createHttpError(400, message));
+      next(badRequest(message));
       return;
     }
 

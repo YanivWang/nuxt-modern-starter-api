@@ -8,7 +8,7 @@ import path from "node:path";
 
 import multer from "multer";
 
-import { uploadsRoot } from "./storage/local-storage.service.js";
+import type { FileStorage } from "./ports/file-storage.port.js";
 
 /** 通用图片：`POST /api/uploads` → `<uploadsRoot>/common/<年>/<月>/` → `/uploads/common/...` */
 export const commonUploadDiskSegment = "common";
@@ -25,13 +25,13 @@ const fileFilter: multer.Options["fileFilter"] = (_req, file, cb) => {
   cb(null, true);
 };
 
-function createYmDiskStorage(diskSegment: string): multer.StorageEngine {
+function createYmDiskStorage(root: string, diskSegment: string): multer.StorageEngine {
   return multer.diskStorage({
     destination(_req, _file, cb) {
       const now = new Date();
       const y = String(now.getFullYear());
       const m = String(now.getMonth() + 1).padStart(2, "0");
-      const dir = path.join(uploadsRoot, diskSegment, y, m);
+      const dir = path.join(root, diskSegment, y, m);
       fs.mkdirSync(dir, { recursive: true });
       cb(null, dir);
     },
@@ -45,19 +45,17 @@ function createYmDiskStorage(diskSegment: string): multer.StorageEngine {
   });
 }
 
-const commonStorage = createYmDiskStorage(commonUploadDiskSegment);
-const profileStorage = createYmDiskStorage(profileUploadDiskSegment);
-
-/** 表单字段名 `files`，通用图片最多 9 个，单文件最大 8MB */
-export const uploadImagesMiddleware = multer({
-  storage: commonStorage,
-  limits: { fileSize: 8 * 1024 * 1024, files: 9 },
-  fileFilter,
-}).array("files", 9);
-
-/** 头像等：`POST /api/uploads/profiles` → `profiles/`，单次仅 1 个文件，单文件最大 8MB */
-export const uploadProfileImagesMiddleware = multer({
-  storage: profileStorage,
-  limits: { fileSize: 8 * 1024 * 1024, files: 1 },
-  fileFilter,
-}).array("files", 1);
+export function createImageUploadMiddlewares(storage: FileStorage) {
+  return {
+    common: multer({
+      storage: createYmDiskStorage(storage.root, commonUploadDiskSegment),
+      limits: { fileSize: 8 * 1024 * 1024, files: 9 },
+      fileFilter,
+    }).array("files", 9),
+    profile: multer({
+      storage: createYmDiskStorage(storage.root, profileUploadDiskSegment),
+      limits: { fileSize: 8 * 1024 * 1024, files: 1 },
+      fileFilter,
+    }).array("files", 1),
+  };
+}

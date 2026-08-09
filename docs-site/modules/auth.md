@@ -21,7 +21,8 @@ src/modules/auth/
   auth-session.service.ts
     access token 签发、refresh token 生成/落库/轮换/撤销
 
-  auth-token.service.ts
+  ports/token-blacklist.port.ts
+  index.ts
     Redis JWT jti 黑名单
 
   jwt-verify.service.ts
@@ -34,7 +35,7 @@ src/modules/auth/
     UserRefreshToken Sequelize 模型
 ```
 
-模型文件位于认证模块内，但会通过 `src/db/models.ts` 统一注册，并由 `src/db/index.ts` 统一导出。业务服务只从 `src/db/index.ts` 取 `User`、`UserRefreshToken` 等模型，不直接创建数据库连接。
+模型文件位于认证模块内，通过 `src/db/models.ts` 统一注册。`createAuthModule(database, blacklist)` 显式接收数据库和 `TokenBlacklist` Port；Redis 实现位于 `src/infrastructure/auth/redis-token-blacklist.ts`。
 
 ## 认证接口
 

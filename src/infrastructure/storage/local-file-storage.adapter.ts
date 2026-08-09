@@ -5,19 +5,27 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { projectRoot } from "../../../utils/projectRoot.js";
+import { projectRoot } from "../../utils/projectRoot.js";
+
+import type { FileStorage } from "../../modules/upload/ports/file-storage.port.js";
 
 /** 上传根目录：当前仓库根 `uploads/` */
-export const uploadsRoot = path.join(projectRoot, "uploads");
+const uploadsRoot = path.join(projectRoot, "uploads");
 
-export function ensureUploadsRoot() {
+function ensureRoot() {
   fs.mkdirSync(uploadsRoot, { recursive: true });
 }
 
-export function filePathToPublicUrl(absPath: string) {
+function toPublicUrl(absPath: string) {
   const rel = path.relative(uploadsRoot, absPath).split(path.sep).join("/");
   if (rel.startsWith("..") || path.isAbsolute(rel)) {
     throw new Error("非法上传路径");
   }
   return `/uploads/${rel}`;
 }
+
+export const localFileStorage: FileStorage = {
+  root: uploadsRoot,
+  ensureRoot,
+  toPublicUrl,
+};
