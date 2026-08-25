@@ -177,7 +177,7 @@ Zod 是请求校验的单一来源。路由通过 `validate(schema)` 校验：
 这意味着：
 
 - 接口校验和文档尽量不分叉。
-- 修改接口后，需要运行 `pnpm openapi:generate`。
+- 修改接口后，需要运行 `pnpm openapi:generate`，再用 `pnpm format` 归一化生成物。
 - CI 会运行 `pnpm openapi:check`，防止文档落后于源码。
 
 ## 文件上传
@@ -214,7 +214,7 @@ Zod 是请求校验的单一来源。路由通过 `validate(schema)` 校验：
 
 测试分两类：
 
-- `tests/unit/`：不依赖外部服务，当前覆盖 OpenAPI、Redis 环境变量与 revalidate 工具。
+- `tests/unit/`：不依赖外部服务，当前覆盖 OpenAPI 生成、Redis 环境变量、Nuxt revalidate Adapter，以及 auth-session、content、workspace 三个 Service。
 - `tests/integration/`：依赖 MySQL 和 Redis，当前覆盖 auth、content、workspace/document 这些真实 HTTP 行为。
 
 CI 中会启动 MySQL 与 Redis services，然后运行完整 `pnpm run check`。
@@ -223,7 +223,7 @@ CI 中会启动 MySQL 与 Redis services，然后运行完整 `pnpm run check`�
 
 ESLint 使用 TypeScript 类型感知规则，Prettier 负责统一格式。
 
-`pnpm run check` 中会先 lint 再 format:check，确保代码质量和格式都达标。
+`pnpm run check` 中会先 lint 再 format:check，确保代码质量和格式都达标。此外还有 `pnpm architecture:check`（`scripts/validate-architecture.mjs`）做纯静态的导入边界检查，它是 `check` 的第一步。
 
 ### Docker + Nginx
 

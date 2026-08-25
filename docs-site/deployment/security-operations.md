@@ -6,15 +6,20 @@
 
 `src/env.ts` 在启动时校验关键配置。
 
-生产环境会拒绝：
+所有环境都会在启动时直接退出的情况：
 
-- 太短的 `JWT_SECRET`
-- 常见弱密钥
-- `replace_with`
-- `change_me`
-- 空数据库密码
-- 缺失 CORS 白名单
-- 缺失必需 Redis 配置，除非明确关闭黑名单
+- `JWT_SECRET` 缺失，或长度不足 32 字符，或是常见弱默认值
+- `DB_HOST` / `DB_USER` / `DB_PWD` / `DB_NAME` 缺失或为空
+- 端口不在 `1~65535`，正整数配置不是正整数，布尔配置格式非法
+- 启用黑名单（默认）时缺失 `REDIS_URL`
+- 同时设置了 `APP_ENV` 与 `NODE_ENV` 但两者不一致
+- `APP_ENV`/`NODE_ENV` 不是 `development` / `test` / `production` 之一
+
+只在生产环境额外拒绝的情况：
+
+- `JWT_SECRET` 或 `DB_PWD` 仍包含 `replace_with` / `change_me` 这类模板占位值
+
+注意 `CORS_ORIGINS` 不属于启动期校验：生产环境未配置时服务照常启动，但 `getCorsOriginOption()` 返回 `false`，所有浏览器跨域请求都会被拒绝。
 
 这能避免使用模板配置直接上线。
 

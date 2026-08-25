@@ -1,3 +1,7 @@
+/**
+ * 文件职责：文档接口的 HTTP 适配层。
+ * 读取登录用户与校验结果，Service 返回 null 时统一映射为 404。
+ */
 import { notFound, unauthorized } from "../../shared/errors/app-error.js";
 import { getValidated } from "../../utils/getValidated.js";
 import { success } from "../../utils/response.js";

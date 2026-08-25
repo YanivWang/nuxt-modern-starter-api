@@ -1,3 +1,7 @@
+/**
+ * 文件职责：内容 Service 的 Port 注入单元测试。
+ * 验证读取走 ContentRepository、写操作成功后触发 ContentRevalidator。
+ */
 import { describe, expect, it, vi } from "vitest";
 
 import { createContentService } from "../../../src/modules/content/content.service.js";

@@ -1,3 +1,7 @@
+/**
+ * 文件职责：注册项目路由 /projects 与 /projects/:projectId，全部要求登录。
+ * 列表接口无入参，因此不挂 validate。
+ */
 import express from "express";
 
 import { asyncHandler } from "../../middlewares/asyncHandler.js";

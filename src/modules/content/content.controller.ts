@@ -1,3 +1,7 @@
+/**
+ * 文件职责：公开内容接口的 HTTP 适配层。
+ * 负责从 Accept-Language 与 query 解析 locale，并把 Service 的空返回值映射为 404/409。
+ */
 import { conflict, notFound } from "../../shared/errors/app-error.js";
 import { getValidated } from "../../utils/getValidated.js";
 import { success } from "../../utils/response.js";

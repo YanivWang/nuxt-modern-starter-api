@@ -29,13 +29,21 @@ src/modules/upload/
   large-upload.controller.ts
     大文件上传 HTTP 控制器
 
+  ports/file-storage.port.ts
+    FileStorage Port：上传根目录、目录初始化、绝对路径转公开 URL
+
   ports/large-upload-storage.port.ts
-    分片会话、状态、合并、秒传索引、清理逻辑
+    LargeUploadStorage Port：分片目录解析、init/status/chunk/merge/abort
+
+  index.ts
+    模块公开入口：只导出 createUploadRoutes 和两个 Port 类型
 
 src/infrastructure/storage/
   local-file-storage.adapter.ts
-  local-large-upload.adapter.ts
     本地磁盘上传根目录、目录初始化和公开 URL 转换
+
+  local-large-upload.adapter.ts
+    分片会话、meta、完成标记、MD5 校验、合并与秒传索引的本地实现
 ```
 
 ## 上传路由
@@ -52,7 +60,7 @@ authMiddleware
   -> service
 ```
 
-普通图片上传没有额外 Zod body，因为 multipart 文件由 multer 读取；大文件 init/status/merge/delete 会先经过 Zod 校验。
+普通图片上传没有额外 Zod body，因为 multipart 文件由 multer 读取；大文件的 init、status、chunk、merge、delete 都会先经过 Zod 校验。chunk 接口尤其重要：`uploadId` 和 `chunkIndex` 必须在 multer 落盘前校验通过，multer 的同步 `destination`/`filename` 回调才能安全地据此解析目录和文件名。
 
 普通上传：
 
@@ -342,7 +350,7 @@ multer 先把分片写入磁盘，然后 `finalizeChunkWrite()` 校验：
 GET /api/uploads/large/:uploadId/status
 ```
 
-返回：
+任务仍在上传中时返回：
 
 - `status`
 - `chunkTotal`
@@ -350,11 +358,17 @@ GET /api/uploads/large/:uploadId/status
 - `fileName`
 - `fileSize`
 - `chunkSize`
-- `publicUrl`，如果已完成
+
+任务已完成时（命中 done marker 或 meta 中已是 `done`）返回：
+
+- `status: "done"`
+- `chunkTotal`
+- `receivedIndices: []`
+- `publicUrl`
 
 `receivedIndices` 只包含大小正确的分片。损坏、未写完或大小不匹配的分片不会返回给客户端。
 
-如果任务已经合并完成且临时目录被清理，服务会读取 done marker 返回完成状态。
+如果任务已经合并完成且临时目录被清理，服务会读取 done marker 返回完成状态，因此客户端重复轮询是安全的。
 
 ## merge 阶段
 
@@ -367,25 +381,49 @@ POST /api/uploads/large/:uploadId/merge
 服务端会：
 
 1. 检查 done marker，若已完成则幂等返回。
-2. 读取 meta。
+2. 读取 meta（读取失败时再查一次 marker，覆盖「刚好合并完成并清理」的竞争态）。
 3. 校验任务归属。
-4. 校验任务未过期。
-5. 如果状态是 `merging`，返回 409。
-6. 检查所有分片是否存在且大小正确。
-7. 将状态写为 `merging`。
-8. 按分片顺序写入临时最终文件。
-9. 同时计算整文件 MD5。
-10. 校验整文件 MD5 和大小。
-11. rename 成最终文件。
-12. 写入 done marker。
-13. 写入全局 MD5 秒传索引。
-14. 清理临时分片目录和 session。
+4. 若 meta 中已是 `done` 且有 `publicUrl`，同样幂等返回。
+5. 校验任务未过期。
+6. 如果状态是 `merging`，返回 409。
+7. 检查所有分片是否存在且大小正确。
+8. 将状态写为 `merging`。
+9. 按分片顺序写入临时文件 `<最终文件名>.part`。
+10. 同时计算整文件 MD5。
+11. 校验整文件 MD5 和大小；任一不符就删除临时文件、把 meta 标记为 `failed` 并抛错。
+12. rename 成最终文件。
+13. 写入 done marker。
+14. 写入全局 MD5 秒传索引。
+15. 清理临时分片目录和 session。
 
 最终文件目录：
 
 ```text
 uploads/large/<年>/<月>/
 ```
+
+## 取消上传
+
+接口：
+
+```text
+DELETE /api/uploads/large/:uploadId
+```
+
+行为：
+
+- meta 读不到（任务不存在或已清理）：删掉可能残留的 session，直接返回成功，便于客户端重试。
+- 任务属于他人：返回 `403 无权访问该上传任务`。
+- 任务已经是 `done`：不做任何事，也不会删掉已合并的最终文件。
+- 其余情况：删除临时分片目录和 session。
+
+## 任务有效期
+
+上传任务的存活时间是 24 小时，`init` 返回的 `expiresAt` 就是这个截止时间。
+
+`status`、`chunk`、`merge` 都会用 `meta.createdAt` 检查是否超时；超时后返回 `410 上传任务已过期，请重新发起`，客户端需要重新 `init`。
+
+已经合并完成的任务不受此限制：done marker 与最终文件不会因为过期而失效，只有临时分片目录需要按运维策略清理。
 
 ## merging 状态的作用
 

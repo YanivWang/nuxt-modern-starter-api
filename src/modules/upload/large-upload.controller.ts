@@ -1,3 +1,7 @@
+/**
+ * 文件职责：大文件分片上传接口的 HTTP 适配层。
+ * 把 init/status/chunk/merge/abort 请求转交 LargeUploadStorage Port，并统一附带当前用户 id 做归属校验。
+ */
 import { badRequest, unauthorized } from "../../shared/errors/app-error.js";
 import { success } from "../../utils/response.js";
 

@@ -1,3 +1,7 @@
+/**
+ * 文件职责：注册与登录用例。
+ * 密码使用 bcrypt 哈希存储；用户名唯一冲突在此转换为 CONFLICT，登录失败统一返回同一文案避免枚举用户名。
+ */
 import bcrypt from "bcrypt";
 import { UniqueConstraintError } from "sequelize";
 

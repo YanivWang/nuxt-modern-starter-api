@@ -107,7 +107,7 @@ redis-cli -a "$REDIS_PASSWORD" ping
 
 公共配置中：
 
-- 使用 `docker/Dockerfile` 构建。
+- 使用 `docker/Dockerfile` 构建（开发 Compose 会覆盖为 `docker/Dockerfile.dev`）。
 - 等 MySQL 和 Redis healthy 后启动。
 - 注入 `DB_HOST=mysql`。
 - 注入 Compose 内部 Redis URL。
@@ -119,6 +119,7 @@ redis-cli -a "$REDIS_PASSWORD" ping
 `docker-compose.dev.yaml` 的特点：
 
 - 项目名：`nuxt-modern-starter-api-dev`
+- `api` 改用 `docker/Dockerfile.dev` 构建，并通过 `env_file` 读取 `.env.development`
 - MySQL 暴露宿主机 `3306`
 - Redis 暴露宿主机 `6379`
 - API 暴露 Node 调试端口 `9229`
@@ -243,7 +244,9 @@ client_max_body_size 1100M
 
 这是为了允许大文件相关请求通过网关。
 
-不过实际分片接口单片最大 8MB。这里设置较大主要是为了给未来扩展和普通大请求留余量。
+不过实际分片接口单片最大 8MB（`large-upload.multer.ts` 与 `large-upload.schema.ts` 双重限制），单文件上限 1024MB 也是靠分片而不是单次请求达成的。这里设置较大主要是为了给未来扩展和普通大请求留余量。
+
+注意应用侧的 `REQUEST_BODY_LIMIT`（默认 `1mb`）只作用于 `express.json` / `express.urlencoded`，不限制 multipart 上传——文件大小由 multer 的 `limits.fileSize` 控制。
 
 ## 部署流程建议
 

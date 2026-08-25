@@ -1,3 +1,7 @@
+/**
+ * 文件职责：文档读取与保存用例。
+ * 查询按 ownerId 过滤实现资源归属校验；保存在同一事务内把标题同步回关联 Project。
+ */
 import { toDocumentDto } from "./document.contract.js";
 
 import type { AppDatabase } from "../../db/index.js";

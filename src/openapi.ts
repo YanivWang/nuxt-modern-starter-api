@@ -166,7 +166,8 @@ export function generateOpenApiSpec(): OpenApiSpec {
     info: {
       title: "Nuxt Modern Starter API",
       version: "1.0.0",
-      description: "独立 Express API 服务脚手架，保留 auth、user、health、upload 和 large-upload 通用能力。",
+      description:
+        "独立 Express API 服务脚手架，覆盖健康探针、认证、当前用户与资料、公开内容（新闻/定价）、项目、文档、普通图片上传与大文件分片上传。",
     },
     servers: [
       { url: "http://127.0.0.1:3000", description: "本地 API 服务" },
@@ -201,6 +202,34 @@ export function generateOpenApiSpec(): OpenApiSpec {
           required: ["code", "message", "data"],
           additionalProperties: false,
         },
+        // 探针不使用 { code, message, data } 信封，单独声明真实结构。
+        HealthBody: {
+          type: "object",
+          properties: {
+            status: { type: "string", const: "ok" },
+          },
+          required: ["status"],
+          additionalProperties: false,
+        },
+        ReadyChecks: {
+          type: "object",
+          properties: {
+            mysql: { type: "string", enum: ["ok", "failed"] },
+            redis: { type: "string", enum: ["ok", "failed", "disabled"] },
+          },
+          required: ["mysql", "redis"],
+          additionalProperties: false,
+        },
+        ReadyBody: {
+          type: "object",
+          properties: {
+            status: { type: "string", enum: ["ready", "not_ready"] },
+            checks: schemaRef("ReadyChecks"),
+            message: { type: "string" },
+          },
+          required: ["status", "checks"],
+          additionalProperties: false,
+        },
       },
     },
     paths: {
@@ -208,14 +237,19 @@ export function generateOpenApiSpec(): OpenApiSpec {
         get: {
           tags: ["探针"],
           summary: "存活探针",
-          responses: ok("ok"),
+          responses: {
+            "200": jsonResponse("进程存活；不访问 MySQL/Redis", schemaRef("HealthBody")),
+          },
         },
       },
       "/ready": {
         get: {
           tags: ["探针"],
           summary: "就绪探针",
-          responses: ok("ok"),
+          responses: {
+            "200": jsonResponse("依赖就绪；关闭黑名单时 redis 为 disabled", schemaRef("ReadyBody")),
+            "503": jsonResponse("依赖不可用", schemaRef("ReadyBody")),
+          },
         },
       },
       "/api/register": {

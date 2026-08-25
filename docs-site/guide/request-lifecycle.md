@@ -146,10 +146,12 @@ Express 4 默认不会自动捕获异步 controller 中 rejected Promise。
 
 特殊处理：
 
-- Multer 错误：转成上传相关中文文案。
-- `AppError`：按 BAD_REQUEST、UNAUTHORIZED、FORBIDDEN、NOT_FOUND、CONFLICT、GONE、INTERNAL 映射状态码。
+- Multer 错误：`LIMIT_FILE_SIZE`、`LIMIT_FILE_COUNT`、`LIMIT_UNEXPECTED_FILE` 转成上传相关中文文案，返回 400。
+- 图片类型守卫：multer `fileFilter` 抛出的「仅支持 jpeg…」错误直接原样返回 400。
+- `AppError`：按 BAD_REQUEST、UNAUTHORIZED、FORBIDDEN、NOT_FOUND、CONFLICT、GONE、INTERNAL 映射状态码；`expose: false` 的错误只返回统一文案。
 - Sequelize 未被业务 Service 转换的唯一键冲突：返回通用 `409 资源已存在`。
 - 未知错误：返回统一 500，详细错误只写日志。
+- 响应头已发送（例如静态文件或流式响应途中出错）：直接 `next(error)` 交给 Express 默认处理，不再改写响应。
 
 这套机制避免内部错误细节泄露给客户端。
 
@@ -191,6 +193,20 @@ Express 4 默认不会自动捕获异步 controller 中 rejected Promise。
   "data": null
 }
 ```
+
+## 探针不走统一信封
+
+`/health` 与 `/ready` 由 `src/routes/health.routes.ts` 直接 `res.json()`，**不**使用 `success()` / `fail()`：
+
+```json
+{ "status": "ok" }
+```
+
+```json
+{ "status": "ready", "checks": { "mysql": "ok", "redis": "disabled" } }
+```
+
+依赖不可用时返回 `503`，body 里多一个 `message` 说明哪个依赖失败。它们也挂在全局限流之前，避免健康检查被真实流量挤出限流窗口。
 
 ## 请求日志
 

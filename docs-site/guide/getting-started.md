@@ -50,16 +50,19 @@ pnpm docker:dev
 
 - MySQL：宿主机 `3306`
 - Redis：宿主机 `6379`
-- REST API：容器内 `3000`
+- REST API：只监听容器内 `3000`，**不发布到宿主机**
 - Nginx 网关：宿主机 `2027`
 - Node 调试端口：宿主机 `9229`
 
-访问地址：
+所以 Docker 开发环境下所有 HTTP 访问都走网关：
 
-- 本机 API：`http://localhost:3000`
-- Docker 网关：`http://localhost:2027`
-- Swagger：`http://localhost:3000/api-docs` 或经网关 `http://localhost:2027/api-docs`
-- OpenAPI YAML：`http://localhost:3000/openapi.yaml` 或 `http://localhost:2027/openapi.yaml`
+- API：`http://localhost:2027`
+- Swagger：`http://localhost:2027/api-docs`
+- OpenAPI YAML：`http://localhost:2027/openapi.yaml`
+
+`http://localhost:3000` 只在本机直接 `pnpm dev` 时可用；此时 Swagger 是 `http://localhost:3000/api-docs`，OpenAPI 是 `http://localhost:3000/openapi.yaml`。
+
+注意本机 `pnpm dev` 默认也用 `3000`，会和 Nuxt 前端的开发端口冲突。前后端一起跑时，建议后端走 Docker 网关（`2027`），把 `3000` 留给前端。
 
 ## 与 Nuxt 前端联调
 
@@ -105,6 +108,7 @@ pnpm docs:preview
 ## 常用质量命令
 
 ```bash
+pnpm architecture:check
 pnpm typecheck
 pnpm lint
 pnpm format:check
@@ -114,7 +118,7 @@ pnpm build
 pnpm check
 ```
 
-`pnpm check` 是完整质量门禁，会依次运行类型检查、lint、格式检查、OpenAPI 同步检查、测试和构建。CI 中执行的是等价的 `pnpm run check`。
+`pnpm check` 是完整质量门禁，会依次运行架构边界检查、类型检查、lint、格式检查、OpenAPI 同步检查、测试和构建。CI 中执行的是等价的 `pnpm run check`。
 
 测试文件不放在 `src/` 下：`tests/unit/` 承载不依赖外部服务的单元测试，`tests/integration/` 承载依赖 MySQL/Redis 的 API 集成测试。
 

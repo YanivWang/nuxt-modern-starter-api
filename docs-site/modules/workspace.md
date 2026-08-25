@@ -16,16 +16,19 @@ src/modules/workspace/
     HTTP 层：读取 req.user、返回标准 envelope
 
   workspace.service.ts
-    ensurePersonalWorkspace、createProjectForUser、listProjectsForUser、findProjectForUser、updateProjectForUser、deleteProjectForUser
+    ensurePersonalWorkspace 与 createForUser、listForUser、findForUser、updateForUser、deleteForUser，以及 toProjectDto 映射
 
   workspace.model.ts
     Workspaces 模型
 
   project.model.ts
     Projects 模型
+
+  index.ts
+    模块公开入口：createWorkspaceModule() 组装 service/controller/router，并再导出 ProjectDto
 ```
 
-`workspace.model.ts` 和 `project.model.ts` 只定义模型与关联所需字段；模型注册入口在 `src/db/models.ts`，业务代码统一从 `src/db/index.ts` 取得 `Workspace`、`Project`、`Document` 与 `sequelize`。
+`workspace.model.ts` 和 `project.model.ts` 只定义模型与关联所需字段；模型注册入口在 `src/db/models.ts`。Service 不导入全局模型，而是由 `src/runtime.ts` 注入 `AppDatabase`，再从 `database.models` 取 `Workspace`、`Project`、`Document`，从 `database.sequelize` 开事务。
 
 ## 接口
 
@@ -116,7 +119,7 @@ src/modules/workspace/
 - 每个用户会自动拥有一个 `type = personal` 的默认 Workspace；创建项目时会写入该空间。
 - 创建项目时在同一个事务里创建 Project 和 Document。
 - 列表、详情、更新与删除都按 `ownerId = req.user.id` 过滤，避免跨用户访问。
-- 删除项目时通过 Sequelize 级联删除关联 Document；删除成功后 `data` 为 `null`。
+- 删除项目只执行 `Project.destroy()`；关联 Document 由 `Documents.projectId` 的外键 `ON DELETE CASCADE` 在数据库层清理。删除成功后 `data` 为 `null`。
 - 访问不存在的项目或他人项目时，详情、更新与删除均返回 `404 项目不存在`。
 - `editPath` 与 `previewPath` 是前端路由提示，供 Nuxt 工作台直接跳转。
 

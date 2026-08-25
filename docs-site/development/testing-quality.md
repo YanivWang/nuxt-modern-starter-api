@@ -7,6 +7,7 @@
 ```bash
 pnpm dev
 pnpm dev:debug
+pnpm architecture:check
 pnpm typecheck
 pnpm lint
 pnpm format
@@ -31,7 +32,8 @@ pnpm check
 `package.json` 中：
 
 ```text
-typecheck
+architecture:check
+  -> typecheck
   -> lint
   -> format:check
   -> openapi:check
@@ -41,12 +43,29 @@ typecheck
 
 这保证：
 
+- 模块、HTTP 层与 infrastructure 之间的导入边界没有被破坏。
 - TypeScript 类型正确。
 - ESLint 规则通过。
 - Prettier 格式一致。
 - OpenAPI 生成物与源码同步。
 - 单元测试和集成测试通过。
 - 生产 TypeScript 构建成功。
+
+## 架构边界检查
+
+命令：
+
+```bash
+pnpm run architecture:check
+```
+
+执行 `scripts/validate-architecture.mjs`，它扫描 `src/**/*.ts` 的相对导入，命中以下任意一条就报错退出：
+
+- `src/modules/` 下的文件导入 `src/infrastructure/`（具体 Adapter 只能由 `src/runtime.ts` 选择）。
+- 跨模块导入的目标不是对方的 `index.ts`、`*.contract.ts` 或 `ports/` 下的文件。
+- `*.service.ts` 导入 `src/middlewares/`（应用服务不依赖 HTTP 中间件）。
+
+它是纯静态检查，不需要 MySQL 或 Redis，因此排在 `check` 的第一步。
 
 ## 类型检查
 
@@ -102,9 +121,11 @@ eslint.config.js
 - `logs`
 - `uploads`
 - `.data`
+- `.pnpm-store`
 - `node_modules`
+- `docs-site/.vitepress/dist`
 
-这些都是构建、测试或运行时产物。
+这些都是构建、测试、依赖缓存或运行时产物。
 
 ## 格式化
 
@@ -252,7 +273,10 @@ import "../src/env.js";
 
 ```bash
 pnpm openapi:generate
+pnpm format
 ```
+
+`openapi:generate` 直接输出 js-yaml 的原始格式，与 Prettier 的 YAML 风格不同，因此生成后需要再跑一次 `pnpm format`，否则 `format:check` 会失败。
 
 检查：
 
@@ -260,7 +284,7 @@ pnpm openapi:generate
 pnpm openapi:check
 ```
 
-如果接口或 schema 变化后忘记更新 `docs/openapi.yaml`，CI 会失败。
+`openapi:check` 比较的是解析后的 spec，不比较 YAML 文本格式。如果接口或 schema 变化后忘记更新 `docs/openapi.yaml`，CI 会失败。
 
 ## 构建
 
@@ -312,7 +336,7 @@ CI services：
 2. Setup pnpm。
 3. Setup Node.js 22。
 4. 安装依赖。
-5. 运行 `pnpm run check`。
+5. 运行 `pnpm run check`（架构边界 → 类型 → lint → 格式 → OpenAPI 同步 → 测试 → 构建）。
 
 ## 新人开发建议
 
@@ -333,6 +357,7 @@ pnpm run format:check
 
 ```bash
 pnpm openapi:generate
+pnpm format
 pnpm openapi:check
 ```
 

@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: Nuxt Modern Starter API
   version: 1.0.0
-  description: 独立 Express API 服务脚手架，保留 auth、user、health、upload 和 large-upload 通用能力。
+  description: 独立 Express API 服务脚手架，覆盖健康探针、认证、当前用户与资料、公开内容（新闻/定价）、项目、文档、普通图片上传与大文件分片上传。
 servers:
   - url: http://127.0.0.1:3000
     description: 本地 API 服务
@@ -42,6 +42,49 @@ components:
         - message
         - data
       additionalProperties: false
+    HealthBody:
+      type: object
+      properties:
+        status:
+          type: string
+          const: ok
+      required:
+        - status
+      additionalProperties: false
+    ReadyChecks:
+      type: object
+      properties:
+        mysql:
+          type: string
+          enum:
+            - ok
+            - failed
+        redis:
+          type: string
+          enum:
+            - ok
+            - failed
+            - disabled
+      required:
+        - mysql
+        - redis
+      additionalProperties: false
+    ReadyBody:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - ready
+            - not_ready
+        checks:
+          $ref: "#/components/schemas/ReadyChecks"
+        message:
+          type: string
+      required:
+        - status
+        - checks
+      additionalProperties: false
 paths:
   /health:
     get:
@@ -50,23 +93,11 @@ paths:
       summary: 存活探针
       responses:
         "200":
-          description: ok
+          description: 进程存活；不访问 MySQL/Redis
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessBody"
-        "400":
-          description: 请求参数错误
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorBody"
-        "500":
-          description: 服务器内部错误
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorBody"
+                $ref: "#/components/schemas/HealthBody"
   /ready:
     get:
       tags:
@@ -74,23 +105,17 @@ paths:
       summary: 就绪探针
       responses:
         "200":
-          description: ok
+          description: 依赖就绪；关闭黑名单时 redis 为 disabled
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessBody"
-        "400":
-          description: 请求参数错误
+                $ref: "#/components/schemas/ReadyBody"
+        "503":
+          description: 依赖不可用
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorBody"
-        "500":
-          description: 服务器内部错误
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorBody"
+                $ref: "#/components/schemas/ReadyBody"
   /api/register:
     post:
       tags:

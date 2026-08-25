@@ -1,3 +1,7 @@
+/**
+ * 文件职责：普通图片上传的响应适配。
+ * multer 已完成落盘，这里只把绝对路径经 FileStorage 转换为 /uploads 公开 URL。
+ */
 import { badRequest } from "../../shared/errors/app-error.js";
 import { success } from "../../utils/response.js";
 

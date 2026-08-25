@@ -65,8 +65,11 @@ OpenAPI components 中声明：
 
 - `SuccessBody`
 - `ErrorBody`
+- `HealthBody` / `ReadyBody` / `ReadyChecks`
 
-成功响应使用 `{ code, message, data }`，业务字段放在 `data` 内。
+业务接口的成功响应使用 `{ code, message, data }`，业务字段放在 `data` 内。
+
+`/health` 与 `/ready` 是例外：它们不走这个信封，直接返回 `{ status }` 和 `{ status, checks, message? }`，所以在 components 里单独声明，`/ready` 还额外声明了 `503`。
 
 错误响应使用 `additionalProperties: false`，默认只返回：
 
@@ -106,7 +109,10 @@ http://localhost:2027/openapi.yaml
 
 ```bash
 pnpm openapi:generate
+pnpm format
 ```
+
+`openapi:generate` 输出的是 js-yaml 的原始 YAML 风格，与 Prettier 不同，所以生成后要再跑一次 `pnpm format`，否则 `pnpm format:check` 会失败。`openapi:check` 本身只比较解析后的 spec，不比较文本格式。
 
 CI 检查：
 
@@ -122,9 +128,9 @@ pnpm openapi:check
 
 1. 创建或补充 Zod schema。
 2. 在对应路由中挂 `validate(schema)`。
-3. 在 controller 中读取 `req.validated`。
+3. 在 controller 中通过 `getValidated<T>(req)` 读取 `req.validated`。
 4. 在 `src/openapi.ts` 的 `paths` 中补充 OpenAPI operation。
-5. 运行 `pnpm openapi:generate`。
+5. 运行 `pnpm openapi:generate` 和 `pnpm format`。
 6. 运行 `pnpm run check`。
 
 不要只改路由不改 OpenAPI，否则 CI 会在 `openapi:check` 或测试阶段暴露问题。
@@ -144,7 +150,7 @@ Cookie + CSRF 的 Web App 接入细节在 README 和 [认证模块](/modules/aut
 - OpenAPI 更适合描述通用 HTTP API 和 Bearer 客户端。
 - Cookie + CSRF 涉及浏览器、同站策略、前端读取 Cookie、CORS credentials，需要更长解释。
 
-当前 OpenAPI `paths` 覆盖的业务域包括：认证、当前用户/资料、公开内容（新闻/定价）、项目、文档、普通上传与大文件分片上传。
+当前 OpenAPI `paths` 覆盖 `/health`、`/ready` 两个探针，以及认证、当前用户/资料、公开内容（新闻/定价）、项目、文档、普通上传与大文件分片上传这些业务域。
 
 ## 与 VitePress 文档的关系
 

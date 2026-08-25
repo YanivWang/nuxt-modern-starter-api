@@ -13,16 +13,19 @@ src/modules/content/
     列表/详情/定价 query、slug、创建与更新 body 的 Zod 校验
 
   content.controller.ts
-    HTTP 层：解析 locale、调用 service、触发 Nuxt revalidate
+    HTTP 层：解析 locale、调用 service、把空返回值映射为 404/409
 
   content.service.ts
-    内存数据读写、locale 解析与本地化映射
+    locale 解析、本地化映射，并在写操作成功后触发 ContentRevalidator
 
   content.data.ts
     新闻文章 hardcoded 数据源
 
   pricing.data.ts
     定价页 hardcoded 数据源
+
+  index.ts
+    模块公开入口：createContentModule() 接收两个 Port 并返回 routes/service
 ```
 
 相关工具：
@@ -36,7 +39,7 @@ src/infrastructure/revalidation/nuxt-content-revalidator.ts
   新闻变更后通知 Nuxt 清除 SWR 页面缓存
 ```
 
-公开内容模块当前不包含 `*.model.ts`，也不会在 `src/db/models.ts` 中注册数据库模型。它是进程内数据源示例，适合前端联调和脚手架演示；接入 CMS 或 MySQL 时，优先替换 `content.service.ts` 的数据读写，不要先改变 HTTP 契约。
+公开内容模块当前不包含 `*.model.ts`，也不会在 `src/db/models.ts` 中注册数据库模型。它是进程内数据源示例，适合前端联调和脚手架演示；接入 CMS 或 MySQL 时，实现一个新的 `ContentRepository` Adapter 并在 `src/runtime.ts` 替换即可，`content.service.ts` 和 HTTP 契约都不需要改。
 
 ## 对外接口
 
@@ -85,7 +88,7 @@ locale 解析顺序（`resolveLocale()`）：
 含义：
 
 - 进程重启后，运行时创建/更新/删除的新闻会丢失，回到源码中的初始数据。
-- 适合前端联调与脚手架演示；生产 CMS 或数据库接入时，应替换 service 数据源，尽量保持路由契约不变。
+- 适合前端联调与脚手架演示；生产 CMS 或数据库接入时，应替换 `ContentRepository` Adapter，尽量保持路由契约不变。
 
 ## 读接口示例
 
@@ -191,13 +194,13 @@ DELETE /api/content/news/:slug
 
 ## Nuxt 缓存失效
 
-创建、更新、删除新闻成功后，controller 会调用：
+创建、更新、删除新闻成功后，`content.service.ts` 会调用注入的 `ContentRevalidator`：
 
 ```text
-revalidateNewsPaths(slug)
+revalidator.revalidateNews(slug)
 ```
 
-它会向 Nuxt 发送：
+当前 Adapter 是 `src/infrastructure/revalidation/nuxt-content-revalidator.ts`，它用 `getNewsRevalidatePaths(slug)` 展开路径后向 Nuxt 发送：
 
 ```text
 POST {NUXT_REVALIDATE_URL}
@@ -209,10 +212,10 @@ Body: { "paths": ["/news", "/news/{slug}", "/en/news", "/en/news/{slug}"] }
 
 | 变量                  | 说明                                       |
 | --------------------- | ------------------------------------------ |
-| `NUXT_REVALIDATE_URL` | Nuxt revalidate 接口地址；未配置则跳过     |
-| `REVALIDATE_SECRET`   | 与前端约定的密钥；未配置则跳过并打 warning |
+| `NUXT_REVALIDATE_URL` | Nuxt revalidate 接口地址；未配置则静默跳过 |
+| `REVALIDATE_SECRET`   | 与前端约定的密钥；未配置则静默跳过         |
 
-revalidate 失败只记日志，不影响新闻写接口本身的成功响应。
+两者只要有一个缺失，Adapter 就直接返回、不发请求也不写日志。只有请求发出后失败（非 2xx 或异常）才会记 `revalidate_failed` warning，且不影响新闻写接口本身的成功响应。
 
 ## 与前端协作
 
@@ -238,8 +241,8 @@ REVALIDATE_SECRET=dev_revalidate_secret_replace_with_random_string
 建议：
 
 1. 保留现有路由与响应 envelope。
-2. 把 `content.data.ts` / `pricing.data.ts` 换成 repository。
-3. 写接口改为持久化，并继续调用 `revalidateNewsPaths`。
+2. 新增一个实现 `ContentRepository` 的 Adapter（数据库或 CMS），替换 `createInMemoryContentRepository()`。
+3. 在 `src/runtime.ts` 注入新 Adapter；`revalidateNews` 的触发逻辑留在 service，不需要改。
 4. 同步 OpenAPI 与集成测试。
 
 ### 增加更多公开页内容

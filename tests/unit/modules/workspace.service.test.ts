@@ -1,3 +1,7 @@
+/**
+ * 文件职责：创建项目用例的事务边界单元测试。
+ * 验证 Workspace、Project、Document 的写入都传入同一个 transaction。
+ */
 import { describe, expect, it, vi } from "vitest";
 
 import { createWorkspaceService } from "../../../src/modules/workspace/workspace.service.js";

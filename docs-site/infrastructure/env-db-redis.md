@@ -63,6 +63,8 @@ cp .env.production.example .env.production
 | `LOG_LEVEL`   | 日志级别，默认 info                |
 | `LOG_TO_FILE` | 是否写入 logs 目录，生产默认 false |
 
+注意 `LOG_LEVEL` 与 `LOG_TO_FILE` 不经过 `src/env.ts`，`src/utils/logger.ts` 直接读 `process.env`，因此它们没有 fail-fast 校验：值拼错时会静默退回默认行为（level 回退 `info`，`LOG_TO_FILE` 只认字符串 `"true"`）。
+
 ### CORS 与代理
 
 | 变量                 | 说明                           |
@@ -73,10 +75,10 @@ cp .env.production.example .env.production
 
 ### Nuxt 缓存失效（公开内容写操作）
 
-| 变量                  | 说明                                                                     |
-| --------------------- | ------------------------------------------------------------------------ |
-| `NUXT_REVALIDATE_URL` | Nuxt revalidate 接口地址；未配置时新闻写操作跳过缓存失效                 |
-| `REVALIDATE_SECRET`   | 与前端约定的密钥，请求头 `x-revalidate-secret`；未配置时跳过并打 warning |
+| 变量                  | 说明                                                                 |
+| --------------------- | -------------------------------------------------------------------- |
+| `NUXT_REVALIDATE_URL` | Nuxt revalidate 接口地址；未配置时新闻写操作静默跳过缓存失效         |
+| `REVALIDATE_SECRET`   | 与前端约定的密钥，请求头 `x-revalidate-secret`；未配置时同样静默跳过 |
 
 开发环境示例（与 `nuxt-modern-starter` 联调）：
 
@@ -125,6 +127,8 @@ REVALIDATE_SECRET=dev_revalidate_secret_replace_with_random_string
 | `REDIS_PASSWORD`               | Docker Redis 密码   |
 
 如果关闭黑名单，`REDIS_URL` 可以为空。
+
+`REDIS_PASSWORD` 和下表的 `MYSQL_ROOT_PASSWORD` 只被 `docker/` 下的 Compose 文件使用，应用进程本身不读取它们。
 
 ### MySQL
 
@@ -194,15 +198,13 @@ initModels(sequelize)
   -> defineDocumentModel()
 ```
 
-然后导出：
+`src/db/index.ts` 不导出零散的模型变量，只导出一个 `database` 对象：
 
-- `sequelize`
-- `User`
-- `UserProfile`
-- `UserRefreshToken`
-- `Workspace`
-- `Project`
-- `Document`
+- `database.sequelize`：连接实例，用于开事务
+- `database.models`：`User`、`UserProfile`、`UserRefreshToken`、`Workspace`、`Project`、`Document`
+- `database.connect()` / `database.disconnect()`：生命周期
+
+业务 Service 不 import 这个对象，而是由 `src/runtime.ts` 以 `AppDatabase` 类型注入。
 
 ## 迁移策略
 

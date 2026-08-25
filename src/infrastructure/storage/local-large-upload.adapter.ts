@@ -262,7 +262,7 @@ function assertNotExpired(meta: LargeUploadMeta): void {
   }
 }
 
-export async function initLargeUpload(body: LargeUploadInitBody, _userId: number): Promise<InitLargeUploadResult> {
+export async function initLargeUpload(body: LargeUploadInitBody, userId: number): Promise<InitLargeUploadResult> {
   const fileMd5 = body.fileMd5;
   const expiresAt = new Date(Date.now() + UPLOAD_TTL_MS).toISOString();
   const chunkTotal = Math.ceil(body.fileSize / body.chunkSize);
@@ -288,7 +288,7 @@ export async function initLargeUpload(body: LargeUploadInitBody, _userId: number
     chunkTotal,
     mimeType: body.mimeType,
     fileMd5,
-    userId: _userId,
+    userId,
     createdAt: new Date().toISOString(),
     status: "uploading",
   };

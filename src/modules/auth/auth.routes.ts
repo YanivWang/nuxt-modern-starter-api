@@ -1,3 +1,7 @@
+/**
+ * 文件职责：注册认证路由 /register、/login、/refresh、/logout。
+ * 前三个挂 authRateLimitMiddleware 降低撞库与刷 token 风险；logout 需先经 authMiddleware 才能拿到 jti。
+ */
 import express from "express";
 
 import { asyncHandler } from "../../middlewares/asyncHandler.js";

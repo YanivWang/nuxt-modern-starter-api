@@ -1,3 +1,7 @@
+/**
+ * 文件职责：签发 access token 并管理 refresh token 会话。
+ * refresh token 只以 SHA-256 摘要落库；轮换在同一事务 + 行锁内完成，旧会话记录 revokedAt 与替代摘要。
+ */
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 
 import jwt from "jsonwebtoken";

@@ -1,3 +1,7 @@
+/**
+ * 文件职责：配置分片落盘的 multer 实例。
+ * destination/filename 是同步回调，只能通过 LargeUploadStorage 的同步方法解析分片目录与分片文件名。
+ */
 import multer, { diskStorage } from "multer";
 
 import type { LargeUploadStorage } from "./ports/large-upload-storage.port.js";

@@ -1,3 +1,7 @@
+/**
+ * 文件职责：认证接口的 HTTP 适配层。
+ * 负责读取校验结果、写入/清除认证 Cookie、对 Cookie 来源的凭证补做 CSRF 校验，并调用认证与会话 Service。
+ */
 import { forbidden, unauthorized } from "../../shared/errors/app-error.js";
 import { getValidated } from "../../utils/getValidated.js";
 import { success } from "../../utils/response.js";

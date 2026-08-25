@@ -22,8 +22,10 @@ src/modules/auth/
     access token 签发、refresh token 生成/落库/轮换/撤销
 
   ports/token-blacklist.port.ts
+    TokenBlacklist Port：声明 access token jti 黑名单需要的 add/has 能力
+
   index.ts
-    Redis JWT jti 黑名单
+    模块公开入口：createAuthModule() 组装 verifier、中间件、service、controller 和 router
 
   jwt-verify.service.ts
     JWT 解析、过期校验、黑名单校验
@@ -57,7 +59,7 @@ POST /api/register
   -> authRateLimitMiddleware
   -> validate(registerSchema)
   -> register controller
-  -> registerUser()
+  -> authService.register()
   -> bcrypt.hash(password, 10)
   -> User.create({ username, password: hashPwd })
   -> success("注册成功")
@@ -65,7 +67,7 @@ POST /api/register
 
 注册只创建用户，不自动登录。用户注册后需要再调用 `/api/login` 获取 token。
 
-用户名唯一性由数据库唯一约束保证。如果重复注册，Sequelize 会抛出 `UniqueConstraintError`，统一错误中间件返回 `409 用户名已存在`。
+用户名唯一性由数据库唯一约束保证。如果重复注册，Sequelize 会抛出 `UniqueConstraintError`，`auth.service.ts` 捕获后转成 `CONFLICT` 业务错误，最终返回 `409 用户名已存在`。（未被业务捕获的唯一键冲突会走 `errorMiddleware` 的兜底分支，返回通用的 `409 资源已存在`。）
 
 ## 登录流程
 
@@ -74,10 +76,10 @@ POST /api/login
   -> authRateLimitMiddleware
   -> validate(loginSchema)
   -> login controller
-  -> loginUser()
+  -> authService.login()
   -> User.findOne({ username })
   -> bcrypt.compare(password, user.password)
-  -> createAuthTokenPair()
+  -> authSessionService.createTokenPair()
   -> setAuthCookies()
   -> response body 返回 accessToken/refreshToken
 ```
@@ -161,7 +163,7 @@ POST /api/refresh
   -> validate(refreshSchema)
   -> 从 body 或 Cookie 读取 refreshToken
   -> 如果 refreshToken 来自 Cookie，校验 CSRF
-  -> rotateRefreshToken()
+  -> authSessionService.rotate()
   -> 创建新 refresh token 记录
   -> 撤销旧 refresh token
   -> 签发新 access token
@@ -175,7 +177,7 @@ POST /api/refresh
 
 ## refresh token 轮换
 
-`rotateRefreshToken()` 的核心顺序：
+`auth-session.service.ts` 中 `rotate()` 的核心顺序（全部在一个事务内，旧会话使用 `SELECT ... FOR UPDATE` 行锁）：
 
 1. 查找旧 refresh token 摘要。
 2. 确认未撤销且未过期。
@@ -225,8 +227,8 @@ POST /api/logout
   -> validate(logoutSchema)
   -> 从 req.user 读取 jti 和 exp
   -> 计算 access token 剩余 TTL
-  -> blacklistJwt(jti, ttlSeconds)
-  -> revokeRefreshToken(refreshToken)
+  -> blacklist.add(jti, ttlSeconds)
+  -> authSessionService.revoke(refreshToken)
   -> clearAuthCookies()
   -> success("退出登录成功")
 ```

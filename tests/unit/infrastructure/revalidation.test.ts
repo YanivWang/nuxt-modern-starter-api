@@ -1,3 +1,7 @@
+/**
+ * 文件职责：Nuxt revalidate Adapter 单元测试。
+ * 覆盖新闻路径生成、已配置时的请求体与请求头，以及未配置时静默跳过。
+ */
 import { describe, expect, it, vi } from "vitest";
 
 import {

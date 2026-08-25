@@ -26,12 +26,12 @@ export const newsArticles: NewsArticle[] = [
     },
     body: {
       "zh-CN": [
-        "Nuxt Modern Starter v0.1 的目标，是把公开站点最常见的能力整理成一套可直接运行的 Nuxt 4 工程骨架。除了首页、价格、帮助和新闻等营销与内容页面，项目还预置 sign-in、sign-up、账户页，以及 `/workspace`、`/docs/:id`、`/account` 等产品区示例。",
+        "Nuxt Modern Starter v0.1 的目标，是把公开站点最常见的能力整理成一套可直接运行的 Nuxt 4 工程骨架。除了首页、价格、帮助和新闻等营销与内容页面，项目还预置 sign-in、sign-up、账户页，以及 `/app/workspace`、`/app/workspace/:projectId/edit`、`/app/account` 等产品区示例。",
         "在工程层面，starter 统一了 localePath、usePageSeo、useTheme 与场景化 API client。公开页默认中文无前缀、英文挂载在 /en 下；登录后产品区统一使用语言中性 URL，并附带 canonical、hreflang、OG 元数据与新闻 Article JSON-LD。",
         "如果你正在评估一个 SaaS 官网或产品前台模板，可以从 README 的 Quick Start 开始，30 分钟内完成本地启动，再按 docs/usage.md 逐步替换文案、内容与后端接口。",
       ],
       "en-US": [
-        "Nuxt Modern Starter v0.1 organizes the most common public-site capabilities into a runnable Nuxt 4 foundation. Beyond marketing and content pages such as home, pricing, help, and news, it also ships sign-in, sign-up, account pages, and product routes such as `/workspace`, `/docs/:id`, and `/account`.",
+        "Nuxt Modern Starter v0.1 organizes the most common public-site capabilities into a runnable Nuxt 4 foundation. Beyond marketing and content pages such as home, pricing, help, and news, it also ships sign-in, sign-up, account pages, and product routes such as `/app/workspace`, `/app/workspace/:projectId/edit`, and `/app/account`.",
         "On the engineering side, the starter standardizes localePath, usePageSeo, useTheme, and scenario-specific API clients. Public pages use unprefixed Chinese routes and `/en` for English, while logged-in product routes stay language-neutral. SEO covers canonical, hreflang, OG metadata, and Article JSON-LD for news detail pages.",
         "If you are evaluating a SaaS website or product frontend template, start with the README quick start to run locally within 30 minutes, then follow docs/usage.md to replace copy, content, and backend integrations step by step.",
       ],
@@ -78,13 +78,13 @@ export const newsArticles: NewsArticle[] = [
     body: {
       "zh-CN": [
         "Nuxt Modern Starter 默认以 zh-CN 作为站点主语言，因此首页、价格、帮助和新闻等公开页直接使用 /、/pricing 这类无前缀路径。英文内容则统一挂载在 /en 前缀下，例如 /en/pricing 与 /en/news/starter-release。",
-        "登录后的产品区不走语言前缀，而是统一使用 /workspace、/docs/:id、/account 这类语言中性 URL。若用户访问 /en/workspace 等路径，系统会 301 回到无前缀 canonical，避免产品链接随语言切换而漂移。",
+        "登录后的产品区不走语言前缀，而是统一使用 /app/workspace、/app/workspace/:projectId/edit、/app/account 这类语言中性 URL。若用户访问 /en/app/workspace 等路径，系统会 301 回到无前缀 canonical，避免产品链接随语言切换而漂移。",
         "语言切换不会简单替换 URL 字符串，而是通过 getSwitchLanguageUrl 与 localePath 保持 query 与 hash。这样用户在切换语言时不会丢失筛选条件或锚点位置，SEO 侧的 hreflang 也能和实际路由一一对应。",
         "扩展第三种语言时，只需在 config/site.ts 注册 locale 与前缀，并补充 i18n 文案与 tests/unit/locale-routing.test.ts 中的断言，避免公开页出现死链或错误 canonical。",
       ],
       "en-US": [
         "Nuxt Modern Starter uses zh-CN as the default site locale, so public pages such as home, pricing, help, and news use unprefixed paths like / and /pricing. English content lives under the /en prefix, for example /en/pricing and /en/news/starter-release.",
-        "Logged-in product routes do not use locale prefixes. They stay language-neutral under /workspace, /docs/:id, and /account. If someone opens /en/workspace, the app redirects to the canonical path with 301 so product links do not drift with language switches.",
+        "Logged-in product routes do not use locale prefixes. They stay language-neutral under /app/workspace, /app/workspace/:projectId/edit, and /app/account. If someone opens /en/app/workspace, the app redirects to the canonical path with 301 so product links do not drift with language switches.",
         "Language switching does not blindly rewrite URL strings. getSwitchLanguageUrl and localePath preserve query strings and hash fragments, so users keep filters or anchors when switching languages and hreflang stays aligned with real routes.",
         "To add a third locale, register it in config/site.ts with its prefix, add i18n messages, and extend tests/unit/locale-routing.test.ts so public pages do not produce broken links or incorrect canonical URLs.",
       ],
@@ -105,13 +105,13 @@ export const newsArticles: NewsArticle[] = [
     },
     body: {
       "zh-CN": [
-        "鉴权能力在 Nuxt Modern Starter 中是“可选模块”而非强制依赖。默认提供 sign-in、sign-up、退出和 `/account` 示例，并通过命名 auth 中间件保护产品路由，支持基于角色与 permissions 的访问控制。",
-        "接入 nuxt-modern-starter-api 后，工作台 `/workspace` 会调用真实项目 API；当前只有「新建空白 PPT」卡片和顶部创建按钮会触发 `POST /api/projects`，AI/导入卡片仍是占位 UI。创建或删除项目后，通过 `/docs/:id`（:id 为项目 id）加载并自动保存文档。请求统一走 `{ code, message, data }` 响应格式，401 时自动 refresh 并重试一次。",
+        "鉴权能力在 Nuxt Modern Starter 中是“可选模块”而非强制依赖。默认提供 sign-in、sign-up、退出和 `/app/account` 示例，并通过命名 auth 中间件保护产品路由，支持基于角色与 permissions 的访问控制。",
+        "接入 nuxt-modern-starter-api 后，工作台 `/app/workspace` 会调用真实项目 API；当前只有「新建空白 PPT」卡片和顶部创建按钮会触发 `POST /api/projects`，AI/导入卡片仍是占位 UI。创建项目后进入 `/app/workspace/:projectId/edit` 编辑：该页先用 `GET /api/projects/:projectId` 取到 `documentId`，再通过 `GET/PATCH /api/documents/:documentId` 加载并自动保存文档。请求统一走 `{ code, message, data }` 响应格式，401 时自动 refresh 并重试一次。",
         "如果项目暂时不需要账号体系，也可以保留公开页与内容中心，先不启用 auth 相关导航入口，等业务工作台准备好后再逐步接入。",
       ],
       "en-US": [
-        "Auth in Nuxt Modern Starter is an optional module, not a hard dependency. The starter ships sign-in, sign-up, logout, and `/account` examples, plus a named auth middleware that protects product routes with role and permission checks.",
-        "When paired with nuxt-modern-starter-api, `/workspace` calls real project APIs. Only the blank PPT card and the primary create button currently trigger `POST /api/projects`; AI/import cards remain placeholder UI. After creating or deleting projects, open `/docs/:id` (:id is the project id) to load and autosave document content. Requests use the `{ code, message, data }` envelope and retry once after refresh on 401.",
+        "Auth in Nuxt Modern Starter is an optional module, not a hard dependency. The starter ships sign-in, sign-up, logout, and `/app/account` examples, plus a named auth middleware that protects product routes with role and permission checks.",
+        "When paired with nuxt-modern-starter-api, `/app/workspace` calls real project APIs. Only the blank PPT card and the primary create button currently trigger `POST /api/projects`; AI/import cards remain placeholder UI. After creating a project, `/app/workspace/:projectId/edit` first calls `GET /api/projects/:projectId` for its `documentId`, then loads and autosaves through `GET/PATCH /api/documents/:documentId`. Requests use the `{ code, message, data }` envelope and retry once after refresh on 401.",
         "If you do not need accounts yet, keep the public and content pages first and hide auth navigation until the product workspace is ready to connect.",
       ],
     },

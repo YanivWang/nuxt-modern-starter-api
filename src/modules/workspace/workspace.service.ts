@@ -1,3 +1,7 @@
+/**
+ * 文件职责：工作台项目用例与 ProjectDto 映射。
+ * 创建项目时在同一事务内保证个人 Workspace、Project、Document 一起就绪；查询一律按 ownerId 过滤。
+ */
 import { toDocumentDto } from "../document/document.contract.js";
 
 import type { AppDatabase } from "../../db/index.js";

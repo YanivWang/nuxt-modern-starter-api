@@ -1,3 +1,7 @@
+/**
+ * 文件职责：当前用户与扩展资料接口的 HTTP 适配层。
+ * 统一从 req.user 读取登录用户 id，缺失或非法时按未登录处理。
+ */
 import { unauthorized } from "../../shared/errors/app-error.js";
 import { success } from "../../utils/response.js";
 

@@ -1,3 +1,7 @@
+/**
+ * 文件职责：注册公开内容路由。
+ * 新闻/定价读接口匿名可访问；新闻的创建、更新、删除挂 authMiddleware。
+ */
 import express from "express";
 
 import { asyncHandler } from "../../middlewares/asyncHandler.js";

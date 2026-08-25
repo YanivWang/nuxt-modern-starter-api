@@ -16,13 +16,19 @@ src/modules/document/
     HTTP 层：读取 req.user、返回标准 envelope
 
   document.service.ts
-    findDocumentForUser、updateDocumentForUser
+    findForUser、updateForUser
+
+  document.contract.ts
+    DocumentDto 与 toDocumentDto()，供 workspace 模块跨模块复用
 
   document.model.ts
     Documents 模型
+
+  index.ts
+    模块公开入口：createDocumentModule()，并再导出 toDocumentDto / DocumentDto
 ```
 
-`document.model.ts` 定义 Documents 表，注册由 `src/db/models.ts` 统一完成。文档 service 从 `src/db/index.ts` 取得 `Document`、`Project` 和 `sequelize`，并在事务中保持文档标题与项目标题同步。
+`document.model.ts` 定义 Documents 表，注册由 `src/db/models.ts` 统一完成。文档 service 由 `src/runtime.ts` 注入 `AppDatabase`，从 `database.models` 取 `Document`、`Project`，用 `database.sequelize` 开事务，并在事务中保持文档标题与项目标题同步。
 
 ## 接口
 

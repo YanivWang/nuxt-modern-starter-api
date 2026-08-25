@@ -1,3 +1,7 @@
+/**
+ * 文件职责：注册全部上传路由并装配 multer。
+ * 所有接口都要求登录；大文件接口先 validate 再交给 multer，保证 uploadId/chunkIndex 在落盘前已被校验。
+ */
 import express from "express";
 
 import { asyncHandler } from "../../middlewares/asyncHandler.js";

@@ -38,6 +38,7 @@ pnpm docker:dev
 pnpm build
 pnpm test
 pnpm run check
+pnpm architecture:check
 pnpm openapi:generate
 pnpm docs:dev
 pnpm db:migrate
@@ -168,7 +169,7 @@ tests/
 - 可维护源码、脚本、Docker/Compose/Nginx/CI 和环境变量模板都带文件头，说明该文件的真实职责和边界。
 - 关键代码注释只解释跨模块约定、安全边界、持久化格式、幂等/并发处理和容易误改的业务规则；不要给显而易见的赋值、调用或返回值堆注释。
 - `package.json`、`tsconfig*.json`、`nodemon.json` 这类 JSON 文件不能写注释，职责在本 README 说明。
-- `pnpm-lock.yaml`、`docs/openapi.yaml`、`dist/`、`logs/`、`uploads/`、`.data/` 属于锁文件、生成物或运行时数据，不应手写人工注释；修改接口后用 `pnpm openapi:generate` 重新生成 OpenAPI 文档。
+- `pnpm-lock.yaml`、`docs/openapi.yaml`、`dist/`、`logs/`、`uploads/`、`.data/` 属于锁文件、生成物或运行时数据，不应手写人工注释；修改接口后用 `pnpm openapi:generate` 重新生成、再用 `pnpm format` 归一化 OpenAPI 文档。
 
 响应格式统一为：
 
@@ -199,10 +200,11 @@ OpenAPI 由 `src/openapi.ts` 统一生成，运行时 Swagger 和 `docs/openapi.
 
 ```bash
 pnpm openapi:generate # 重新生成 docs/openapi.yaml
+pnpm format           # 生成物按 Prettier 规则归一化，否则 format:check 会失败
 pnpm openapi:check    # 校验 docs/openapi.yaml 是否与源码同步
 ```
 
-`pnpm run check` 已包含 `openapi:check`。新增或修改接口时，请同步更新 `src/openapi.ts`，再运行 `pnpm openapi:generate`。
+`pnpm run check` 已包含 `architecture:check` 与 `openapi:check`。新增或修改接口时，请同步更新 `src/openapi.ts`，再运行 `pnpm openapi:generate` 和 `pnpm format`。
 
 当前 OpenAPI security 只声明 Bearer JWT；Cookie + CSRF 的 Web App 接入细节以本 README 的“Web App 授权约定”为准。
 
@@ -286,8 +288,10 @@ pnpm test:unit
 
 - `POST /api/uploads/large/init` 提交 `fileName`、`fileSize`、`chunkSize`、`fileMd5`，如果全局 MD5 索引命中且文件仍存在，会直接秒传返回公开 URL。
 - `PUT /api/uploads/large/:uploadId/chunks/:chunkIndex` 使用 multipart 字段 `chunk` 上传分片，并通过 `X-Chunk-Md5` 校验单片内容。
+- `GET /api/uploads/large/:uploadId/status` 返回已收到且大小正确的分片下标，用于断点续传。
 - `POST /api/uploads/large/:uploadId/merge` 合并所有分片，服务端会再次校验整文件 MD5 和大小。
-- 上传会话和秒传索引保存在本地 `.data/`，最终文件落在 `uploads/large/` 并通过 `/uploads/...` 公开访问。
+- `DELETE /api/uploads/large/:uploadId` 取消任务并清理临时分片与会话。
+- 上传会话、完成标记和秒传索引保存在本地 `.data/`，最终文件落在 `uploads/large/` 并通过 `/uploads/...` 公开访问。
 
 当前大文件上传是本地磁盘实现，适合单实例；多实例部署前应改为对象存储或把会话/锁迁移到共享基础设施。
 

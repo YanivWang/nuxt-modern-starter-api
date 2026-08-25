@@ -1,3 +1,4 @@
+/** 文件职责：注册 /me 与 /me/profile 路由，全部要求登录。 */
 import express from "express";
 
 import { asyncHandler } from "../../middlewares/asyncHandler.js";

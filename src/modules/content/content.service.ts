@@ -1,3 +1,7 @@
+/**
+ * 文件职责：公开内容用例。
+ * 通过 ContentRepository 读写数据、按 locale 折叠双语字段，并在写操作成功后触发 ContentRevalidator。
+ */
 import type { NewsArticle, SupportedLocale } from "./content.data.js";
 import type { ContentRepository } from "./ports/content-repository.port.js";
 import type { ContentRevalidator } from "./ports/content-revalidator.port.js";

@@ -1,3 +1,7 @@
+/**
+ * 文件职责：refresh token 轮换单元测试。
+ * 用假 database 验证查询、创建、撤销都发生在同一事务内，且旧会话使用行锁。
+ */
 import { describe, expect, it, vi } from "vitest";
 
 import { createAuthSessionService } from "../../../src/modules/auth/auth-session.service.js";

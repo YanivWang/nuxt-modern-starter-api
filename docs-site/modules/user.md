@@ -29,6 +29,9 @@ src/modules/user/
 
   user-profile.model.ts
     UserProfiles Sequelize 模型与 Users 一对一关联
+
+  index.ts
+    模块公开入口：createUserModule() 组装两个 service、controller 和 router
 ```
 
 `user.model.ts` 和 `user-profile.model.ts` 只定义模型；实际初始化顺序由 `src/db/models.ts` 控制。`runtime.ts` 把 `AppDatabase` 注入 `createUserModule()`，Service 不再导入全局模型命名导出。
@@ -192,12 +195,15 @@ schema 使用 `.strict()`，多传字段会被拒绝；至少提供一个字段�
 
 ```text
 sequelize.transaction
-  -> 若 avatar 变更：User.update({ avatar })
-  -> UserProfile.findOne({ lock: UPDATE })
-  -> 如果不存在：UserProfile.create()
-  -> 如果存在：row.update()
-  -> 若仅更新 avatar 且尚无资料行：UserProfile.findOrCreate()
+  -> 若本次提交了 avatar：User.update({ avatar })
+  -> 若本次提交了任意扩展资料字段：
+       UserProfile.findOne({ lock: UPDATE })
+       不存在 -> UserProfile.create()
+       存在   -> row.update()
+  -> 否则（本次只提交了 avatar）：UserProfile.findOrCreate({ userId })
 ```
+
+事务提交后再查一次 `UserProfile`（带 `User` 关联）并返回；查不到视为内部错误。
 
 `lock: Transaction.LOCK.UPDATE` 用于避免同一用户资料并发写入时出现竞争。
 

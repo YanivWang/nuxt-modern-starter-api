@@ -1,3 +1,4 @@
+/** 文件职责：注册文档路由 GET/PATCH /documents/:documentId，全部要求登录。 */
 import express from "express";
 
 import { asyncHandler } from "../../middlewares/asyncHandler.js";
