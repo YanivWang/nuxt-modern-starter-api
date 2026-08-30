@@ -62,7 +62,9 @@ describe("workspace service", () => {
     expect(createProject).toHaveBeenCalledWith(expect.any(Object), { transaction });
     expect(createDocument).toHaveBeenCalledWith(expect.any(Object), { transaction });
     expect(result.project.documentId).toBe("document-1");
-    expect(result.project.editPath).toBe("/app/workspace/project-1/edit");
+    // DTO 不应包含前端路由字段：路由表属于前端，后端拼出来的路径会在前端改路由时变成错误数据。
+    expect(result.project).not.toHaveProperty("editPath");
+    expect(result.project).not.toHaveProperty("previewPath");
   });
 
   it("passes limit and offset through to the query and reports pagination", async () => {

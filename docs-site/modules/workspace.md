@@ -110,8 +110,9 @@ src/modules/workspace/
     "project": {
       "id": "uuid",
       "documentId": "uuid",
-      "editPath": "/app/workspace/{id}/edit",
-      "previewPath": "/app/workspace/{id}/preview"
+      "title": "季度汇报",
+      "status": "draft",
+      "accent": "blue"
     },
     "document": {
       "id": "uuid",
@@ -140,19 +141,22 @@ src/modules/workspace/
 - 列表、详情、更新与删除都按 `ownerId = req.user.id` 过滤，避免跨用户访问。
 - 删除项目只执行 `Project.destroy()`；关联 Document 由 `Documents.projectId` 的外键 `ON DELETE CASCADE` 在数据库层清理。删除成功后 `data` 为 `null`。
 - 访问不存在的项目或他人项目时，详情、更新与删除均返回 `404 项目不存在`。
-- `editPath` 与 `previewPath` 是前端路由提示，供 Nuxt 工作台直接跳转。
+- **DTO 不包含前端路由字段。** 曾经返回过 `editPath` / `previewPath`，但路由表属于前端：这两个字段既无人消费，又在前端改路由后变成了指向不存在页面的错误数据。前端自行由项目 id 拼路径（`getWorkspaceDocPath`）。
+- `status` 与 `accent` 在 DTO 中是联合类型而非自由字符串。列存的是文本，出库时会归一化到合法取值——`accent` 会被前端直接拼进 CSS 类名，超集取值会静默渲染成无样式卡片。
 
 ## 与前端协作
 
-`nuxt-modern-starter` 通过 `app/features/workspace/api.ts` 调用上述接口：
+`nuxt-modern-starter` 通过 `app/api/workspace-project.ts` 调用上述接口：
 
-- `fetchWorkspaceProjects()` → `GET /api/projects`
+- `fetchWorkspaceProjects({ limit, offset })` → `GET /api/projects`
 - `createWorkspaceProject()` → `POST /api/projects`
 - `fetchWorkspaceProject(projectId)` → `GET /api/projects/:projectId`
 - `updateWorkspaceProject(projectId)` → `PATCH /api/projects/:projectId`
 - `deleteWorkspaceProject(projectId)` → `DELETE /api/projects/:projectId`
 
 请求经 `createProductApiClient()` 发送 Bearer Token。前端当前只有空白项目卡片和顶部创建按钮会调用 `POST /api/projects`；搜索/筛选 UI 尚未接后端参数。
+
+列表分页由 `useWorkspaceProjects` 承接：第一页走 `useAsyncData`，后续页累积并由「加载更多」按钮驱动，推进逻辑在 `performWorkspaceProjectLoadMore` 中可单测。
 
 本地联调默认配置：
 

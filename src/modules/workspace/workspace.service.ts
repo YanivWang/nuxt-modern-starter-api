@@ -8,18 +8,31 @@ import type { AppDatabase } from "../../db/index.js";
 import type { Project } from "./project.model.js";
 import type { Transaction } from "sequelize";
 
+/** 项目状态。收窄为联合类型，避免 DTO 声明成 string 而让消费方无从校验。 */
+export type ProjectStatus = "draft" | "published" | "archived";
+
+/** 卡片主题色。前端据此拼 CSS 类名，取值超出集合会静默渲染成无样式卡片。 */
+export type ProjectAccent = "blue" | "green" | "violet" | "amber" | "cyan" | "rose";
+
+export const PROJECT_ACCENTS: readonly ProjectAccent[] = ["blue", "green", "violet", "amber", "cyan", "rose"];
+
+const DEFAULT_ACCENT: ProjectAccent = "blue";
+const DEFAULT_STATUS: ProjectStatus = "draft";
+
+/**
+ * 注意这里不包含 editPath / previewPath 之类的前端路由字段。
+ * 路由表属于前端，后端拼出来的路径既无人消费，又会在前端改路由时变成错误数据。
+ */
 export type ProjectDto = {
   id: string;
   workspaceId: string;
   documentId: string | null;
   title: string;
   description: string | null;
-  status: string;
+  status: ProjectStatus;
   slideCount: number;
-  accent: string;
+  accent: ProjectAccent;
   updatedAt: string;
-  editPath: string;
-  previewPath: string;
 };
 
 export type Pagination = {
@@ -34,20 +47,24 @@ export type ProjectListResult = {
   pagination: Pagination;
 };
 
+// 列存的是自由文本，历史数据或人工改库都可能落在集合之外；出库时归一化，保证 DTO 与其声明一致。
+const toAccent = (value: string): ProjectAccent =>
+  (PROJECT_ACCENTS as readonly string[]).includes(value) ? (value as ProjectAccent) : DEFAULT_ACCENT;
+
+const toStatus = (value: string): ProjectStatus =>
+  value === "published" || value === "archived" ? value : DEFAULT_STATUS;
+
 export function toProjectDto(project: Project): ProjectDto {
-  const { id } = project;
   return {
-    id,
+    id: project.id,
     workspaceId: project.workspaceId,
     documentId: project.document ? project.document.id : null,
     title: project.title,
     description: project.description,
-    status: project.status,
+    status: toStatus(project.status),
     slideCount: project.slideCount,
-    accent: project.accent,
+    accent: toAccent(project.accent),
     updatedAt: project.updatedAt.toISOString(),
-    editPath: `/app/workspace/${id}/edit`,
-    previewPath: `/app/workspace/${id}/preview`,
   };
 }
 
@@ -73,9 +90,9 @@ export function createWorkspaceService(database: AppDatabase) {
           ownerId: userId,
           title: payload.title,
           description: payload.description ?? null,
-          status: "draft",
+          status: DEFAULT_STATUS,
           slideCount: 0,
-          accent: "blue",
+          accent: DEFAULT_ACCENT,
         },
         { transaction },
       );

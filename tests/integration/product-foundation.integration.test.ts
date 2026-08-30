@@ -104,9 +104,12 @@ describe("product foundation API", () => {
       id: projectId,
       title: "季度增长汇报",
       documentId,
-      editPath: `/app/workspace/${projectId}/edit`,
-      previewPath: `/app/workspace/${projectId}/preview`,
+      status: "draft",
+      accent: "blue",
     });
+    // 路由表属于前端：DTO 不得再携带 editPath / previewPath 这类由后端拼出的前端路径。
+    expect(listRes.body.data.projects[0]).not.toHaveProperty("editPath");
+    expect(listRes.body.data.projects[0]).not.toHaveProperty("previewPath");
 
     const documentRes = await request(app)
       .get(`/api/documents/${documentId}`)
