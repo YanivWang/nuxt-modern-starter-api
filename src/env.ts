@@ -151,6 +151,24 @@ export const AUTH_RATE_LIMIT_MAX = optionalPositiveInt("AUTH_RATE_LIMIT_MAX", 60
 export const ACCESS_TOKEN_TTL_SECONDS = optionalPositiveInt("ACCESS_TOKEN_TTL_SECONDS", 15 * 60);
 export const REFRESH_TOKEN_TTL_SECONDS = optionalPositiveInt("REFRESH_TOKEN_TTL_SECONDS", 30 * 24 * 60 * 60);
 export const AUTH_COOKIE_SECURE = optionalBoolean("AUTH_COOKIE_SECURE", appEnv === "production");
+/** bcrypt 代价因子。12 是当前通行的下限；提高会线性增加登录 CPU 开销。 */
+export const BCRYPT_ROUNDS = (() => {
+  const rounds = optionalPositiveInt("BCRYPT_ROUNDS", 12);
+  if (rounds < 10 || rounds > 15) {
+    console.error("[env] BCRYPT_ROUNDS 必须在 10～15 之间（过低不安全，过高会拖慢登录）");
+    process.exit(1);
+  }
+  return rounds;
+})();
+export const LOGIN_MAX_FAILED_ATTEMPTS = optionalPositiveInt("LOGIN_MAX_FAILED_ATTEMPTS", 10);
+export const LOGIN_LOCKOUT_SECONDS = optionalPositiveInt("LOGIN_LOCKOUT_SECONDS", 15 * 60);
+/** refresh token 会话行的保留天数，超过后由清理任务删除。 */
+export const REFRESH_TOKEN_RETENTION_DAYS = optionalPositiveInt("REFRESH_TOKEN_RETENTION_DAYS", 7);
+/** 后台清理任务的执行间隔。 */
+export const CLEANUP_INTERVAL_MS = optionalPositiveInt("CLEANUP_INTERVAL_MS", 6 * 60 * 60 * 1000);
+/** 大文件上传临时分片的最大留存小时数，超过即视为废弃任务。 */
+export const UPLOAD_TEMP_RETENTION_HOURS = optionalPositiveInt("UPLOAD_TEMP_RETENTION_HOURS", 24);
+
 export const REQUEST_BODY_LIMIT = trimUnset(process.env.REQUEST_BODY_LIMIT) ?? "1mb";
 export const NUXT_REVALIDATE_URL = trimUnset(process.env.NUXT_REVALIDATE_URL);
 export const REVALIDATE_SECRET = trimUnset(process.env.REVALIDATE_SECRET);

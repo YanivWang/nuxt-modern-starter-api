@@ -8,6 +8,8 @@ import path from "node:path";
 
 import multer from "multer";
 
+import { badRequest } from "../../shared/errors/app-error.js";
+
 import type { FileStorage } from "./ports/file-storage.port.js";
 
 /** 通用图片：`POST /api/uploads` → `<uploadsRoot>/common/<年>/<月>/` → `/uploads/common/...` */
@@ -19,7 +21,8 @@ export const profileUploadDiskSegment = "profiles";
 const fileFilter: multer.Options["fileFilter"] = (_req, file, cb) => {
   const ok = /^image\/(jpeg|png|gif|webp)$/i.test(file.mimetype);
   if (!ok) {
-    cb(new Error("仅支持 jpeg、png、gif、webp 图片"));
+    // 直接抛业务错误类型，errorMiddleware 据此映射 400；不要让上层去匹配错误文案。
+    cb(badRequest("仅支持 jpeg、png、gif、webp 图片"));
     return;
   }
   cb(null, true);

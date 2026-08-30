@@ -23,12 +23,9 @@ export function createDocumentService(database: AppDatabase) {
       });
       if (!document) return null;
 
-      const title = payload.title ?? (document.get("title") as string);
-      await document.update(
-        { title, content: payload.content ?? (document.get("content") as string) },
-        { transaction },
-      );
-      await Project.update({ title }, { where: { id: document.get("projectId"), ownerId: userId }, transaction });
+      const title = payload.title ?? document.title;
+      await document.update({ title, content: payload.content ?? document.content }, { transaction });
+      await Project.update({ title }, { where: { id: document.projectId, ownerId: userId }, transaction });
       return toDocumentDto(document);
     });
   }

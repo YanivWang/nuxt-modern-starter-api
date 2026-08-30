@@ -19,6 +19,7 @@ const statusByCode: Record<AppErrorCode, number> = {
   NOT_FOUND: 404,
   CONFLICT: 409,
   GONE: 410,
+  TOO_MANY_REQUESTS: 429,
   INTERNAL: 500,
 };
 
@@ -36,18 +37,6 @@ export const errorMiddleware: ErrorRequestHandler = (error, req, res, next) => {
       LIMIT_UNEXPECTED_FILE: "请使用表单字段名 files 上传",
     };
     fail(res, 400, map[error.code] || error.message);
-    return;
-  }
-
-  const jpegGuardMsg =
-    error !== null &&
-    typeof error === "object" &&
-    "message" in error &&
-    typeof (error as { message?: unknown }).message === "string"
-      ? (error as { message: string }).message
-      : undefined;
-  if (jpegGuardMsg?.startsWith("仅支持 jpeg")) {
-    fail(res, 400, jpegGuardMsg);
     return;
   }
 

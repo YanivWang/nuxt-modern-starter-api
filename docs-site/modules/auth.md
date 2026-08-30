@@ -24,6 +24,9 @@ src/modules/auth/
   ports/token-blacklist.port.ts
     TokenBlacklist Port：声明 access token jti 黑名单需要的 add/has 能力
 
+  ports/login-attempt-tracker.port.ts
+    LoginAttemptTracker Port：声明登录失败计数与账号锁定能力
+
   index.ts
     模块公开入口：createAuthModule() 组装 verifier、中间件、service、controller 和 router
 
@@ -37,7 +40,7 @@ src/modules/auth/
     UserRefreshToken Sequelize 模型
 ```
 
-模型文件位于认证模块内，通过 `src/db/models.ts` 统一注册。`createAuthModule(database, blacklist)` 显式接收数据库和 `TokenBlacklist` Port；Redis 实现位于 `src/infrastructure/auth/redis-token-blacklist.ts`。
+模型文件位于认证模块内，通过 `src/db/models.ts` 统一注册。`createAuthModule(database, blacklist, loginAttempts, authRateLimit)` 显式接收数据库、`TokenBlacklist` Port、`LoginAttemptTracker` Port 和认证限流中间件；对应的 Redis 实现位于 `src/infrastructure/auth/`。
 
 ## 认证接口
 
@@ -48,9 +51,11 @@ src/modules/auth/
 - `POST /api/refresh`
 - `POST /api/logout`
 
-注册、登录、刷新都挂了 `authRateLimitMiddleware`，用于降低暴力破解和刷 token 风险。
+注册、登录、刷新都挂了认证限流中间件，用于降低暴力破解和刷 token 风险。该中间件由组合根注入，计数存储走 Redis，因此阈值在多实例部署下仍然准确。
 
-登出接口必须先通过 `authMiddleware`，因为登出需要知道当前 access token 的 `jti`，才能写入 Redis 黑名单。
+仅按 IP 限流拦不住换 IP 的分布式撞库，因此登录还叠加了**账号级失败锁定**：同一用户名连续失败达到 `LOGIN_MAX_FAILED_ATTEMPTS`（默认 10）后锁定 `LOGIN_LOCKOUT_SECONDS`（默认 15 分钟），返回 429。计数存在 Redis 中，每次失败都会刷新 TTL，使持续攻击持续延长锁定。未配置 `REDIS_URL` 时该能力降级为不锁定。
+
+登出接口先经过认证中间件，因为登出需要知道当前 access token 的 `jti` 才能写入 Redis 黑名单。它使用的是**允许 token 过期**的变体：签名仍必须有效，但过期不再阻止登出。
 
 ## 注册流程
 
@@ -60,7 +65,7 @@ POST /api/register
   -> validate(registerSchema)
   -> register controller
   -> authService.register()
-  -> bcrypt.hash(password, 10)
+  -> bcrypt.hash(password, BCRYPT_ROUNDS)
   -> User.create({ username, password: hashPwd })
   -> success("注册成功")
 ```
@@ -140,9 +145,11 @@ refresh token 是长期凭证，默认有效期 30 天。
 核心字段：
 
 - `userId`
+- `familyId`（同一次登录派生出的 token 家族）
 - `tokenHash`
 - `expiresAt`
 - `revokedAt`
+- `revokedReason`（`rotated` / `logout` / `replay_detected` / `user_missing`）
 - `replacedByTokenHash`
 - `userAgent`
 - `ipAddress`
@@ -179,15 +186,35 @@ POST /api/refresh
 
 `auth-session.service.ts` 中 `rotate()` 的核心顺序（全部在一个事务内，旧会话使用 `SELECT ... FOR UPDATE` 行锁）：
 
-1. 查找旧 refresh token 摘要。
-2. 确认未撤销且未过期。
-3. 查找用户是否仍存在。
-4. 生成新 refresh token。
-5. 写入新 token 摘要。
-6. 更新旧会话的 `revokedAt` 和 `replacedByTokenHash`。
-7. 返回新的 access token 和 refresh token。
+1. 按摘要查找会话（**不过滤 `revokedAt`**，否则无法区分「不存在」与「已被使用过」）。
+2. 已撤销 → 判定为重放，交由事务外的家族撤销处理（见下一节）。
+3. 已过期 → 拒绝。
+4. 查找用户是否仍存在。
+5. 生成新 refresh token，**继承旧会话的 `familyId`**。
+6. 写入新 token 摘要。
+7. 更新旧会话的 `revokedAt`、`revokedReason = "rotated"` 和 `replacedByTokenHash`。
+8. 返回新的 access token 和 refresh token。
 
-如果旧 refresh token 被重复使用，会因为 `revokedAt` 已存在而失败。
+## refresh token 重放检测
+
+一次登录派生出的所有轮换 token 共享一个 `familyId`（`UserRefreshTokens.familyId`）。`/api/refresh` 按摘要取会话时**不过滤 `revokedAt`**，因为需要区分两种情况：
+
+- 查不到记录 → token 不存在，直接 401。
+- 查到但已撤销 → 该 token 曾被正常使用过，现在又被提交了一次，说明它已经泄露。
+
+第二种情况下只拒绝本次请求是不够的：攻击者与真实用户在竞争同一条轮换链，先到者已经换走了新 token，被拒绝的往往是受害者，而攻击者手上的凭证依然有效。因此服务端会撤销**整个家族**，双方都被强制重新登录。这是 OAuth 2.0 Security BCP 对 refresh token 泄露的标准应对。
+
+`revokedReason` 记录撤销原因（`rotated` / `logout` / `replay_detected` / `user_missing`），`replay_detected` 会同时打出 `refresh_token_replay_detected` 告警日志，可用于安全监控。
+
+> 实现细节：家族撤销必须在**事务之外**单独提交。拒绝请求要靠抛错，而在 Sequelize 事务回调里抛错会回滚整个事务——撤销写入会被一并撤回，攻击者的 token 反而毫发无损。
+
+## 密码策略
+
+注册要求密码至少 8 位；登录侧**不**套用这个下限，只要求非空。提高注册强度不应把已经存在的短密码用户挡在门外——那等于一次静默的账号封禁。
+
+两侧都拒绝超过 72 字节的密码：bcrypt 只取前 72 字节，超出部分会被静默截断，两个前 72 字节相同的长密码会互相等价。
+
+bcrypt 代价因子由 `BCRYPT_ROUNDS` 控制（默认 12，允许 10～15）。测试环境在 `.env.test` 中设为 10，避免测试为哈希强度买单。
 
 ## Cookie 设计
 
@@ -223,12 +250,12 @@ Bearer 认证不需要 CSRF，因为浏览器不会自动把 Authorization heade
 
 ```text
 POST /api/logout
-  -> authMiddleware
+  -> authMiddleware（allowExpired: true）
   -> validate(logoutSchema)
   -> 从 req.user 读取 jti 和 exp
-  -> 计算 access token 剩余 TTL
+  -> 计算 access token 剩余 TTL（已过期则跳过黑名单）
   -> blacklist.add(jti, ttlSeconds)
-  -> authSessionService.revoke(refreshToken)
+  -> authSessionService.revoke(refreshToken)  // 撤销整个家族
   -> clearAuthCookies()
   -> success("退出登录成功")
 ```
@@ -240,19 +267,26 @@ POST /api/logout
 
 如果 Redis 黑名单功能关闭，access token 无法主动失效，只能等自然过期。
 
+两点与直觉不同的设计：
+
+- 登出接受**已过期但签名有效**的 access token。登录态过期后用户依然要能主动撤销会话，否则「怀疑账号被盗、赶紧登出」这个最需要登出的场景反而无法完成。
+- 登出撤销该 refresh token 所属的**整个家族**，而不只是当前这一条，使这台设备的会话链整体失效。
+
 ## 强制登录和可选登录
 
 ### authMiddleware
 
 用于必须登录的接口，例如：
 
-- `/api/me`
-- `/api/me/profile`
-- `/api/projects`
-- `/api/documents/:documentId`
-- `/api/uploads`
-- `/api/uploads/large/*`
-- `POST/PATCH/DELETE /api/content/news`（新闻写操作）
+- `/api/v1/me`
+- `/api/v1/me/profile`
+- `/api/v1/projects`
+- `/api/v1/documents/:documentId`
+- `/api/v1/uploads`
+- `/api/v1/uploads/large/*`
+- `POST/PATCH/DELETE /api/v1/content/news`（新闻写操作）
+
+（以上路径同样可通过无版本的 `/api` 兼容别名访问。）
 
 它会：
 
@@ -295,7 +329,7 @@ POST /api/logout
 
 当前 refresh token 已记录 userAgent 和 ipAddress。后续可以扩展：
 
-- 查看当前登录设备列表。
-- 撤销指定 refresh token。
+- 查看当前登录设备列表（按 `familyId` 分组即为「一台设备的一次登录」）。
+- 撤销指定 `familyId`，即下线单台设备。
 - 撤销某用户所有 refresh token。
 - refresh token 异常复用告警。

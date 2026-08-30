@@ -32,8 +32,8 @@ describe("openapi generation", () => {
     const { generateOpenApiSpec } = await import("../../src/openapi.js");
 
     const spec = generateOpenApiSpec();
-    const registerBody = expectJsonRequestSchema(spec.paths["/api/register"].post);
-    const largeUploadBody = expectJsonRequestSchema(spec.paths["/api/uploads/large/init"].post);
+    const registerBody = expectJsonRequestSchema(spec.paths["/api/v1/register"].post);
+    const largeUploadBody = expectJsonRequestSchema(spec.paths["/api/v1/uploads/large/init"].post);
     const registerProperties = expectProperties(registerBody);
     const largeUploadProperties = expectProperties(largeUploadBody);
 
@@ -54,7 +54,7 @@ describe("openapi generation", () => {
       additionalProperties: false,
       required: ["code", "message", "data"],
     });
-    expect(spec.paths["/api/register"].post.responses["400"].content?.["application/json"].schema).toMatchObject({
+    expect(spec.paths["/api/v1/register"].post.responses["400"].content?.["application/json"].schema).toMatchObject({
       $ref: "#/components/schemas/ErrorBody",
     });
   });

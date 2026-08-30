@@ -128,6 +128,8 @@ Redis 当前只用于 JWT 黑名单，不是通用缓存层。
 
 当用户登出时，服务把当前 access token 的 `jti` 写入 Redis，TTL 等于 token 剩余寿命。这样可以让无状态 JWT 在登出后立即失效。
 
+> Redis 现在同时服务于 JWT 黑名单、分布式限流计数和登录失败锁定，其启用条件是是否配置了 `REDIS_URL`。`AUTH_TOKEN_BLACKLIST_ENABLED` 只控制黑名单这一项。
+
 如果设置 `AUTH_TOKEN_BLACKLIST_ENABLED=false`：
 
 - 服务不要求 `REDIS_URL`。

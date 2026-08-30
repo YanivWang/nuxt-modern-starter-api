@@ -5,17 +5,23 @@
 import bcrypt from "bcrypt";
 import { UniqueConstraintError } from "sequelize";
 
-import { conflict, unauthorized } from "../../shared/errors/app-error.js";
+import { BCRYPT_ROUNDS, LOGIN_MAX_FAILED_ATTEMPTS } from "../../env.js";
+import { conflict, tooManyRequests, unauthorized } from "../../shared/errors/app-error.js";
 import { logger } from "../../utils/logger.js";
 
+import type { LoginAttemptTracker } from "./ports/login-attempt-tracker.port.js";
 import type { AppDatabase } from "../../db/index.js";
 import type { AuthSessionService } from "./auth-session.service.js";
 
-export function createAuthService(database: AppDatabase, sessions: AuthSessionService) {
+export function createAuthService(
+  database: AppDatabase,
+  sessions: AuthSessionService,
+  loginAttempts: LoginAttemptTracker,
+) {
   const { User } = database.models;
 
   async function register(payload: { username: string; password: string }) {
-    const hashPwd = await bcrypt.hash(payload.password, 10);
+    const hashPwd = await bcrypt.hash(payload.password, BCRYPT_ROUNDS);
     try {
       await User.create({ username: payload.username, password: hashPwd });
     } catch (error) {
@@ -29,9 +35,27 @@ export function createAuthService(database: AppDatabase, sessions: AuthSessionSe
     payload: { username: string; password: string },
     context: { userAgent?: string; ipAddress?: string } = {},
   ) {
+    if (await loginAttempts.isLocked(payload.username)) {
+      logger.warn("login_locked", { username: payload.username, ipAddress: context.ipAddress });
+      throw tooManyRequests("登录失败次数过多，请稍后再试");
+    }
+
     const user = await User.findOne({ where: { username: payload.username } });
-    const credentialOk = user ? await bcrypt.compare(payload.password, user.get("password") as string) : false;
-    if (!credentialOk || !user) throw unauthorized("用户名或密码错误");
+    const credentialOk = user ? await bcrypt.compare(payload.password, user.password) : false;
+
+    if (!credentialOk || !user) {
+      const failures = await loginAttempts.recordFailure(payload.username);
+      if (failures >= LOGIN_MAX_FAILED_ATTEMPTS) {
+        logger.warn("login_lockout_triggered", {
+          username: payload.username,
+          failures,
+          ipAddress: context.ipAddress,
+        });
+      }
+      throw unauthorized("用户名或密码错误");
+    }
+
+    await loginAttempts.reset(payload.username);
     return sessions.createTokenPair(user, context);
   }
 

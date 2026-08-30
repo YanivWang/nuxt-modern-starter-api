@@ -38,7 +38,7 @@ src/modules/workspace/
 
 | 方法     | 路径                       | 说明                                        |
 | -------- | -------------------------- | ------------------------------------------- |
-| `GET`    | `/api/projects`            | 返回当前用户的项目列表                      |
+| `GET`    | `/api/projects`            | 分页返回当前用户的项目列表                  |
 | `POST`   | `/api/projects`            | 创建项目并初始化关联 Document               |
 | `GET`    | `/api/projects/:projectId` | 返回当前用户的项目详情                      |
 | `PATCH`  | `/api/projects/:projectId` | 更新当前用户的项目标题或描述                |
@@ -57,6 +57,25 @@ src/modules/workspace/
 
 - `title`：必填，trim 后 1～160 字符。
 - `description`：可选，trim 后最多 500 字符。
+
+## 列表分页
+
+`GET /api/projects` 使用全站统一的 `limit` / `offset` 约定（定义见 `src/shared/http/pagination.ts`）：默认单页 20 条，上限 100，超出范围返回 400。
+
+```json
+{
+  "code": 200,
+  "message": "获取项目列表成功",
+  "data": {
+    "projects": [],
+    "pagination": { "total": 42, "limit": 20, "offset": 0, "hasMore": true }
+  }
+}
+```
+
+服务端使用 `findAndCountAll` 并开启 `distinct`——列表 include 了 `hasOne` 的 Document 关联，不加 `distinct` 时 JOIN 会放大 `count`。
+
+> 该接口此前返回全量列表。项目数会随使用时间单调增长，无上限的查询迟早会拖垮响应与内存，因此改为强制分页。**前端需要读取 `data.projects` 并按 `pagination` 翻页。**
 
 更新项目请求体（`PATCH /api/projects/:projectId`）：
 

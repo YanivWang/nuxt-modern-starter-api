@@ -3,7 +3,6 @@
  * 返回值会剔除 password，并把 Users.avatar 与 UserProfiles.nickname 合并成 /api/me 所需结构。
  */
 import type { AppDatabase } from "../../db/index.js";
-import type { Model } from "sequelize";
 
 /** 对外展示：不含 password */
 export type PublicUserProfile = {
@@ -12,14 +11,6 @@ export type PublicUserProfile = {
   avatar: string | null;
   nickname: string | null;
 };
-
-function toPublicProfile(user: Model): Omit<PublicUserProfile, "nickname"> {
-  return {
-    id: user.get("id") as number,
-    username: user.get("username") as string,
-    avatar: (user.get("avatar") as string | null | undefined) ?? null,
-  };
-}
 
 /** 当前用户资料：无记录时返回 null（如 JWT 仍有效但库已重置/用户已删） */
 export function createUserService(database: AppDatabase) {
@@ -37,10 +28,12 @@ export function createUserService(database: AppDatabase) {
       ],
     });
     if (!user) return null;
-    const base = toPublicProfile(user);
-    const profile = user.get("userProfile") as Model | null | undefined;
-    const nickname = profile?.get ? ((profile.get("nickname") as string | null | undefined) ?? null) : null;
-    return { ...base, nickname };
+    return {
+      id: user.id,
+      username: user.username,
+      avatar: user.avatar,
+      nickname: user.userProfile?.nickname ?? null,
+    };
   }
 
   return { findPublicProfileById };

@@ -155,3 +155,33 @@ tests/integration/   通过 createTestRuntime 使用真实 HTTP、MySQL、Redis
 ## 适用范围
 
 当前架构适合单体 Web API、中小型 SaaS、个人 Workspace、内容接口和单实例本地上传。多实例部署前需要把内存内容、本地文件和分片会话替换为共享 Adapter；复杂团队协作出现后再扩充领域模型，不通过微服务或通用 BaseRepository 提前制造复杂度。
+
+## 架构边界由脚本强制
+
+`scripts/validate-architecture.mjs` 在 CI 中执行以下规则，违反会让构建失败：
+
+1. `src/modules/` 下的业务模块不能导入 `src/infrastructure/` 的具体实现。需要外部能力时在模块内定义 Port，由组合根注入 Adapter。
+2. 跨模块引用只能指向对方的 `index.ts`、`*.contract.ts`、`ports/`，或以 **`import type`** 方式引用 `*.model.ts`。
+3. `*.service.ts` 不能依赖 HTTP 中间件。
+
+第 2 条中模型的例外值得说明：`Users`、`Workspaces`、`Projects`、`Documents` 之间存在数据库外键关系，模型定义必须互相引用对方的类型，这无法避免。但规则只放行 `import type`——类型导入在编译后被完全擦除，不会在模块之间建立运行时依赖，模型实例仍统一由 `src/db/models.ts` 注册。值导入依然被拒绝。
+
+这条规则的取舍是：与其为了让检查通过而放宽成「模型随便引」，不如把规则做得更精确。
+
+## 组合根装配的依赖
+
+`src/runtime.ts` 是唯一可以选择具体 Adapter 的位置。当前装配：
+
+| 依赖                  | Adapter                         | 用途                             |
+| --------------------- | ------------------------------- | -------------------------------- |
+| `TokenBlacklist`      | `redis-token-blacklist`         | 登出后使 access token 立即失效   |
+| `LoginAttemptTracker` | `redis-login-attempt-tracker`   | 账号级登录失败锁定               |
+| 限流计数存储          | `redis-rate-limit.store`        | 多实例共享限流阈值               |
+| `ContentRepository`   | `in-memory-content.repository`  | 公开新闻/定价数据源              |
+| `ContentRevalidator`  | `nuxt-content-revalidator`      | 内容变更后刷新前端缓存           |
+| `FileStorage`         | `local-file-storage`            | 图片上传落盘与公开 URL           |
+| `LargeUploadStorage`  | `local-large-upload`            | 分片上传、合并、秒传、清理       |
+| 指标                  | `observability/metrics`         | Prometheus RED 指标与 `/metrics` |
+| 清理调度              | `maintenance/cleanup.scheduler` | 定期清理会话行与临时分片         |
+
+替换实现（例如把本地磁盘换成 S3）只需要新增一个实现同一 Port 的 Adapter，并在这一个文件里改一行注入。

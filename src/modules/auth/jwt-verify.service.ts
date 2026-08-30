@@ -24,16 +24,28 @@ export function createJwtVerifier(blacklist: TokenBlacklist) {
     },
     /** 校验 JWT；失败抛 Error，供 auth 中间件映射为 401 */
     async require(token: string): Promise<AppJwtUser> {
-      const user = jwt.verify(token, JWT_SECRET) as AppJwtUser;
-      if (!user.jti) {
-        throw new jwt.JsonWebTokenError("missing jti");
-      }
-      if (await blacklist.has(user.jti)) {
-        throw new jwt.TokenExpiredError("blacklisted", new Date());
-      }
-      return user;
+      return assertUsable(jwt.verify(token, JWT_SECRET) as AppJwtUser);
+    },
+    /**
+     * 校验签名与黑名单，但忽略过期时间。
+     * 仅供登出使用：access token 过期后用户依然必须能主动撤销 refresh token 会话，
+     * 否则「怀疑账号被盗」这个最需要登出的场景反而无法登出。
+     * 签名仍然必须有效，因此不会放大攻击面。
+     */
+    async requireAllowExpired(token: string): Promise<AppJwtUser> {
+      return assertUsable(jwt.verify(token, JWT_SECRET, { ignoreExpiration: true }) as AppJwtUser);
     },
   };
+
+  async function assertUsable(user: AppJwtUser): Promise<AppJwtUser> {
+    if (!user.jti) {
+      throw new jwt.JsonWebTokenError("missing jti");
+    }
+    if (await blacklist.has(user.jti)) {
+      throw new jwt.TokenExpiredError("blacklisted", new Date());
+    }
+    return user;
+  }
 }
 
 export type JwtVerifier = ReturnType<typeof createJwtVerifier>;

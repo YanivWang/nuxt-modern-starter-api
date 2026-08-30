@@ -4,12 +4,14 @@
  */
 import { readAccessTokenCookie } from "../modules/auth/authCookie.js";
 
+import { asyncMiddleware } from "./asyncHandler.js";
+
 import type { NextFunction, Request, Response } from "express";
 import type { JwtVerifier } from "../modules/auth/jwt-verify.service.js";
 
 /** 可选登录态：有 token 且校验通过则写入 req.user，无 token/无效/过期/已拉黑则按匿名继续。 */
 export function createOptionalAuthMiddleware(verifier: JwtVerifier) {
-  return async function optionalAuthMiddleware(req: Request, _res: Response, next: NextFunction) {
+  return asyncMiddleware(async function optionalAuthMiddleware(req: Request, _res: Response, next: NextFunction) {
     const authorization = req.headers.authorization ?? "";
     const bearerToken = authorization.startsWith("Bearer ") ? authorization.slice(7) : "";
     // 这里不做 CSRF 校验；该中间件只用于“读身份、允许匿名”的场景，写操作仍应使用 authMiddleware。
@@ -28,5 +30,5 @@ export function createOptionalAuthMiddleware(verifier: JwtVerifier) {
     } catch (error) {
       next(error);
     }
-  };
+  });
 }

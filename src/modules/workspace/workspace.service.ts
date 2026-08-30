@@ -2,10 +2,11 @@
  * 文件职责：工作台项目用例与 ProjectDto 映射。
  * 创建项目时在同一事务内保证个人 Workspace、Project、Document 一起就绪；查询一律按 ownerId 过滤。
  */
-import { toDocumentDto } from "../document/document.contract.js";
+import { toDocumentDto } from "../document/index.js";
 
 import type { AppDatabase } from "../../db/index.js";
-import type { Model, Transaction } from "sequelize";
+import type { Project } from "./project.model.js";
+import type { Transaction } from "sequelize";
 
 export type ProjectDto = {
   id: string;
@@ -21,26 +22,30 @@ export type ProjectDto = {
   previewPath: string;
 };
 
-const toIso = (value: unknown) =>
-  value instanceof Date
-    ? value.toISOString()
-    : typeof value === "string"
-      ? new Date(value).toISOString()
-      : new Date().toISOString();
+export type Pagination = {
+  total: number;
+  limit: number;
+  offset: number;
+  hasMore: boolean;
+};
 
-export function toProjectDto(project: Model): ProjectDto {
-  const document = project.get("document") as Model | null | undefined;
-  const id = project.get("id") as string;
+export type ProjectListResult = {
+  projects: ProjectDto[];
+  pagination: Pagination;
+};
+
+export function toProjectDto(project: Project): ProjectDto {
+  const { id } = project;
   return {
     id,
-    workspaceId: project.get("workspaceId") as string,
-    documentId: document ? (document.get("id") as string) : null,
-    title: project.get("title") as string,
-    description: (project.get("description") as string | null | undefined) ?? null,
-    status: project.get("status") as string,
-    slideCount: project.get("slideCount") as number,
-    accent: project.get("accent") as string,
-    updatedAt: toIso(project.get("updatedAt")),
+    workspaceId: project.workspaceId,
+    documentId: project.document ? project.document.id : null,
+    title: project.title,
+    description: project.description,
+    status: project.status,
+    slideCount: project.slideCount,
+    accent: project.accent,
+    updatedAt: project.updatedAt.toISOString(),
     editPath: `/app/workspace/${id}/edit`,
     previewPath: `/app/workspace/${id}/preview`,
   };
@@ -48,6 +53,7 @@ export function toProjectDto(project: Model): ProjectDto {
 
 export function createWorkspaceService(database: AppDatabase) {
   const { Document, Project, Workspace } = database.models;
+  const documentInclude = [{ model: Document, as: "document", attributes: ["id"], required: false }];
 
   async function ensurePersonalWorkspace(userId: number, transaction: Transaction) {
     const [workspace] = await Workspace.findOrCreate({
@@ -63,7 +69,7 @@ export function createWorkspaceService(database: AppDatabase) {
       const workspace = await ensurePersonalWorkspace(userId, transaction);
       const project = await Project.create(
         {
-          workspaceId: workspace.get("id"),
+          workspaceId: workspace.id,
           ownerId: userId,
           title: payload.title,
           description: payload.description ?? null,
@@ -74,27 +80,43 @@ export function createWorkspaceService(database: AppDatabase) {
         { transaction },
       );
       const document = await Document.create(
-        { projectId: project.get("id"), ownerId: userId, title: payload.title, content: "" },
+        { projectId: project.id, ownerId: userId, title: payload.title, content: "" },
         { transaction },
       );
-      project.setDataValue("document", document);
+      project.document = document;
       return { project: toProjectDto(project), document: toDocumentDto(document) };
     });
   }
 
-  async function listForUser(userId: number) {
-    const projects = await Project.findAll({
+  /**
+   * 分页列出当前用户的项目。
+   * 列表接口一律分页：项目数会随使用时间单调增长，无上限的 findAll 迟早会拖垮响应与内存。
+   */
+  async function listForUser(userId: number, page: { limit: number; offset: number }): Promise<ProjectListResult> {
+    const { rows, count } = await Project.findAndCountAll({
       where: { ownerId: userId },
-      include: [{ model: Document, as: "document", attributes: ["id"], required: false }],
+      include: documentInclude,
       order: [["updatedAt", "DESC"]],
+      limit: page.limit,
+      offset: page.offset,
+      // include 了 hasOne 关联时 count 需要 distinct，否则 JOIN 会放大计数。
+      distinct: true,
     });
-    return projects.map(toProjectDto);
+    return {
+      projects: rows.map(toProjectDto),
+      pagination: {
+        total: count,
+        limit: page.limit,
+        offset: page.offset,
+        hasMore: page.offset + rows.length < count,
+      },
+    };
   }
 
   async function findForUser(userId: number, projectId: string) {
     const project = await Project.findOne({
       where: { id: projectId, ownerId: userId },
-      include: [{ model: Document, as: "document", attributes: ["id"], required: false }],
+      include: documentInclude,
     });
     return project ? toProjectDto(project) : null;
   }
@@ -103,7 +125,7 @@ export function createWorkspaceService(database: AppDatabase) {
     return database.sequelize.transaction(async (transaction) => {
       const project = await Project.findOne({
         where: { id: projectId, ownerId: userId },
-        include: [{ model: Document, as: "document", attributes: ["id"], required: false }],
+        include: documentInclude,
         transaction,
         lock: transaction.LOCK.UPDATE,
       });
@@ -115,17 +137,11 @@ export function createWorkspaceService(database: AppDatabase) {
         },
         { transaction },
       );
-      const document = project.get("document") as Model | null | undefined;
+      const { document } = project;
       if (payload.title !== undefined && document) {
-        await Document.update(
-          { title: payload.title },
-          { where: { id: document.get("id"), ownerId: userId }, transaction },
-        );
+        await Document.update({ title: payload.title }, { where: { id: document.id, ownerId: userId }, transaction });
       }
-      await project.reload({
-        include: [{ model: Document, as: "document", attributes: ["id"], required: false }],
-        transaction,
-      });
+      await project.reload({ include: documentInclude, transaction });
       return toProjectDto(project);
     });
   }

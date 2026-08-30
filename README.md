@@ -1,6 +1,8 @@
 # Nuxt Modern Starter API
 
-独立 Express API 服务脚手架，保留普通 Web App 后端常用能力：auth、user、content（公开新闻/定价）、workspace、document、health、Swagger、MySQL、可选 Redis、JWT access/refresh token、文件上传、分片上传和 Docker 部署。
+独立 Express API 服务脚手架，保留普通 Web App 后端常用能力：auth、user、content（公开新闻/定价）、workspace、document、health、metrics、Swagger、MySQL、Redis、JWT access/refresh token、文件上传、分片上传和 Docker 部署。
+
+业务接口的正式路径带 `/api/v1` 前缀；无版本的 `/api` 作为兼容别名指向同一实现，供存量客户端平滑迁移。
 
 ## 快速开始
 
@@ -70,31 +72,32 @@ server.ts
   -> runtime.connect(): database / redis / fileStorage
   -> auth/content/user/workspace/document/upload 模块工厂
   -> createApp(dependencies)
-  -> helmet / cors / requestId / HTTP log
-  -> /uploads 静态资源、/health /ready 探针
-  -> rate limit / compression / body parser / Swagger
-  -> /api auth / content / user / workspace / document / upload 路由
+  -> helmet / cors / requestId / metrics / HTTP log
+  -> /uploads 静态资源、/health /ready 探针、/metrics 指标
+  -> rate limit（Redis 共享计数）/ compression / body parser / Swagger
+  -> /api/v1（及兼容别名 /api）auth / content / user / workspace / document / upload 路由
   -> 404 / errorMiddleware
 ```
 
 目录职责：
 
-| 路径                               | 职责                                                              |
-| ---------------------------------- | ----------------------------------------------------------------- |
-| `src/env.ts`                       | 加载 `.env.{APP_ENV}` 与 `.env.{APP_ENV}.local`，集中校验运行环境 |
-| `src/db/`                          | Sequelize 连接、模型注册、Umzug 迁移器和迁移文件                  |
-| `src/redis.ts`                     | JWT 黑名单 Redis 连接；关闭黑名单时可不启用 Redis                 |
-| `src/runtime.ts`                   | 唯一组合根：创建 Adapter、组装模块并管理依赖生命周期              |
-| `src/infrastructure/`              | Redis、内存内容、Nuxt revalidate、本地文件等 Port 的具体 Adapter  |
-| `src/shared/errors/`               | 与 HTTP 解耦的应用错误；状态码只在错误中间件映射                  |
-| `src/middlewares/`                 | 统一错误、认证、限流、请求 ID、日志、Zod 校验等横切能力           |
-| `src/modules/auth/`                | 注册、登录、access/refresh token、Cookie/CSRF、登出黑名单         |
-| `src/modules/user/`                | `/api/me`、用户资料（头像仅存 `Users.avatar`）                    |
-| `src/modules/content/`             | 公开新闻/定价内容（内存数据源）；写操作可触发 Nuxt revalidate     |
-| `src/modules/upload/`              | 普通图片上传、头像上传、大文件分片上传和秒传索引                  |
-| `src/modules/workspace/`           | 默认个人空间、项目 CRUD（列表/创建/详情/更新/删除）               |
-| `src/modules/document/`            | 编辑器文档读取与保存                                              |
-| `src/openapi.ts`、`src/swagger.ts` | 运行时 Swagger 与 `docs/openapi.yaml` 的统一生成来源              |
+| 路径                               | 职责                                                                           |
+| ---------------------------------- | ------------------------------------------------------------------------------ |
+| `src/env.ts`                       | 加载 `.env.{APP_ENV}` 与 `.env.{APP_ENV}.local`，集中校验运行环境              |
+| `src/db/`                          | Sequelize 连接、模型注册、Umzug 迁移器和迁移文件                               |
+| `src/redis.ts`                     | JWT 黑名单 Redis 连接；关闭黑名单时可不启用 Redis                              |
+| `src/runtime.ts`                   | 唯一组合根：创建 Adapter、组装模块并管理依赖生命周期                           |
+| `src/infrastructure/`              | Redis、内存内容、Nuxt revalidate、本地文件、限流存储、指标、清理任务等 Adapter |
+| `src/shared/http/`                 | 全站共用的 HTTP 契约，如分页入参约定                                           |
+| `src/shared/errors/`               | 与 HTTP 解耦的应用错误；状态码只在错误中间件映射                               |
+| `src/middlewares/`                 | 统一错误、认证、限流、请求 ID、日志、Zod 校验等横切能力                        |
+| `src/modules/auth/`                | 注册、登录、access/refresh token、Cookie/CSRF、登出黑名单                      |
+| `src/modules/user/`                | `/api/me`、用户资料（头像仅存 `Users.avatar`）                                 |
+| `src/modules/content/`             | 公开新闻/定价内容（内存数据源）；写操作可触发 Nuxt revalidate                  |
+| `src/modules/upload/`              | 普通图片上传、头像上传、大文件分片上传和秒传索引                               |
+| `src/modules/workspace/`           | 默认个人空间、项目 CRUD（列表/创建/详情/更新/删除）                            |
+| `src/modules/document/`            | 编辑器文档读取与保存                                                           |
+| `src/openapi.ts`、`src/swagger.ts` | 运行时 Swagger 与 `docs/openapi.yaml` 的统一生成来源                           |
 
 当前源码目录结构：
 
@@ -145,9 +148,16 @@ tests/
   unit/
     openapi.test.ts
     env.redis.test.ts
+    utils/http-helpers.test.ts
     infrastructure/revalidation.test.ts
+    infrastructure/large-upload.internals.test.ts
+    modules/auth.service.test.ts
+    modules/auth-cookie.test.ts
     modules/auth-session.service.test.ts
+    modules/jwt-verify.service.test.ts
     modules/content.service.test.ts
+    modules/document.service.test.ts
+    modules/user.service.test.ts
     modules/workspace.service.test.ts
   integration/
     auth.integration.test.ts
@@ -155,9 +165,12 @@ tests/
     product-foundation.integration.test.ts
 ```
 
+单元测试带覆盖率阈值（见 `vitest.config.ts`），已接入 `pnpm run check`。阈值只升不降：补测试后如果实测值明显高出，请顺手上调阈值，让它持续起到防回退作用。
+
 目录维护约定：
 
 - 新增业务能力默认放入 `src/modules/<domain>/`；每个模块通过 `index.ts` 暴露模块工厂，通过 `ports/` 和 `*.contract.ts` 暴露稳定契约，禁止跨模块导入内部 Service。
+- 跨模块引用 `*.model.ts` 只允许 `import type`。模型之间存在数据库外键关系，类型引用不可避免，但类型导入在编译后被擦除，不会建立运行时依赖；值导入仍会被 `architecture:check` 拒绝。
 - Service 不依赖 Express middleware；业务错误使用 `src/shared/errors/app-error.ts`。只有 `src/runtime.ts` 可以选择并组装 `src/infrastructure/` 的具体 Adapter。
 - 数据库模型仍由模块内的 `*.model.ts` 定义，通过 `src/db/models.ts` 统一注册；Service 由组合根注入 `AppDatabase`，不再导入全局模型命名导出。
 - 测试统一放在顶层 `tests/`，`tests/unit/` 承载不依赖外部服务的单元测试，`tests/integration/` 承载依赖 MySQL/Redis 的 API 集成测试；`src/` 只保留运行时代码。
@@ -193,6 +206,21 @@ tests/
 ```
 
 错误响应同样使用 `{ "code", "message", "data": null }`。
+
+### 列表分页
+
+所有列表接口使用统一的 `limit` / `offset` 约定（定义见 `src/shared/http/pagination.ts`），默认单页 20 条，上限 100。响应在 `data` 中附带分页元信息：
+
+```json
+{
+  "code": 200,
+  "message": "获取项目列表成功",
+  "data": {
+    "projects": [],
+    "pagination": { "total": 42, "limit": 20, "offset": 0, "hasMore": true }
+  }
+}
+```
 
 ## OpenAPI 文档
 
@@ -256,6 +284,9 @@ pnpm test:unit
 - `/api/login` 返回短期 `accessToken` 和长期 `refreshToken`（含 `accessTokenExpiresIn`、`refreshTokenExpiresIn`），同时写入 `httpOnly` cookie，并写入非 `httpOnly` 的 `csrf_token`。响应体**不含** `token` 字段别名。
 - `/api/register` 只创建用户，不自动登录；注册成功后需要再调用 `/api/login` 获取 token。
 - `/api/refresh` 使用 `refreshToken` 换取新的 `accessToken` 和 `refreshToken`，旧 refresh token 会立即失效。若 refresh token 来自 cookie，需带 `X-CSRF-Token` 请求头，值与 `csrf_token` cookie 一致。
+- **refresh token 重放检测**：一次登录派生出的所有轮换 token 共享一个 `familyId`。已撤销的 refresh token 再次被使用时，整条家族链会被立即撤销，攻击者先前换取的 token 同时失效，用户需重新登录。这是 OAuth 2.0 Security BCP 对 refresh token 泄露的标准应对。
+- **登出允许过期凭证**：`/api/logout` 接受已过期但签名有效的 access token。登录态过期后用户依然必须能主动撤销会话，否则最需要登出的场景反而登不出去。
+- **账号级失败锁定**：连续登录失败达到 `LOGIN_MAX_FAILED_ATTEMPTS` 后临时锁定该账号（依赖 Redis）。仅按 IP 限流挡不住分布式撞库。
 - `authMiddleware` 优先读取 `Authorization: Bearer <accessToken>`，也支持浏览器请求携带的 `access_token` cookie，适合 `/api/me`、项目、文档、上传、新闻写操作等必须登录的接口。
 - 使用 cookie 认证访问 POST/PATCH/PUT/DELETE 等非安全方法时，需带 `X-CSRF-Token` 请求头；Bearer 认证不受 CSRF 规则影响。
 - `optionalAuthMiddleware` 适合“登录用户和匿名用户都能访问，但返回内容略有差异”的接口，支持 Bearer 和 `access_token` cookie；当前脚手架提供中间件但未默认挂载示例路由。公开内容读接口（新闻/定价）本身无需登录，也不走该中间件。
@@ -304,7 +335,8 @@ cp .env.production.example .env.production
 ```
 
 务必替换 `JWT_SECRET`、`DB_PWD`、`MYSQL_ROOT_PASSWORD`、`REDIS_PASSWORD`、`REVALIDATE_SECRET` 等占位值；生产启动时会拒绝 `replace_with` / `change_me` 这类模板值。
-生产环境建议显式配置 `CORS_ORIGINS`、`REQUEST_BODY_LIMIT`、`TRUST_PROXY`、`RATE_LIMIT_MAX`、`AUTH_RATE_LIMIT_MAX`、`ACCESS_TOKEN_TTL_SECONDS`、`REFRESH_TOKEN_TTL_SECONDS`、`AUTH_COOKIE_SECURE`，并根据真实流量调整请求体大小限制、限流窗口和登录态有效期。
+生产环境建议显式配置 `CORS_ORIGINS`、`REQUEST_BODY_LIMIT`、`TRUST_PROXY`、`RATE_LIMIT_MAX`、`AUTH_RATE_LIMIT_MAX`、`ACCESS_TOKEN_TTL_SECONDS`、`REFRESH_TOKEN_TTL_SECONDS`、`AUTH_COOKIE_SECURE`、`BCRYPT_ROUNDS`、`LOGIN_MAX_FAILED_ATTEMPTS`，并根据真实流量调整请求体大小限制、限流窗口和登录态有效期。
+限流计数使用 Redis 共享存储，因此多实例部署时阈值在整个集群内生效；未配置 `REDIS_URL` 时会退化为单进程内存计数并打印告警。
 若前端依赖新闻写操作后的 SWR 缓存失效，还需配置可达的 `NUXT_REVALIDATE_URL` 与匹配的 `REVALIDATE_SECRET`。
 默认 `AUTH_TOKEN_BLACKLIST_ENABLED=true`，服务会依赖 Redis 记录登出后的 JWT 黑名单。只有确认业务接受“已签发 JWT 在过期前无法主动失效”时，才建议改为 `false`。
 
@@ -336,11 +368,24 @@ pnpm docker:prod:down
 - 生产日志默认输出到 stdout/stderr，便于容器平台采集；如需同时写入 `logs/`，设置 `LOG_TO_FILE=true`。
 - `uploads` 和 `.data` 在生产 Compose 中使用 volume 持久化；多实例部署前需重新设计上传存储和大文件上传会话存储。
 - 如需使用国内或企业 npm registry 构建镜像，可在 `.env.production` 设置 `NPM_REGISTRY=https://registry.npmmirror.com`。
-- 应用会处理 `SIGTERM` / `SIGINT`，关闭 HTTP server、MySQL 与启用状态下的 Redis 连接后退出。
+- 应用会处理 `SIGTERM` / `SIGINT`，关闭 HTTP server、MySQL 与启用状态下的 Redis 连接后退出；顶层还注册了 `unhandledRejection` / `uncaughtException` 兜底，保证异常先落日志再退出。
+- 应用暴露 `/metrics`（Prometheus 文本格式），含 `http_requests_total`、`http_request_duration_seconds` 与 Node 默认进程指标。指标标签使用路由模板而非真实 URL，避免时间序列基数爆炸。
+- **`/metrics` 不经 Nginx 网关暴露**，只在 Compose 网络内可达，应由集群内 Prometheus 直接抓取。如需对外暴露，请自行加认证或网络隔离。
+- 进程内置后台清理任务，按 `CLEANUP_INTERVAL_MS` 周期删除过期/已撤销的 refresh token 会话行与掉线遗留的上传临时分片。多实例部署时各实例都会执行，清理本身幂等，但如需严格单点执行应改为外部定时任务。
 
 ## 裁剪指南
 
-如果业务不需要 Redis，优先设置 `AUTH_TOKEN_BLACKLIST_ENABLED=false` 并移除 `REDIS_URL`。应用会跳过 Redis 连接，`/ready` 会把 Redis 标记为 `disabled`，`logout` 不再写入黑名单，JWT 校验也不再检查黑名单。这样做意味着已签发 JWT 在过期前无法被服务端主动失效。
+Redis 现在同时服务于三件事：JWT 黑名单、分布式限流计数、登录失败锁定。因此它的启用条件是「是否配置了 `REDIS_URL`」，而不是某一个功能开关。
+
+移除 `REDIS_URL` 后应用仍可启动，但会同时失去这三项能力，并在启动日志中打印告警：
+
+- 已签发的 JWT 在自然过期前无法被主动失效；
+- 限流退化为单进程内存计数，多实例部署下实际阈值等于配置值乘以实例数；
+- 账号级登录失败锁定不再生效，只剩基于 IP 的限流。
+
+只想关闭黑名单、保留另外两项能力时，设置 `AUTH_TOKEN_BLACKLIST_ENABLED=false` 并保留 `REDIS_URL`。`/ready` 会在没有 Redis 时把它标记为 `disabled`。
+
+**单实例小流量场景可以接受无 Redis；面向生产的多实例部署不建议。**
 
 如果你要彻底删除 Redis 依赖，再移除 `src/redis.ts`、`src/infrastructure/auth/redis-token-blacklist.ts`、Docker Compose 中的 Redis service，以及相关环境变量，并在 `src/runtime.ts` 注入空实现。
 

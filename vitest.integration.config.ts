@@ -8,6 +8,9 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["tests/integration/**/*.integration.test.ts"],
+    // 集成测试要走真实 MySQL/Redis 与 bcrypt，默认 5s 不足以覆盖多次注册登录的用例。
+    testTimeout: 30_000,
+    hookTimeout: 30_000,
     fileParallelism: false,
   },
 });

@@ -212,6 +212,41 @@ describe("product foundation API", () => {
       .expect(404);
   });
 
+  it("paginates the project list and reports total/hasMore", async () => {
+    const { accessToken } = await registerAndLogin();
+    const auth = { Authorization: `Bearer ${accessToken}` };
+
+    for (const title of ["p1", "p2", "p3"]) {
+      await request(app).post("/api/projects").set(auth).send({ title }).expect(201);
+    }
+
+    const firstPage = await request(app).get("/api/projects?limit=2&offset=0").set(auth).expect(200);
+    expect(firstPage.body.data.projects).toHaveLength(2);
+    expect(firstPage.body.data.pagination).toEqual({ total: 3, limit: 2, offset: 0, hasMore: true });
+
+    const lastPage = await request(app).get("/api/projects?limit=2&offset=2").set(auth).expect(200);
+    expect(lastPage.body.data.projects).toHaveLength(1);
+    expect(lastPage.body.data.pagination).toEqual({ total: 3, limit: 2, offset: 2, hasMore: false });
+
+    // 两页之间不应重复返回同一个项目。
+    const ids = [...firstPage.body.data.projects, ...lastPage.body.data.projects].map(
+      (project: { id: string }) => project.id,
+    );
+    expect(new Set(ids).size).toBe(3);
+  });
+
+  it("applies a default page size and rejects an oversized limit", async () => {
+    const { accessToken } = await registerAndLogin();
+    const auth = { Authorization: `Bearer ${accessToken}` };
+
+    const defaulted = await request(app).get("/api/projects").set(auth).expect(200);
+    expect(defaulted.body.data.pagination).toMatchObject({ limit: 20, offset: 0 });
+
+    // 上限存在的意义就是不允许客户端把分页退化成全表扫描。
+    await request(app).get("/api/projects?limit=1000").set(auth).expect(400);
+    await request(app).get("/api/projects?offset=-1").set(auth).expect(400);
+  });
+
   it("deletes authenticated user projects and their documents", async () => {
     const { accessToken } = await registerAndLogin();
 

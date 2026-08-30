@@ -2,9 +2,13 @@
  * 文件职责：认证与当前用户 API 集成测试。
  * 覆盖注册去重、登录 token、Cookie 登录、CSRF、防 refresh token 重放、登出黑名单等真实 HTTP 行为。
  */
+import { randomUUID } from "node:crypto";
+
+import jwt from "jsonwebtoken";
 import request from "supertest";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
+import { JWT_SECRET } from "../../src/env.js";
 import { createTestRuntime } from "./support/test-runtime.js";
 
 import type { AppRuntime } from "../../src/runtime.js";
@@ -136,6 +140,78 @@ describe("auth and current user API", () => {
       .set("Authorization", `Bearer ${refreshRes.body.data.accessToken as string}`)
       .expect(200);
     expect(meRes.body.data.user).toMatchObject({ username });
+  });
+
+  it("revokes the whole token family when a used refresh token is replayed", async () => {
+    const { refreshToken: tokenA } = await registerAndLogin();
+
+    // 正常轮换：A -> B
+    const rotated = await request(app).post("/api/refresh").send({ refreshToken: tokenA }).expect(200);
+    const tokenB = rotated.body.data.refreshToken as string;
+
+    // 重放已被使用的 A，说明 A 已泄露。
+    await request(app).post("/api/refresh").send({ refreshToken: tokenA }).expect(401);
+
+    // 关键断言：攻击者此前换到的 B 也必须失效，而不是继续可用。
+    await request(app).post("/api/refresh").send({ refreshToken: tokenB }).expect(401);
+  });
+
+  it("allows logout with an expired access token so a compromised session can still be revoked", async () => {
+    const { refreshToken, username } = await registerAndLogin();
+    const expiredAccessToken = jwt.sign({ id: 1, username }, JWT_SECRET, {
+      expiresIn: -60,
+      jwtid: randomUUID(),
+    });
+
+    await request(app)
+      .post("/api/logout")
+      .set("Authorization", `Bearer ${expiredAccessToken}`)
+      .send({ refreshToken })
+      .expect(200);
+
+    // 登出后 refresh token 必须已被撤销。
+    await request(app).post("/api/refresh").send({ refreshToken }).expect(401);
+  });
+
+  it("rejects a logout attempt whose token signature is invalid, even when expired", async () => {
+    const forged = jwt.sign({ id: 1, username: "x" }, "a-different-secret-long-enough-for-jwt", {
+      expiresIn: -60,
+      jwtid: randomUUID(),
+    });
+
+    await request(app).post("/api/logout").set("Authorization", `Bearer ${forged}`).send({}).expect(401);
+  });
+
+  it.each(["%", "%zz", "abc%"])(
+    "answers 401 instead of crashing when the access_token cookie is malformed (%j)",
+    async (malformed) => {
+      // 该输入曾让认证中间件抛出 URIError，并因 Express 4 不捕获中间件的 Promise reject 而终止进程。
+      const res = await request(app)
+        .get("/api/me")
+        .set("Cookie", [`access_token=${malformed}`])
+        .expect(401);
+      expect(res.body.code).toBe(401);
+
+      // 进程仍然存活，后续请求照常处理。
+      await request(app).get("/health").expect(200);
+    },
+  );
+
+  it("serves the same resource under /api/v1 and the legacy /api prefix", async () => {
+    const { accessToken } = await registerAndLogin();
+
+    const versioned = await request(app).get("/api/v1/me").set("Authorization", `Bearer ${accessToken}`).expect(200);
+    const legacy = await request(app).get("/api/me").set("Authorization", `Bearer ${accessToken}`).expect(200);
+
+    expect(versioned.body.data.user).toEqual(legacy.body.data.user);
+  });
+
+  it("rejects registration passwords below the minimum length but still accepts them at login", async () => {
+    const username = uniqueUsername();
+    await request(app).post("/api/register").send({ username, password: "short7" }).expect(400);
+
+    // 登录侧不复用注册的长度下限，否则提高强度要求会把存量短密码用户锁在门外。
+    await request(app).post("/api/login").send({ username, password: "short7" }).expect(401);
   });
 
   it("rejects current user requests without a token", async () => {

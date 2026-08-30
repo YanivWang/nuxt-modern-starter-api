@@ -1,0 +1,17 @@
+# 文件职责：统一编辑器的基础排版行为，减少与 Prettier 无关的无意义 diff。
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+[*.md]
+# Markdown 中行尾空格有换行语义，不能一律裁剪。
+trim_trailing_whitespace = false
+
+[Makefile]
+indent_style = tab

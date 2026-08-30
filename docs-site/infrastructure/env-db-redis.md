@@ -120,11 +120,17 @@ REVALIDATE_SECRET=dev_revalidate_secret_replace_with_random_string
 
 ### Redis
 
-| 变量                           | 说明                |
-| ------------------------------ | ------------------- |
-| `AUTH_TOKEN_BLACKLIST_ENABLED` | 是否启用 JWT 黑名单 |
-| `REDIS_URL`                    | Redis 连接 URL      |
-| `REDIS_PASSWORD`               | Docker Redis 密码   |
+| 变量                           | 说明                                      |
+| ------------------------------ | ----------------------------------------- |
+| `AUTH_TOKEN_BLACKLIST_ENABLED` | 是否启用 JWT 黑名单                       |
+| `BCRYPT_ROUNDS`                | bcrypt 代价因子，允许 10～15，默认 12     |
+| `LOGIN_MAX_FAILED_ATTEMPTS`    | 账号锁定前允许的连续登录失败次数，默认 10 |
+| `LOGIN_LOCKOUT_SECONDS`        | 账号锁定时长（秒），默认 900              |
+| `REFRESH_TOKEN_RETENTION_DAYS` | 过期/已撤销会话行的保留天数，默认 7       |
+| `UPLOAD_TEMP_RETENTION_HOURS`  | 上传临时分片保留小时数，默认 24           |
+| `CLEANUP_INTERVAL_MS`          | 后台清理任务间隔（毫秒），默认 6 小时     |
+| `REDIS_URL`                    | Redis 连接 URL                            |
+| `REDIS_PASSWORD`               | Docker Redis 密码                         |
 
 如果关闭黑名单，`REDIS_URL` 可以为空。
 
@@ -298,7 +304,19 @@ pnpm db:migrate:prod
 
 ## Redis 生命周期
 
-`src/redis.ts` 根据 `AUTH_TOKEN_BLACKLIST_ENABLED` 创建客户端：
+`src/redis.ts` 根据是否配置了 `REDIS_URL` 创建客户端。
+
+Redis 现在同时服务于三件事，因此它的启用条件是「有没有配地址」，而不是某一个功能开关：
+
+| 用途           | 无 Redis 时的后果                                        |
+| -------------- | -------------------------------------------------------- |
+| JWT 黑名单     | 已签发 token 在自然过期前无法主动失效                    |
+| 分布式限流计数 | 退化为单进程内存计数，多实例下实际阈值 = 配置值 × 实例数 |
+| 登录失败锁定   | 账号级锁定失效，只剩基于 IP 的限流                       |
+
+`AUTH_TOKEN_BLACKLIST_ENABLED=false` 只关闭黑名单，另外两项能力在 `REDIS_URL` 存在时仍然工作。
+
+原先的创建逻辑：
 
 ```text
 true

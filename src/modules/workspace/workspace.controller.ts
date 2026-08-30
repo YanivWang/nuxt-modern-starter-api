@@ -9,6 +9,7 @@ import { success } from "../../utils/response.js";
 import type { WorkspaceService } from "./workspace.service.js";
 import type {
   ValidatedCreateProjectSchema,
+  ValidatedListProjectsSchema,
   ValidatedPatchProjectSchema,
   ValidatedProjectIdParamsSchema,
 } from "./workspace.schema.js";
@@ -23,7 +24,9 @@ function currentUserId(req: Request) {
 export function createWorkspaceController(service: WorkspaceService) {
   return {
     list: async (req: Request, res: Response) => {
-      return success(res, "获取项目列表成功", { projects: await service.listForUser(currentUserId(req)) });
+      const { query } = getValidated<ValidatedListProjectsSchema>(req);
+      const result = await service.listForUser(currentUserId(req), { limit: query.limit, offset: query.offset });
+      return success(res, "获取项目列表成功", result);
     },
     create: async (req: Request, res: Response) => {
       const result = await service.createForUser(

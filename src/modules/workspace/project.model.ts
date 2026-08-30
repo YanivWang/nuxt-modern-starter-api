@@ -2,11 +2,39 @@
  * 文件职责：定义 Projects 模型。
  * Project 是工作台列表中的产品级容器，对应一份可编辑演示文稿/文档。
  */
-import { DataTypes, type Model, type ModelStatic, type Sequelize } from "sequelize";
+import {
+  DataTypes,
+  Model,
+  type CreationOptional,
+  type ForeignKey,
+  type InferAttributes,
+  type InferCreationAttributes,
+  type NonAttribute,
+  type Sequelize,
+} from "sequelize";
 
-export function defineProjectModel(sequelize: Sequelize, User: ModelStatic<Model>, Workspace: ModelStatic<Model>) {
-  const Project = sequelize.define(
-    "Project",
+import type { Document } from "../document/document.model.js";
+import type { User } from "../user/user.model.js";
+import type { Workspace } from "./workspace.model.js";
+
+export class Project extends Model<InferAttributes<Project>, InferCreationAttributes<Project>> {
+  declare id: CreationOptional<string>;
+  declare workspaceId: ForeignKey<string>;
+  declare ownerId: ForeignKey<number>;
+  declare title: string;
+  declare description: CreationOptional<string | null>;
+  declare status: CreationOptional<string>;
+  declare slideCount: CreationOptional<number>;
+  declare accent: CreationOptional<string>;
+  declare createdAt: CreationOptional<Date>;
+  declare updatedAt: CreationOptional<Date>;
+
+  /** include({ as: "document" }) 时填充。 */
+  declare document?: NonAttribute<Document | null>;
+}
+
+export function defineProjectModel(sequelize: Sequelize, UserModel: typeof User, WorkspaceModel: typeof Workspace) {
+  Project.init(
     {
       id: {
         type: DataTypes.UUID,
@@ -44,8 +72,12 @@ export function defineProjectModel(sequelize: Sequelize, User: ModelStatic<Model
         allowNull: false,
         defaultValue: "blue",
       },
+      createdAt: DataTypes.DATE,
+      updatedAt: DataTypes.DATE,
     },
     {
+      sequelize,
+      modelName: "Project",
       tableName: "Projects",
       indexes: [
         { name: "projects_workspace_updated_idx", fields: ["workspaceId", "updatedAt"] },
@@ -54,10 +86,10 @@ export function defineProjectModel(sequelize: Sequelize, User: ModelStatic<Model
     },
   );
 
-  Project.belongsTo(User, { foreignKey: "ownerId", onDelete: "CASCADE", as: "owner" });
-  Project.belongsTo(Workspace, { foreignKey: "workspaceId", onDelete: "CASCADE", as: "workspace" });
-  User.hasMany(Project, { foreignKey: "ownerId", as: "projects" });
-  Workspace.hasMany(Project, { foreignKey: "workspaceId", as: "projects" });
+  Project.belongsTo(UserModel, { foreignKey: "ownerId", onDelete: "CASCADE", as: "owner" });
+  Project.belongsTo(WorkspaceModel, { foreignKey: "workspaceId", onDelete: "CASCADE", as: "workspace" });
+  UserModel.hasMany(Project, { foreignKey: "ownerId", as: "projects" });
+  WorkspaceModel.hasMany(Project, { foreignKey: "workspaceId", as: "projects" });
 
   return Project;
 }

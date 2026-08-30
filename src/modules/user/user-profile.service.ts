@@ -6,9 +6,9 @@ import { Transaction } from "sequelize";
 
 import { internalError } from "../../shared/errors/app-error.js";
 
+import type { UserProfile } from "./user-profile.model.js";
 import type { PatchUserProfileBody } from "./user-profile.schema.js";
 import type { AppDatabase } from "../../db/index.js";
-import type { Model } from "sequelize";
 
 export type UserProfilePlain = {
   id: number;
@@ -29,45 +29,41 @@ export type UserProfilePlain = {
   updatedAt: string;
 };
 
-function toDateOnlyString(value: unknown): string | null {
-  if (value == null) return null;
-  if (typeof value === "string") return value;
-  if (value instanceof Date && !Number.isNaN(value.getTime())) {
-    return value.toISOString().slice(0, 10);
-  }
-  return null;
-}
+/** UserProfiles 上可被 PATCH 直接写入的字段（avatar 不在此列，它属于 Users）。 */
+const PROFILE_KEYS = [
+  "nickname",
+  "gender",
+  "birthday",
+  "bio",
+  "address",
+  "company",
+  "jobTitle",
+  "isMarried",
+  "mom",
+  "father",
+  "university",
+] as const;
 
-function toIsoTime(value: unknown): string {
-  if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString();
-  if (typeof value === "string") return value;
-  return "";
-}
+type ProfilePatch = Partial<Pick<PatchUserProfileBody, (typeof PROFILE_KEYS)[number]>>;
 
-function userAvatarFromRow(row: Model): string | null {
-  const user = row.get("user") as Model | null | undefined;
-  return user ? ((user.get("avatar") as string | null | undefined) ?? null) : null;
-}
-
-export function userProfileToPlain(row: Model): UserProfilePlain {
+export function userProfileToPlain(row: UserProfile): UserProfilePlain {
   return {
-    id: row.get("id") as number,
-    userId: row.get("userId") as number,
-    nickname: (row.get("nickname") as string | null | undefined) ?? null,
-    avatar: userAvatarFromRow(row),
-    gender: (row.get("gender") as string | null | undefined) ?? null,
-    birthday: toDateOnlyString(row.get("birthday")),
-    bio: (row.get("bio") as string | null | undefined) ?? null,
-    address: (row.get("address") as string | null | undefined) ?? null,
-    company: (row.get("company") as string | null | undefined) ?? null,
-    jobTitle: (row.get("jobTitle") as string | null | undefined) ?? null,
-    isMarried:
-      row.get("isMarried") === null || row.get("isMarried") === undefined ? null : Boolean(row.get("isMarried")),
-    mom: (row.get("mom") as string | null | undefined) ?? null,
-    father: (row.get("father") as string | null | undefined) ?? null,
-    university: (row.get("university") as string | null | undefined) ?? null,
-    createdAt: toIsoTime(row.get("createdAt")),
-    updatedAt: toIsoTime(row.get("updatedAt")),
+    id: row.id,
+    userId: row.userId,
+    nickname: row.nickname ?? null,
+    avatar: row.user?.avatar ?? null,
+    gender: row.gender ?? null,
+    birthday: row.birthday ?? null,
+    bio: row.bio ?? null,
+    address: row.address ?? null,
+    company: row.company ?? null,
+    jobTitle: row.jobTitle ?? null,
+    isMarried: row.isMarried ?? null,
+    mom: row.mom ?? null,
+    father: row.father ?? null,
+    university: row.university ?? null,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
   };
 }
 
@@ -81,24 +77,10 @@ export function createUserProfileService(database: AppDatabase) {
   }
 
   async function upsertForUser(userId: number, patch: PatchUserProfileBody) {
-    const profilePatch: Record<string, unknown> = {};
-    const profileKeys = [
-      "nickname",
-      "gender",
-      "birthday",
-      "bio",
-      "address",
-      "company",
-      "jobTitle",
-      "isMarried",
-      "mom",
-      "father",
-      "university",
-    ] as const;
-
-    for (const key of profileKeys) {
+    const profilePatch: ProfilePatch = {};
+    for (const key of PROFILE_KEYS) {
       if (patch[key] !== undefined) {
-        profilePatch[key] = patch[key];
+        Object.assign(profilePatch, { [key]: patch[key] });
       }
     }
 
@@ -117,7 +99,7 @@ export function createUserProfileService(database: AppDatabase) {
         });
 
         if (!row) {
-          await UserProfile.create({ userId, ...profilePatch } as Record<string, unknown>, { transaction });
+          await UserProfile.create({ userId, ...profilePatch }, { transaction });
         } else {
           await row.update(profilePatch, { transaction });
         }

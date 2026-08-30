@@ -12,8 +12,9 @@
   -> helmet
   -> cors
   -> requestIdMiddleware
+  -> metricsMiddleware（记录 RED 指标）
   -> httpRequestLogMiddleware
-  -> globalRateLimitMiddleware
+  -> globalRateLimitMiddleware（Redis 共享计数）
   -> compressionMiddleware
   -> express.json / express.urlencoded
   -> runtime 注入的 user.routes

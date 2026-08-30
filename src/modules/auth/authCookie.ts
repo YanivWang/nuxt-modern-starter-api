@@ -58,7 +58,14 @@ export function readCookie(req: Request, name: string): string | undefined {
     if (rawName !== name) continue;
     const rawValue = valueParts.join("=");
     if (!rawValue) return undefined;
-    return decodeURIComponent(rawValue);
+    try {
+      return decodeURIComponent(rawValue);
+    } catch {
+      // 客户端可发送任意 Cookie；畸形百分号编码会让 decodeURIComponent 抛 URIError。
+      // 该函数在认证中间件里于 token 校验之前被调用，抛错等于把畸形 Cookie 变成可用的拒绝服务手段，
+      // 因此解码失败一律按“没有这个 Cookie”处理。
+      return undefined;
+    }
   }
 
   return undefined;

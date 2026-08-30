@@ -3,6 +3,12 @@
  */
 import { z } from "zod";
 
+import { paginationQuerySchema } from "../../shared/http/pagination.js";
+
+export const listProjectsSchema = z.object({
+  query: paginationQuerySchema,
+});
+
 export const createProjectSchema = z.object({
   body: z.object({
     title: z
@@ -39,6 +45,7 @@ export const patchProjectSchema = z.object({
   body: patchProjectBodySchema,
 });
 
+export type ValidatedListProjectsSchema = z.infer<typeof listProjectsSchema>;
 export type ValidatedCreateProjectSchema = z.infer<typeof createProjectSchema>;
 export type ValidatedProjectIdParamsSchema = z.infer<typeof projectIdParamsSchema>;
 export type ValidatedPatchProjectSchema = z.infer<typeof patchProjectSchema>;

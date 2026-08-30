@@ -8,6 +8,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { finished } from "node:stream/promises";
 
+import { absPathFromPublicUploadUrl, expectedPartSize, partFileName, safeFileBase } from "./large-upload.internals.js";
 import { localFileStorage } from "./local-file-storage.adapter.js";
 import { badRequest, conflict, forbidden, gone, internalError, notFound } from "../../shared/errors/app-error.js";
 import { projectRoot } from "../../utils/projectRoot.js";
@@ -19,6 +20,8 @@ import type {
 } from "../../modules/upload/ports/large-upload-storage.port.js";
 
 const uploadsRoot = localFileStorage.root;
+
+export { partFileName } from "./large-upload.internals.js";
 
 /** 临时分片目录（相对 uploadsRoot） */
 export const LARGE_CHUNKS_TEMP_SEGMENT = "chunks-temp";
@@ -150,27 +153,8 @@ async function deleteGlobalHashRecord(md5: string): Promise<void> {
   await fs.unlink(hashIndexPath(md5)).catch(() => {});
 }
 
-function absPathFromPublicUploadUrl(publicUrl: string): string | null {
-  const u = publicUrl.trim();
-  if (!u.startsWith("/uploads/")) return null;
-  const relParts = u
-    .slice("/uploads/".length)
-    .split("/")
-    .filter((p) => p.length > 0);
-  if (relParts.length === 0 || relParts.some((p) => p === "..")) return null;
-  const abs = path.join(uploadsRoot, ...relParts);
-  const resolved = path.resolve(abs);
-  const rootResolved = path.resolve(uploadsRoot);
-  const relToRoot = path.relative(rootResolved, resolved);
-  // 秒传索引来自本地 JSON 文件，仍然要校验路径不能逃逸 uploadsRoot。
-  if (relToRoot.startsWith("..") || path.isAbsolute(relToRoot)) {
-    return null;
-  }
-  return resolved;
-}
-
 async function globalHashRecordPointsToLiveFile(rec: GlobalHashRecord): Promise<boolean> {
-  const abs = absPathFromPublicUploadUrl(rec.url);
+  const abs = absPathFromPublicUploadUrl(uploadsRoot, rec.url);
   if (!abs) return false;
   try {
     const st = await fs.stat(abs);
@@ -184,25 +168,13 @@ async function writeMetaAt(baseDir: string, meta: LargeUploadMeta): Promise<void
   await fs.writeFile(path.join(baseDir, "meta.json"), JSON.stringify(meta, null, 2), "utf8");
 }
 
-export function partFileName(chunkIndex: number): string {
-  return `part-${String(chunkIndex).padStart(6, "0")}.bin`;
-}
-
-function safeFileBase(name: string): string {
-  const base = path.basename(name).replace(/[^a-zA-Z0-9._-]/g, "_");
-  return base.length > 0 ? base.slice(0, 120) : "file";
-}
-
-function expectedPartSize(meta: LargeUploadMeta, index: number): number {
-  const { fileSize, chunkSize, chunkTotal } = meta;
-  if (index < 0 || index >= chunkTotal) {
+/** 越界下标在此转换为 400；纯计算逻辑见 large-upload.internals.ts。 */
+function requirePartSize(meta: LargeUploadMeta, index: number): number {
+  const size = expectedPartSize(meta, index);
+  if (size === null) {
     throw badRequest("分片下标越界");
   }
-  if (index === chunkTotal - 1) {
-    const full = chunkSize * (chunkTotal - 1);
-    return fileSize - full;
-  }
-  return chunkSize;
+  return size;
 }
 
 async function listValidReceivedPartIndices(meta: LargeUploadMeta, dir: string): Promise<number[]> {
@@ -373,7 +345,7 @@ export async function finalizeChunkWrite(
   if (chunkIndex >= meta.chunkTotal) {
     throw badRequest("分片下标越界");
   }
-  const want = expectedPartSize(meta, chunkIndex);
+  const want = requirePartSize(meta, chunkIndex);
   const st = await fs.stat(savedAbsPath);
   if (st.size !== want) {
     // multer 已经把文件写入磁盘，校验失败时必须主动删除，避免坏分片被后续 status/merge 误用。
@@ -436,7 +408,7 @@ export async function mergeLargeUpload(uploadId: string, userId: number) {
     const p = path.join(dir, partFileName(i));
     try {
       const st = await fs.stat(p);
-      const want = expectedPartSize(meta, i);
+      const want = requirePartSize(meta, i);
       if (st.size !== want) {
         throw conflict(`分片 ${i} 缺失或大小不正确`);
       }
@@ -549,6 +521,71 @@ export async function abortLargeUpload(uploadId: string, userId: number): Promis
   await deleteSession(uploadId);
 }
 
+/**
+ * 清理超过保留期的临时分片目录、上传会话和完成标记。
+ * 客户端上传到一半掉线时不会调用 abort，若无人清理这些分片会永久占用磁盘。
+ */
+export async function purgeStaleLargeUploads(
+  retentionHours: number,
+): Promise<{ removedUploads: number; removedSessions: number }> {
+  const cutoff = Date.now() - retentionHours * 60 * 60 * 1000;
+  let removedUploads = 0;
+  let removedSessions = 0;
+
+  const tempRoot = path.join(uploadsRoot, LARGE_CHUNKS_TEMP_SEGMENT);
+  let md5Dirs: string[];
+  try {
+    md5Dirs = await fs.readdir(tempRoot);
+  } catch {
+    md5Dirs = [];
+  }
+
+  for (const md5Dir of md5Dirs) {
+    const md5Path = path.join(tempRoot, md5Dir);
+    let uploadDirs: string[];
+    try {
+      uploadDirs = await fs.readdir(md5Path);
+    } catch {
+      continue;
+    }
+    for (const uploadId of uploadDirs) {
+      const uploadPath = path.join(md5Path, uploadId);
+      try {
+        const st = await fs.stat(uploadPath);
+        if (!st.isDirectory() || st.mtimeMs >= cutoff) continue;
+        await fs.rm(uploadPath, { recursive: true, force: true });
+        await deleteSession(uploadId);
+        removedUploads += 1;
+      } catch {
+        /* 并发清理或权限问题时跳过，下一轮再试 */
+      }
+    }
+    // 目录空了就一并移除，避免 md5 分层目录无限累积空壳。
+    await fs.rmdir(md5Path).catch(() => {});
+  }
+
+  // 会话文件可能因为进程中断而与分片目录失联，单独按时间兜底清理。
+  let sessionFiles: string[];
+  try {
+    sessionFiles = await fs.readdir(sessionsDir());
+  } catch {
+    sessionFiles = [];
+  }
+  for (const name of sessionFiles) {
+    const filePath = path.join(sessionsDir(), name);
+    try {
+      const st = await fs.stat(filePath);
+      if (st.mtimeMs >= cutoff) continue;
+      await fs.unlink(filePath);
+      removedSessions += 1;
+    } catch {
+      /* 忽略 */
+    }
+  }
+
+  return { removedUploads, removedSessions };
+}
+
 export const localLargeUploadStorage: LargeUploadStorage = {
   resolveChunkDir: syncResolveLargeUploadChunkDir,
   partFileName,
@@ -557,4 +594,5 @@ export const localLargeUploadStorage: LargeUploadStorage = {
   finalizeChunk: finalizeChunkWrite,
   merge: mergeLargeUpload,
   abort: abortLargeUpload,
+  purgeStale: purgeStaleLargeUploads,
 };

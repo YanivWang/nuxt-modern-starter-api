@@ -282,3 +282,46 @@ TRUST_PROXY=1
 - `uploads` 和 `.data` 有持久化。
 - 日志可被平台采集。
 - `pnpm run check` 在 CI 通过。
+
+## 可观测性
+
+应用在 `/metrics` 暴露 Prometheus 文本格式指标：
+
+| 指标                            | 类型      | 说明                                                             |
+| ------------------------------- | --------- | ---------------------------------------------------------------- |
+| `http_requests_total`           | Counter   | 按 `method` / `route` / `status_code` / `api_version` 统计请求数 |
+| `http_request_duration_seconds` | Histogram | 请求耗时分布，覆盖 5ms～10s                                      |
+| `nodejs_*` / `process_*`        | 多种      | prom-client 默认进程指标（内存、GC、事件循环延迟等）             |
+
+`route` 标签使用路由模板（`/projects/:projectId`）而非真实 URL。用真实 URL 会让每个 uuid 生成一条独立时间序列，很快压垮 Prometheus；未匹配到路由的请求统一标记为 `unmatched`，避免扫描器用随机路径撑爆基数。
+
+标签中**不含挂载前缀**：Express 在 router 执行结束后会还原 `req.baseUrl`，到 `res` 的 `finish` 事件时它已经是空字符串，拼接只会得到误导性的结果。版本信息改由独立的 `api_version` 标签承载，取值固定为 `v1` / `legacy` / `none`。
+
+`api_version` 的实际用途是观察存量客户端的迁移进度——`legacy` 这条 series 归零，就意味着无版本的 `/api` 别名可以下线了。
+
+**`/metrics` 不经 Nginx 网关暴露**，只在 Compose 网络内可达，应由集群内 Prometheus 直接抓取。若确需对外暴露，请自行加认证或网络隔离——指标会泄露路由结构与流量特征。
+
+建议的告警起点：
+
+- 5xx 比例：`rate(http_requests_total{status_code=~"5.."}[5m])`
+- 延迟劣化：`histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))`
+- 认证异常：日志中的 `refresh_token_replay_detected` 与 `login_lockout_triggered`
+
+## 后台清理任务
+
+进程内置定时清理（间隔 `CLEANUP_INTERVAL_MS`，默认 6 小时），处理两类只增不减的数据：
+
+- 过期或已撤销超过 `REFRESH_TOKEN_RETENTION_DAYS` 的 `UserRefreshTokens` 行。
+- 超过 `UPLOAD_TEMP_RETENTION_HOURS` 的大文件上传临时分片与会话文件。客户端上传到一半掉线不会触发 abort，这些分片若无人清理会永久占用磁盘。
+
+清理失败只记录日志、不影响在线请求，下一轮重试。定时器调用了 `unref()`，不会阻止进程优雅退出。
+
+多实例部署时每个实例都会执行清理。清理操作本身幂等，但若希望严格单点执行，应改为外部定时任务（CronJob）调用。
+
+## 进程级异常兜底
+
+`src/server.ts` 注册了 `unhandledRejection` 与 `uncaughtException` 处理器。
+
+Node 20+ 默认把未处理的 Promise rejection 视为致命错误。不接管的话，进程会直接终止，而且**连崩溃原因都不会被记录**——这正是此前一个畸形 Cookie 就能打掉实例、且日志里查不到任何线索的原因。
+
+现在的行为是：先落结构化日志，`uncaughtException` 再走优雅退出，由编排平台重新拉起。异步中间件另外统一经 `asyncMiddleware` 包装，保证 reject 进入 `next(error)` 而不是逃逸到顶层。

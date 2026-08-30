@@ -7,20 +7,35 @@ import { REQUEST_BODY_LIMIT, TRUST_PROXY, getCorsOriginOption } from "./env.js";
 import { compressionMiddleware } from "./middlewares/compression.middleware.js";
 import { errorMiddleware } from "./middlewares/error.middleware.js";
 import { httpRequestLogMiddleware } from "./middlewares/httpRequestLog.middleware.js";
-import { globalRateLimitMiddleware } from "./middlewares/rateLimit.middleware.js";
 import { requestIdMiddleware } from "./middlewares/requestId.middleware.js";
 import { notFound } from "./shared/errors/app-error.js";
 import { setupSwagger } from "./swagger.js";
 
 import type { FileStorage } from "./modules/upload/index.js";
 
+/** 当前 API 版本前缀。/api 作为无版本别名保留，供既有客户端平滑迁移。 */
+export const API_VERSION_PREFIX = "/api/v1";
+
+/** 无版本前缀别名：破坏性变更只会发生在新版本号下，老客户端不会因升级而中断。 */
+export const API_LEGACY_PREFIX = "/api";
+
 export type AppDependencies = {
   healthRoutes: Router;
+  metricsRoutes: Router;
   apiRoutes: Router[];
   fileStorage: FileStorage;
+  globalRateLimit: RequestHandler;
+  metricsMiddleware: RequestHandler;
 };
 
-export function createApp({ healthRoutes, apiRoutes, fileStorage }: AppDependencies) {
+export function createApp({
+  healthRoutes,
+  metricsRoutes,
+  apiRoutes,
+  fileStorage,
+  globalRateLimit,
+  metricsMiddleware,
+}: AppDependencies) {
   const app = express();
   const trustProxy = TRUST_PROXY;
   if (trustProxy === "1" || trustProxy?.toLowerCase() === "true") app.set("trust proxy", 1);
@@ -38,15 +53,21 @@ export function createApp({ healthRoutes, apiRoutes, fileStorage }: AppDependenc
   app.use(securityHeaders);
   app.use(cors({ origin: getCorsOriginOption(), credentials: true }));
   app.use(requestIdMiddleware);
+  app.use(metricsMiddleware);
   app.use(httpRequestLogMiddleware);
   app.use("/uploads", express.static(fileStorage.root));
   app.use(healthRoutes);
-  app.use(globalRateLimitMiddleware);
+  // /metrics 不参与限流，也不应经公网网关暴露：由集群内 Prometheus 直接抓取。
+  app.use(metricsRoutes);
+  app.use(globalRateLimit);
   app.use(compressionMiddleware);
   app.use(express.json({ limit: REQUEST_BODY_LIMIT }));
   app.use(express.urlencoded({ extended: false, limit: REQUEST_BODY_LIMIT }));
   setupSwagger(app);
-  for (const routes of apiRoutes) app.use("/api", routes);
+  for (const routes of apiRoutes) {
+    app.use(API_VERSION_PREFIX, routes);
+    app.use(API_LEGACY_PREFIX, routes);
+  }
   app.use((_req, _res, next) => next(notFound("接口不存在")));
   app.use(errorMiddleware);
   return app;

@@ -1,0 +1,12 @@
+# 文件职责：声明各目录的默认评审人。
+# 请把下面的占位符换成真实的 GitHub 用户名或团队（@org/team），否则本文件不会生效。
+
+* @YanivWang
+
+# 安全敏感区域：认证、环境变量校验与部署配置的改动应当被单独关注。
+/src/modules/auth/          @YanivWang
+/src/middlewares/           @YanivWang
+/src/env.ts                 @YanivWang
+/docker/                    @YanivWang
+/.github/                   @YanivWang
+/scripts/                   @YanivWang

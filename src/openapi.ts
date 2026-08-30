@@ -5,6 +5,7 @@
 import yaml from "js-yaml";
 import { z } from "zod";
 
+import { DEFAULT_PAGE_LIMIT, MAX_PAGE_LIMIT, paginationQuerySchema } from "./shared/http/pagination.js";
 import {
   MAX_LARGE_UPLOAD_CHUNKS,
   largeUploadIdParamsSchema,
@@ -132,8 +133,29 @@ function ok(description: string) {
   return {
     "200": jsonResponse(description, schemaRef("SuccessBody")),
     "400": jsonResponse("请求参数错误", schemaRef("ErrorBody")),
+    "429": jsonResponse("触发限流或账号锁定", schemaRef("ErrorBody")),
     "500": jsonResponse("服务器内部错误", schemaRef("ErrorBody")),
   };
+}
+
+/** 列表接口共用的分页 query 参数，与 shared/http/pagination.ts 的运行时校验同源。 */
+function paginationParams() {
+  return [
+    {
+      name: "limit",
+      in: "query",
+      required: false,
+      description: `单页条数，默认 ${DEFAULT_PAGE_LIMIT}，最大 ${MAX_PAGE_LIMIT}`,
+      schema: zodInputSchema(paginationQuerySchema.shape.limit),
+    },
+    {
+      name: "offset",
+      in: "query",
+      required: false,
+      description: "起始偏移量，默认 0",
+      schema: zodInputSchema(paginationQuerySchema.shape.offset),
+    },
+  ];
 }
 
 function uploadIdParam() {
@@ -167,7 +189,8 @@ export function generateOpenApiSpec(): OpenApiSpec {
       title: "Nuxt Modern Starter API",
       version: "1.0.0",
       description:
-        "独立 Express API 服务脚手架，覆盖健康探针、认证、当前用户与资料、公开内容（新闻/定价）、项目、文档、普通图片上传与大文件分片上传。",
+        "独立 Express API 服务脚手架，覆盖健康探针、认证、当前用户与资料、公开内容（新闻/定价）、项目、文档、普通图片上传与大文件分片上传。" +
+        " 所有业务接口的正式路径带 /api/v1 前缀；无版本的 /api 前缀作为兼容别名保留，指向同一实现，新客户端请使用 /api/v1。",
     },
     servers: [
       { url: "http://127.0.0.1:3000", description: "本地 API 服务" },
@@ -252,7 +275,7 @@ export function generateOpenApiSpec(): OpenApiSpec {
           },
         },
       },
-      "/api/register": {
+      "/api/v1/register": {
         post: {
           tags: ["认证"],
           summary: "注册用户",
@@ -260,7 +283,7 @@ export function generateOpenApiSpec(): OpenApiSpec {
           responses: ok("注册成功"),
         },
       },
-      "/api/login": {
+      "/api/v1/login": {
         post: {
           tags: ["认证"],
           summary: "用户登录",
@@ -268,7 +291,7 @@ export function generateOpenApiSpec(): OpenApiSpec {
           responses: ok("登录成功，返回 accessToken、refreshToken，并写入 httpOnly cookie"),
         },
       },
-      "/api/refresh": {
+      "/api/v1/refresh": {
         post: {
           tags: ["认证"],
           summary: "刷新 access token 并轮换 refresh token",
@@ -276,7 +299,7 @@ export function generateOpenApiSpec(): OpenApiSpec {
           responses: ok("刷新成功，返回新的 accessToken、refreshToken，并写入 httpOnly cookie"),
         },
       },
-      "/api/logout": {
+      "/api/v1/logout": {
         post: {
           tags: ["认证"],
           summary: "退出登录",
@@ -285,7 +308,7 @@ export function generateOpenApiSpec(): OpenApiSpec {
           responses: ok("退出登录成功"),
         },
       },
-      "/api/me": {
+      "/api/v1/me": {
         get: {
           tags: ["当前用户"],
           summary: "获取当前用户",
@@ -293,7 +316,7 @@ export function generateOpenApiSpec(): OpenApiSpec {
           responses: ok("当前用户基础资料"),
         },
       },
-      "/api/me/profile": {
+      "/api/v1/me/profile": {
         get: {
           tags: ["当前用户"],
           summary: "获取当前用户扩展资料",
@@ -308,7 +331,7 @@ export function generateOpenApiSpec(): OpenApiSpec {
           responses: ok("更新当前用户扩展资料"),
         },
       },
-      "/api/content/news": {
+      "/api/v1/content/news": {
         get: {
           tags: ["公开内容"],
           summary: "获取新闻列表",
@@ -330,7 +353,7 @@ export function generateOpenApiSpec(): OpenApiSpec {
           responses: ok("创建新闻"),
         },
       },
-      "/api/content/pricing": {
+      "/api/v1/content/pricing": {
         get: {
           tags: ["公开内容"],
           summary: "获取定价页内容",
@@ -345,7 +368,7 @@ export function generateOpenApiSpec(): OpenApiSpec {
           responses: ok("本地化定价页内容"),
         },
       },
-      "/api/content/news/{slug}": {
+      "/api/v1/content/news/{slug}": {
         get: {
           tags: ["公开内容"],
           summary: "获取新闻详情",
@@ -395,12 +418,13 @@ export function generateOpenApiSpec(): OpenApiSpec {
           responses: ok("删除新闻"),
         },
       },
-      "/api/projects": {
+      "/api/v1/projects": {
         get: {
           tags: ["项目"],
-          summary: "获取当前用户项目列表",
+          summary: "获取当前用户项目列表（分页）",
           security: bearerAuth(),
-          responses: ok("当前用户项目列表"),
+          parameters: paginationParams(),
+          responses: ok("当前用户项目列表，data 含 projects 与 pagination"),
         },
         post: {
           tags: ["项目"],
@@ -410,7 +434,7 @@ export function generateOpenApiSpec(): OpenApiSpec {
           responses: ok("创建项目成功"),
         },
       },
-      "/api/projects/{projectId}": {
+      "/api/v1/projects/{projectId}": {
         get: {
           tags: ["项目"],
           summary: "获取当前用户项目详情",
@@ -455,7 +479,7 @@ export function generateOpenApiSpec(): OpenApiSpec {
           responses: ok("删除项目成功"),
         },
       },
-      "/api/documents/{documentId}": {
+      "/api/v1/documents/{documentId}": {
         get: {
           tags: ["文档"],
           summary: "获取当前用户文档",
@@ -486,7 +510,7 @@ export function generateOpenApiSpec(): OpenApiSpec {
           responses: ok("保存文档成功"),
         },
       },
-      "/api/uploads": {
+      "/api/v1/uploads": {
         post: {
           tags: ["上传"],
           summary: "上传通用图片",
@@ -495,7 +519,7 @@ export function generateOpenApiSpec(): OpenApiSpec {
           responses: ok("上传通用图片，返回 /uploads/common/... URL"),
         },
       },
-      "/api/uploads/profiles": {
+      "/api/v1/uploads/profiles": {
         post: {
           tags: ["上传"],
           summary: "上传用户头像/资料图",
@@ -504,7 +528,7 @@ export function generateOpenApiSpec(): OpenApiSpec {
           responses: ok("上传用户头像/资料图"),
         },
       },
-      "/api/uploads/large/init": {
+      "/api/v1/uploads/large/init": {
         post: {
           tags: ["上传"],
           summary: "创建大文件分片上传任务",
@@ -513,7 +537,7 @@ export function generateOpenApiSpec(): OpenApiSpec {
           responses: ok("创建大文件分片上传任务或秒传"),
         },
       },
-      "/api/uploads/large/{uploadId}/status": {
+      "/api/v1/uploads/large/{uploadId}/status": {
         get: {
           tags: ["上传"],
           summary: "查询大文件上传状态",
@@ -522,7 +546,7 @@ export function generateOpenApiSpec(): OpenApiSpec {
           responses: ok("查询上传状态"),
         },
       },
-      "/api/uploads/large/{uploadId}/chunks/{chunkIndex}": {
+      "/api/v1/uploads/large/{uploadId}/chunks/{chunkIndex}": {
         put: {
           tags: ["上传"],
           summary: "上传大文件分片",
@@ -541,7 +565,7 @@ export function generateOpenApiSpec(): OpenApiSpec {
           responses: ok("分片已接收"),
         },
       },
-      "/api/uploads/large/{uploadId}/merge": {
+      "/api/v1/uploads/large/{uploadId}/merge": {
         post: {
           tags: ["上传"],
           summary: "合并大文件分片",
@@ -550,7 +574,7 @@ export function generateOpenApiSpec(): OpenApiSpec {
           responses: ok("合并完成"),
         },
       },
-      "/api/uploads/large/{uploadId}": {
+      "/api/v1/uploads/large/{uploadId}": {
         delete: {
           tags: ["上传"],
           summary: "取消大文件上传任务",

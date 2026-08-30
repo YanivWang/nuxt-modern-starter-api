@@ -5,7 +5,6 @@ ARG NODE_IMAGE=node:22-bookworm-slim
 
 FROM ${NODE_IMAGE} AS base
 WORKDIR /app
-ENV HUSKY=0
 ARG PNPM_VERSION
 ARG NPM_REGISTRY=
 RUN if [ -n "$NPM_REGISTRY" ]; then npm config set registry "$NPM_REGISTRY"; fi \

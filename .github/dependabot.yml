@@ -1,0 +1,34 @@
+# 文件职责：依赖与基础镜像的自动更新策略。
+# 安全补丁的价值取决于被应用的速度；没有自动化时，升级往往等到出事才发生。
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      # 开发依赖合并成一个 PR，避免每周淹没评审队列。
+      dev-dependencies:
+        dependency-type: development
+      # 类型定义包同理，通常随主包一起升级。
+      types:
+        patterns:
+          - "@types/*"
+    labels:
+      - dependencies
+
+  - package-ecosystem: docker
+    directory: /docker
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
+      - docker
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    labels:
+      - dependencies

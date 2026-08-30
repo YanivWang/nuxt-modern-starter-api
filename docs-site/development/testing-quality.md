@@ -417,3 +417,17 @@ pnpm openapi:generate
 - Redis 是否启动。
 - `.env.test` 中连接信息是否匹配本地服务。
 - 测试数据库是否能创建表。
+
+## 覆盖率门禁
+
+单元测试带覆盖率阈值，配置在 `vitest.config.ts`，通过 `pnpm test:coverage` 执行，并已接入 `pnpm run check`。
+
+统计范围只包含单元测试真正应当覆盖的纯逻辑（`shared/`、`utils/`、各模块 `*.service.ts`、Cookie 解析、上传纯逻辑、revalidator）。路由装配、模型定义和组合根由集成测试保证，把它们计入分母只会让阈值失去指导意义。`src/utils/logger.ts` 被显式排除——它是 winston transport 装配，在 import 期执行，对它做覆盖率要求只会催生无意义的测试。
+
+阈值的定位是**防回退**，不是追求数字。约定是只升不降：补完测试后如果实测值明显高出当前阈值，请顺手把阈值上调。
+
+## 测试环境的 bcrypt 代价
+
+`.env.test` 把 `BCRYPT_ROUNDS` 设为允许范围内的最低值 10。哈希强度不是集成测试要验证的东西，而按生产代价（12）运行会让每次注册登录多花数百毫秒，把断言压到超时。
+
+集成测试的 `testTimeout` 设为 30 秒：它们要走真实 MySQL、Redis 和 bcrypt，默认 5 秒不足以覆盖多次注册登录的用例。

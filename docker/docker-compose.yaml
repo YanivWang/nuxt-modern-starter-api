@@ -1,5 +1,6 @@
 # 文件职责：生产环境 Compose 覆盖配置。
 # 为 MySQL、Redis、uploads 和 .data 配置持久化卷，并通过 Nginx 网关暴露唯一外部入口。
+# 注意：api 的 /metrics 只在 Compose 网络内可达，网关不代理该路径——指标不应对公网暴露。
 name: nuxt-modern-starter-api-prod
 
 services:
@@ -44,6 +45,12 @@ services:
       DB_NAME: ${DB_NAME:?Set DB_NAME in .env.production}
       DB_USER: ${DB_USER:?Set DB_USER in .env.production}
       DB_PWD: ${DB_PWD:?Set DB_PWD in .env.production}
+      BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-12}
+      LOGIN_MAX_FAILED_ATTEMPTS: ${LOGIN_MAX_FAILED_ATTEMPTS:-10}
+      LOGIN_LOCKOUT_SECONDS: ${LOGIN_LOCKOUT_SECONDS:-900}
+      REFRESH_TOKEN_RETENTION_DAYS: ${REFRESH_TOKEN_RETENTION_DAYS:-7}
+      UPLOAD_TEMP_RETENTION_HOURS: ${UPLOAD_TEMP_RETENTION_HOURS:-24}
+      CLEANUP_INTERVAL_MS: ${CLEANUP_INTERVAL_MS:-21600000}
     volumes:
       - app_uploads:/app/uploads
       - app_data:/app/.data
