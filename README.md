@@ -2,7 +2,7 @@
 
 独立 Express API 服务脚手架，保留普通 Web App 后端常用能力：auth、user、content（公开新闻/定价）、workspace、document、health、metrics、Swagger、MySQL、Redis、JWT access/refresh token、文件上传、分片上传和 Docker 部署。
 
-业务接口的正式路径带 `/api/v1` 前缀；无版本的 `/api` 作为兼容别名指向同一实现，供存量客户端平滑迁移。
+业务接口只在 `/api/v1` 前缀下提供。无版本的 `/api` 别名已下线，破坏性变更只通过抬版本号（`/api/v2`）发布。
 
 ## 快速开始
 
@@ -75,7 +75,7 @@ server.ts
   -> helmet / cors / requestId / metrics / HTTP log
   -> /uploads 静态资源、/health /ready 探针、/metrics 指标
   -> rate limit（Redis 共享计数）/ compression / body parser / Swagger
-  -> /api/v1（及兼容别名 /api）auth / content / user / workspace / document / upload 路由
+  -> /api/v1 auth / content / user / workspace / document / upload 路由
   -> 404 / errorMiddleware
 ```
 

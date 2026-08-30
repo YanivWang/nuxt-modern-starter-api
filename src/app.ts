@@ -13,11 +13,15 @@ import { setupSwagger } from "./swagger.js";
 
 import type { FileStorage } from "./modules/upload/index.js";
 
-/** 当前 API 版本前缀。/api 作为无版本别名保留，供既有客户端平滑迁移。 */
+/**
+ * 当前 API 版本前缀，业务接口的唯一入口。
+ *
+ * 曾经并行挂载过无版本别名 /api 供存量客户端过渡，现已下线：
+ * 同一实现挂两个前缀会让「哪条路径是契约」变得含糊，OpenAPI 文档、
+ * 集成测试与前端 adapter 也要各自维护两套说法。破坏性变更改为只通过
+ * 抬版本号（/api/v2）发布。
+ */
 export const API_VERSION_PREFIX = "/api/v1";
-
-/** 无版本前缀别名：破坏性变更只会发生在新版本号下，老客户端不会因升级而中断。 */
-export const API_LEGACY_PREFIX = "/api";
 
 export type AppDependencies = {
   healthRoutes: Router;
@@ -66,7 +70,6 @@ export function createApp({
   setupSwagger(app);
   for (const routes of apiRoutes) {
     app.use(API_VERSION_PREFIX, routes);
-    app.use(API_LEGACY_PREFIX, routes);
   }
   app.use((_req, _res, next) => next(notFound("接口不存在")));
   app.use(errorMiddleware);

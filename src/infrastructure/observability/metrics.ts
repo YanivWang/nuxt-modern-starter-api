@@ -31,8 +31,10 @@ function routeLabel(req: Request): string {
 
 /**
  * 请求命中的 API 版本前缀，取值固定为 v1 / legacy / none，基数有界。
- * 业务路由同时挂在 /api/v1 与兼容别名 /api 上，这个标签用来观察存量客户端的迁移进度——
- * legacy series 归零就意味着别名可以下线了。
+ *
+ * 无版本别名 /api 已下线，业务路由只挂在 /api/v1 上。legacy 这一档因此不再表示
+ * 「迁移进度」，而是「仍在打已下线路径的客户端」：正常情况下应恒为 0，
+ * 一旦非 0 就说明有调用方没跟上版本，且它们现在拿到的是 404。
  */
 function apiVersionLabel(req: Request): string {
   const url = req.originalUrl;

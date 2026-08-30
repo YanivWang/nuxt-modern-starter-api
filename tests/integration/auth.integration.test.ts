@@ -9,7 +9,7 @@ import request from "supertest";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { JWT_SECRET } from "../../src/env.js";
-import { createTestRuntime } from "./support/test-runtime.js";
+import { createTestRuntime, resetRedisState } from "./support/test-runtime.js";
 
 import type { AppRuntime } from "../../src/runtime.js";
 import type { Express } from "express";
@@ -33,8 +33,8 @@ async function cleanDatabase() {
 }
 
 async function registerAndLogin(username = uniqueUsername(), password = "password123") {
-  await request(app).post("/api/register").send({ username, password }).expect(200);
-  const loginRes = await request(app).post("/api/login").send({ username, password }).expect(200);
+  await request(app).post("/api/v1/register").send({ username, password }).expect(200);
+  const loginRes = await request(app).post("/api/v1/login").send({ username, password }).expect(200);
   const rawSetCookie = loginRes.headers["set-cookie"];
   return {
     username,
@@ -50,6 +50,8 @@ describe("auth and current user API", () => {
     runtime = createTestRuntime();
     app = runtime.app;
     await runtime.connect();
+    // 限流 / 登录失败计数 / JWT 黑名单都带 TTL 存在 Redis 里，不清理会跨运行残留
+    await resetRedisState(runtime);
   });
 
   beforeEach(async () => {
@@ -65,9 +67,9 @@ describe("auth and current user API", () => {
     const username = uniqueUsername();
     const password = "password123";
 
-    await request(app).post("/api/register").send({ username, password }).expect(200);
+    await request(app).post("/api/v1/register").send({ username, password }).expect(200);
 
-    const duplicateRes = await request(app).post("/api/register").send({ username, password }).expect(409);
+    const duplicateRes = await request(app).post("/api/v1/register").send({ username, password }).expect(409);
     expect(duplicateRes.body).toMatchObject({
       code: 409,
       message: "用户名已存在",
@@ -81,7 +83,7 @@ describe("auth and current user API", () => {
     expect(accessToken).toEqual(expect.any(String));
     expect(refreshToken).toEqual(expect.any(String));
 
-    const meRes = await request(app).get("/api/me").set("Authorization", `Bearer ${accessToken}`).expect(200);
+    const meRes = await request(app).get("/api/v1/me").set("Authorization", `Bearer ${accessToken}`).expect(200);
     expect(meRes.body.data.user).toMatchObject({
       username,
       avatar: null,
@@ -98,7 +100,7 @@ describe("auth and current user API", () => {
     expect(setCookie?.some((cookie) => cookie.startsWith("csrf_token=") && !cookie.includes("HttpOnly"))).toBe(true);
 
     const meRes = await request(app)
-      .get("/api/me")
+      .get("/api/v1/me")
       .set("Cookie", setCookie ?? [])
       .expect(200);
     expect(meRes.body.data.user).toMatchObject({ username });
@@ -111,13 +113,13 @@ describe("auth and current user API", () => {
     expect(csrfToken).toEqual(expect.any(String));
 
     await request(app)
-      .post("/api/logout")
+      .post("/api/v1/logout")
       .set("Cookie", setCookie ?? [])
       .send({ refreshToken })
       .expect(403);
 
     await request(app)
-      .post("/api/logout")
+      .post("/api/v1/logout")
       .set("Cookie", setCookie ?? [])
       .set("X-CSRF-Token", csrfToken ?? "")
       .send({ refreshToken })
@@ -127,16 +129,16 @@ describe("auth and current user API", () => {
   it("rotates refresh tokens and rejects reused refresh tokens", async () => {
     const { refreshToken, username } = await registerAndLogin();
 
-    const refreshRes = await request(app).post("/api/refresh").send({ refreshToken }).expect(200);
+    const refreshRes = await request(app).post("/api/v1/refresh").send({ refreshToken }).expect(200);
 
     expect(refreshRes.body.data.accessToken).toEqual(expect.any(String));
     expect(refreshRes.body.data.refreshToken).toEqual(expect.any(String));
     expect(refreshRes.body.data.refreshToken).not.toBe(refreshToken);
 
-    await request(app).post("/api/refresh").send({ refreshToken }).expect(401);
+    await request(app).post("/api/v1/refresh").send({ refreshToken }).expect(401);
 
     const meRes = await request(app)
-      .get("/api/me")
+      .get("/api/v1/me")
       .set("Authorization", `Bearer ${refreshRes.body.data.accessToken as string}`)
       .expect(200);
     expect(meRes.body.data.user).toMatchObject({ username });
@@ -146,14 +148,14 @@ describe("auth and current user API", () => {
     const { refreshToken: tokenA } = await registerAndLogin();
 
     // 正常轮换：A -> B
-    const rotated = await request(app).post("/api/refresh").send({ refreshToken: tokenA }).expect(200);
+    const rotated = await request(app).post("/api/v1/refresh").send({ refreshToken: tokenA }).expect(200);
     const tokenB = rotated.body.data.refreshToken as string;
 
     // 重放已被使用的 A，说明 A 已泄露。
-    await request(app).post("/api/refresh").send({ refreshToken: tokenA }).expect(401);
+    await request(app).post("/api/v1/refresh").send({ refreshToken: tokenA }).expect(401);
 
     // 关键断言：攻击者此前换到的 B 也必须失效，而不是继续可用。
-    await request(app).post("/api/refresh").send({ refreshToken: tokenB }).expect(401);
+    await request(app).post("/api/v1/refresh").send({ refreshToken: tokenB }).expect(401);
   });
 
   it("allows logout with an expired access token so a compromised session can still be revoked", async () => {
@@ -164,13 +166,13 @@ describe("auth and current user API", () => {
     });
 
     await request(app)
-      .post("/api/logout")
+      .post("/api/v1/logout")
       .set("Authorization", `Bearer ${expiredAccessToken}`)
       .send({ refreshToken })
       .expect(200);
 
     // 登出后 refresh token 必须已被撤销。
-    await request(app).post("/api/refresh").send({ refreshToken }).expect(401);
+    await request(app).post("/api/v1/refresh").send({ refreshToken }).expect(401);
   });
 
   it("rejects a logout attempt whose token signature is invalid, even when expired", async () => {
@@ -179,7 +181,7 @@ describe("auth and current user API", () => {
       jwtid: randomUUID(),
     });
 
-    await request(app).post("/api/logout").set("Authorization", `Bearer ${forged}`).send({}).expect(401);
+    await request(app).post("/api/v1/logout").set("Authorization", `Bearer ${forged}`).send({}).expect(401);
   });
 
   it.each(["%", "%zz", "abc%"])(
@@ -187,7 +189,7 @@ describe("auth and current user API", () => {
     async (malformed) => {
       // 该输入曾让认证中间件抛出 URIError，并因 Express 4 不捕获中间件的 Promise reject 而终止进程。
       const res = await request(app)
-        .get("/api/me")
+        .get("/api/v1/me")
         .set("Cookie", [`access_token=${malformed}`])
         .expect(401);
       expect(res.body.code).toBe(401);
@@ -197,25 +199,26 @@ describe("auth and current user API", () => {
     },
   );
 
-  it("serves the same resource under /api/v1 and the legacy /api prefix", async () => {
+  it("serves business routes only under /api/v1 and 404s the retired /api alias", async () => {
     const { accessToken } = await registerAndLogin();
 
-    const versioned = await request(app).get("/api/v1/me").set("Authorization", `Bearer ${accessToken}`).expect(200);
-    const legacy = await request(app).get("/api/me").set("Authorization", `Bearer ${accessToken}`).expect(200);
+    await request(app).get("/api/v1/me").set("Authorization", `Bearer ${accessToken}`).expect(200);
 
-    expect(versioned.body.data.user).toEqual(legacy.body.data.user);
+    // 无版本别名已下线：带合法令牌也必须是 404，而不是静默回退到同一实现。
+    // 这条断言防止别名在后续重构中被无意重新挂上。
+    await request(app).get("/api/me").set("Authorization", `Bearer ${accessToken}`).expect(404);
   });
 
   it("rejects registration passwords below the minimum length but still accepts them at login", async () => {
     const username = uniqueUsername();
-    await request(app).post("/api/register").send({ username, password: "short7" }).expect(400);
+    await request(app).post("/api/v1/register").send({ username, password: "short7" }).expect(400);
 
     // 登录侧不复用注册的长度下限，否则提高强度要求会把存量短密码用户锁在门外。
-    await request(app).post("/api/login").send({ username, password: "short7" }).expect(401);
+    await request(app).post("/api/v1/login").send({ username, password: "short7" }).expect(401);
   });
 
   it("rejects current user requests without a token", async () => {
-    const res = await request(app).get("/api/me").expect(401);
+    const res = await request(app).get("/api/v1/me").expect(401);
 
     expect(res.body).toMatchObject({
       code: 401,
@@ -228,14 +231,14 @@ describe("auth and current user API", () => {
     const { accessToken, refreshToken } = await registerAndLogin();
 
     await request(app)
-      .post("/api/logout")
+      .post("/api/v1/logout")
       .set("Authorization", `Bearer ${accessToken}`)
       .send({ refreshToken })
       .expect(200);
 
-    const res = await request(app).get("/api/me").set("Authorization", `Bearer ${accessToken}`).expect(401);
+    const res = await request(app).get("/api/v1/me").set("Authorization", `Bearer ${accessToken}`).expect(401);
     expect(res.body.code).toBe(401);
 
-    await request(app).post("/api/refresh").send({ refreshToken }).expect(401);
+    await request(app).post("/api/v1/refresh").send({ refreshToken }).expect(401);
   });
 });

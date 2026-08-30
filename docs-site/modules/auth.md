@@ -286,7 +286,7 @@ POST /api/logout
 - `/api/v1/uploads/large/*`
 - `POST/PATCH/DELETE /api/v1/content/news`（新闻写操作）
 
-（以上路径同样可通过无版本的 `/api` 兼容别名访问。）
+（业务接口只在 `/api/v1` 下提供；无版本的 `/api` 别名已下线，访问会得到 404。）
 
 它会：
 
