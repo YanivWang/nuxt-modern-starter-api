@@ -219,18 +219,23 @@ describe("API response contract", () => {
     expectMatchesContract(nullDataEnvelopeSchema, deleteRes.body, "DELETE /content/news/{slug}");
   });
 
-  it("matches the image upload contract", async () => {
+  // 通用图片与头像图片共用 ImageUploadResult，但落盘目录段不同；
+  // 只跑其中一个的话，另一个端点的响应形状实际从未被真实响应验证过。
+  it.each([
+    ["/api/v1/uploads", "POST /uploads"],
+    ["/api/v1/uploads/profiles", "POST /uploads/profiles"],
+  ])("matches the image upload contract on %s", async (endpoint, label) => {
     const { accessToken } = await registerAndLogin();
 
     // multer 只按 mimetype 白名单过滤，内容本身不参与判定，因此这里用最小的合法 PNG 头即可
     const png = Buffer.from("89504e470d0a1a0a", "hex");
     const res = await request(app)
-      .post("/api/v1/uploads")
+      .post(endpoint)
       .set("Authorization", `Bearer ${accessToken}`)
       .attach("files", png, { filename: "contract.png", contentType: "image/png" })
       .expect(200);
 
-    expectMatchesContract(imageUploadEnvelopeSchema, res.body, "POST /uploads");
+    expectMatchesContract(imageUploadEnvelopeSchema, res.body, label);
 
     for (const url of res.body.data.urls as string[]) {
       createdFiles.push(path.join(projectRoot, "uploads", url.replace(/^\/uploads\//, "")));
