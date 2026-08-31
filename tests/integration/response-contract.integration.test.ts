@@ -124,8 +124,9 @@ describe("API response contract", () => {
 
   afterAll(async () => {
     await cleanDatabase().catch(() => {});
-    for (const file of createdFiles) {
-      await fs.rm(file, { force: true }).catch(() => {});
+    // recursive：createdFiles 里既有落盘文件，也有 chunks-temp 下的目录
+    for (const target of createdFiles) {
+      await fs.rm(target, { recursive: true, force: true }).catch(() => {});
     }
     await stopTestServer(server);
     await runtime.disconnect();
@@ -334,6 +335,9 @@ describe("API response contract", () => {
       path.join(projectRoot, "uploads", publicUrl.replace(/^\/uploads\//, "")),
       path.join(projectRoot, ".data", "large-upload-done", `${uploadId}.json`),
       path.join(projectRoot, ".data", "large-upload-hash-index", `${fileMd5}.json`),
+      // merge 与 abort 只删到 chunks-temp/<md5>/<uploadId> 这一层，<md5>/ 空壳会留下。
+      // 生产环境由 purgeStaleLargeUploads 的 rmdir 回收，但测试不能指望那个周期任务。
+      path.join(projectRoot, "uploads", "chunks-temp", fileMd5),
     );
 
     // 合并完成后临时目录已删，status 走的是 done marker 分支——字段与上面那次并不相同
@@ -352,6 +356,8 @@ describe("API response contract", () => {
 
     // 取消一个全新的任务：它返回空对象而不是 null，这条也在契约里
     const otherContent = randomBytes(chunkSize);
+    const otherMd5 = createHash("md5").update(otherContent).digest("hex");
+    createdFiles.push(path.join(projectRoot, "uploads", "chunks-temp", otherMd5));
     const otherInit = await request(server)
       .post("/api/v1/uploads/large/init")
       .set(auth)
@@ -359,7 +365,7 @@ describe("API response contract", () => {
         fileName: "contract-abort.bin",
         fileSize: otherContent.length,
         chunkSize,
-        fileMd5: createHash("md5").update(otherContent).digest("hex"),
+        fileMd5: otherMd5,
       })
       .expect(200);
 

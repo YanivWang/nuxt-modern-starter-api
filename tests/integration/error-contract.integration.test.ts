@@ -23,6 +23,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createTestRuntime, resetRedisState, startTestServer, stopTestServer } from "./support/test-runtime.js";
 import { generateOpenApiSpec } from "../../src/openapi.js";
+import { projectRoot } from "../../src/utils/projectRoot.js";
 import { errorEnvelopeSchema } from "../../src/shared/http/api-envelope.js";
 import { localFileStorage } from "../../src/infrastructure/storage/local-file-storage.adapter.js";
 import { LARGE_CHUNKS_TEMP_SEGMENT } from "../../src/infrastructure/storage/local-large-upload.adapter.js";
@@ -41,7 +42,14 @@ const ENDPOINT_SPECIFIC = ["401", "403", "404", "409", "410"];
 /** 已经用真实请求触发过的 `${endpoint} ${status}`。 */
 const provoked = new Set<string>();
 
-const createdDirs: string[] = [];
+/**
+ * 大文件用例留下的落盘产物，afterAll 逐个删除。
+ *
+ * 一次 init 会写两处：uploads/chunks-temp 下的分片目录，和 .data 下的会话文件。
+ * 这里的用例大多故意停在错误分支上，走不到 merge/abort（那两个才会自己清理），
+ * 所以两处都必须显式登记 —— 只删目录的话，.data 会随着每轮测试单调增长。
+ */
+const createdPaths: string[] = [];
 
 const UNKNOWN_UUID = "00000000-0000-4000-8000-000000000000";
 const CHUNK_SIZE = 1024 * 1024;
@@ -118,7 +126,13 @@ async function initUpload(accessToken: string, chunkTotal = 1) {
     .expect(200);
 
   const uploadId = response.body.data.uploadId as string;
-  createdDirs.push(path.join(localFileStorage.root, LARGE_CHUNKS_TEMP_SEGMENT, fileMd5));
+  createdPaths.push(
+    path.join(localFileStorage.root, LARGE_CHUNKS_TEMP_SEGMENT, fileMd5),
+    path.join(projectRoot, ".data", "large-upload-sessions", `${uploadId}.json`),
+    // 后两处只有走到 merge 才会产生；一并登记，免得将来补了 merge 用例又漏掉
+    path.join(projectRoot, ".data", "large-upload-done", `${uploadId}.json`),
+    path.join(projectRoot, ".data", "large-upload-hash-index", `${fileMd5}.json`),
+  );
 
   return { uploadId, fileMd5, content };
 }
@@ -144,8 +158,8 @@ describe("API error contract", () => {
     await UserRefreshToken.destroy({ where: {} }).catch(() => {});
     await UserProfile.destroy({ where: {} }).catch(() => {});
     await User.destroy({ where: {} }).catch(() => {});
-    for (const dir of createdDirs) {
-      await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
+    for (const target of createdPaths) {
+      await fs.rm(target, { recursive: true, force: true }).catch(() => {});
     }
     await stopTestServer(server);
     await runtime.disconnect();
