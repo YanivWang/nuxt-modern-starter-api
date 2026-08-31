@@ -10,9 +10,9 @@
  * 少字段/类型不符由 parse 抛出；多字段由「parse 后与原始 body 相等」兜住——
  * z.object 会静默剥掉未声明的键，不比对的话 OpenAPI 里的 additionalProperties: false 等于没写。
  *
- * 错误响应同样要校验，而且要多校验一件事：这个状态码在契约里声明过没有。
- * 此前所有端点统一只声明 400/429/500，而 401/403/404/409 早就实实在在地返回着——
- * 照着契约写客户端的人会以为 GET /projects/{projectId} 永远不会 404。
+ * 端点特有的错误状态码（401/403/404/409/410）由 error-contract.integration.test.ts
+ * 统一覆盖，那里还会反向校验「契约声明的每个状态码都必须能被真的触发」。
+ * 这里只保留一条 400：它来自全局 validate 中间件，挑一个代表性端点验证即可。
  */
 import { createHash, randomBytes } from "node:crypto";
 import fs from "node:fs/promises";
@@ -111,17 +111,6 @@ async function registerAndLogin() {
     refreshToken: loginRes.body.data.refreshToken as string,
   };
 }
-
-/**
- * 错误路径用例：每条都断言「真实状态码 == 期望」「响应体符合 ErrorBody」
- * 「这个状态码在契约里声明过」。第三条才是关键——它让契约里的错误列表由真实行为反证，
- * 而不是一份写完就没人再看的清单。
- */
-type ErrorCase = {
-  endpoint: string;
-  status: number;
-  run: (auth: { accessToken: string }) => Promise<{ status: number; body: unknown }>;
-};
 
 describe("API response contract", () => {
   beforeAll(async () => {
@@ -270,90 +259,21 @@ describe("API response contract", () => {
     }
   });
 
-  it("returns declared error statuses with the declared error body", async () => {
+  it("rejects an unknown profile field with 400 instead of ignoring it", async () => {
     const { accessToken } = await registerAndLogin();
-    const auth = { Authorization: `Bearer ${accessToken}` };
-    const unknownId = "00000000-0000-4000-8000-000000000000";
 
-    // 先造一个真实存在的项目与新闻，供「重复创建」类冲突用例使用
-    const takenUser = uniqueUsername();
-    await request(app).post("/api/v1/register").send({ username: takenUser, password: "password123" }).expect(200);
-    const takenSlug = `conflict-${Date.now()}`;
-    await request(app)
-      .post("/api/v1/content/news")
-      .set(auth)
-      .send({
-        slug: takenSlug,
-        title: { "zh-CN": "冲突", "en-US": "Conflict" },
-        description: { "zh-CN": "冲突", "en-US": "Conflict" },
-        body: { "zh-CN": ["段落"], "en-US": ["Paragraph"] },
-        publishedAt: "2026-08-31",
-      })
-      .expect(201);
+    // 后端 body schema 是 strict 的：未知字段返回 400 而不是被忽略。
+    // 前端 UpdateProfilePayload 收敛到可写字段正是因为这条。
+    // 端点特有的 401/403/404/409/410 由 error-contract.integration.test.ts 统一覆盖，
+    // 400 来自全局 validate 中间件，在这里挑一个代表性端点验证即可。
+    const response = await request(app)
+      .patch("/api/v1/me/profile")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({ notAProfileField: 1 })
+      .expect(400);
 
-    const cases: ErrorCase[] = [
-      {
-        endpoint: "GET /api/v1/me",
-        status: 401,
-        run: () => request(app).get("/api/v1/me"),
-      },
-      {
-        endpoint: "POST /api/v1/register",
-        status: 409,
-        run: () => request(app).post("/api/v1/register").send({ username: takenUser, password: "password123" }),
-      },
-      {
-        endpoint: "PATCH /api/v1/me/profile",
-        status: 400,
-        // 后端 body schema 是 strict 的：未知字段返回 400 而不是被忽略。
-        // 前端 UpdateProfilePayload 收敛到可写字段正是因为这条。
-        run: () => request(app).patch("/api/v1/me/profile").set(auth).send({ notAProfileField: 1 }),
-      },
-      {
-        endpoint: "GET /api/v1/projects/{projectId}",
-        status: 404,
-        run: () => request(app).get(`/api/v1/projects/${unknownId}`).set(auth),
-      },
-      {
-        endpoint: "GET /api/v1/documents/{documentId}",
-        status: 404,
-        run: () => request(app).get(`/api/v1/documents/${unknownId}`).set(auth),
-      },
-      {
-        endpoint: "GET /api/v1/content/news/{slug}",
-        status: 404,
-        run: () => request(app).get("/api/v1/content/news/no-such-article"),
-      },
-      {
-        endpoint: "POST /api/v1/content/news",
-        status: 409,
-        run: () =>
-          request(app)
-            .post("/api/v1/content/news")
-            .set(auth)
-            .send({
-              slug: takenSlug,
-              title: { "zh-CN": "冲突", "en-US": "Conflict" },
-              description: { "zh-CN": "冲突", "en-US": "Conflict" },
-              body: { "zh-CN": ["段落"], "en-US": ["Paragraph"] },
-              publishedAt: "2026-08-31",
-            }),
-      },
-      {
-        endpoint: "GET /api/v1/uploads/large/{uploadId}/status",
-        status: 404,
-        run: () => request(app).get(`/api/v1/uploads/large/${unknownId}/status`).set(auth),
-      },
-    ];
-
-    for (const item of cases) {
-      const response = await item.run({ accessToken });
-      const label = `${item.endpoint} → ${item.status}`;
-
-      expect(response.status, `${label}：真实状态码与预期不符`).toBe(item.status);
-      expectMatchesContract(errorEnvelopeSchema, response.body, label);
-      expect(declaredStatuses(item.endpoint), `${label}：契约里没有声明这个状态码`).toContain(String(item.status));
-    }
+    expectMatchesContract(errorEnvelopeSchema, response.body, "PATCH /me/profile → 400");
+    expect(declaredStatuses("PATCH /api/v1/me/profile"), "契约里没有声明 400").toContain("400");
   });
 
   it("keeps aborting an unknown upload idempotent instead of erroring", async () => {
@@ -370,21 +290,6 @@ describe("API response contract", () => {
     expect(declaredStatuses("DELETE /api/v1/uploads/large/{uploadId}"), "取消是幂等的，契约不该声明 404").not.toContain(
       "404",
     );
-  });
-
-  it("returns 403 when a cookie-borne refresh token comes without a CSRF header", async () => {
-    const username = uniqueUsername();
-    const password = "password123";
-    await request(app).post("/api/v1/register").send({ username, password }).expect(200);
-    const login = await request(app).post("/api/v1/login").send({ username, password }).expect(200);
-
-    // 走 cookie 而不是 body：这条分支才会触发 CSRF 校验
-    const cookies = login.headers["set-cookie"] as unknown as string[];
-    const response = await request(app).post("/api/v1/refresh").set("Cookie", cookies).send({});
-
-    expect(response.status, "cookie 来源的 refresh 缺少 CSRF 头应当是 403").toBe(403);
-    expectMatchesContract(errorEnvelopeSchema, response.body, "POST /refresh → 403");
-    expect(declaredStatuses("POST /api/v1/refresh"), "契约里没有声明 403").toContain("403");
   });
 
   it("matches the large upload contracts across init, chunk, status, merge and abort", async () => {

@@ -1,6 +1,11 @@
 /**
  * 文件职责：配置分片落盘的 multer 实例。
  * destination/filename 是同步回调，只能通过 LargeUploadStorage 的同步方法解析分片目录与分片文件名。
+ *
+ * 这两个回调里的异常必须交给 callback，不能直接抛：multer 的同步回调不在它自己的错误链上，
+ * 抛出去的错误既到不了 errorMiddleware，也不会结束这次请求 ——
+ * 客户端拿不到任何响应、一直挂到自己超时，服务端只留下一条 unhandled error。
+ * 而「会话不存在」是断点续传里的正常场景（任务过期或已被清理），必须变成一次干净的 404。
  */
 import multer, { diskStorage } from "multer";
 
@@ -13,11 +18,19 @@ export function createLargeUploadChunkMiddleware(storage: LargeUploadStorage) {
   return multer({
     storage: diskStorage({
       destination(req: Request, _file, callback) {
-        callback(null, storage.resolveChunkDir(req.params.uploadId));
+        try {
+          callback(null, storage.resolveChunkDir(req.params.uploadId));
+        } catch (error) {
+          callback(error as Error, "");
+        }
       },
       filename(req: Request, _file, callback) {
-        const validated = req.validated as { params?: { chunkIndex?: number } } | undefined;
-        callback(null, storage.partFileName(validated?.params?.chunkIndex ?? Number(req.params.chunkIndex)));
+        try {
+          const validated = req.validated as { params?: { chunkIndex?: number } } | undefined;
+          callback(null, storage.partFileName(validated?.params?.chunkIndex ?? Number(req.params.chunkIndex)));
+        } catch (error) {
+          callback(error as Error, "");
+        }
       },
     }),
     limits: { fileSize: MAX_CHUNK_BYTES },

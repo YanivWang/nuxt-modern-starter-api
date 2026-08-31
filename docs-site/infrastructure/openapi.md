@@ -110,9 +110,10 @@ components 里对应两层：
 
 - `tests/unit/openapi.test.ts` 校验机械可推的部分：挂了鉴权中间件的端点必须声明 401，
   带路径参数的端点必须声明 404（例外要写进 `NO_NOT_FOUND` 并说明理由）。
-- `tests/integration/response-contract.integration.test.ts` 逐条provoke真实错误，
+- `tests/integration/error-contract.integration.test.ts` 逐条触发真实错误，
   校验响应体符合 `ErrorBody`，并断言该状态码在契约里声明过。403、409 这类端点特有的状态码
-  只能靠这一层。
+  只能靠这一层。它还有一条反向断言：**契约声明的每个端点特有状态码都必须能被真的触发**，
+  否则就是多声明了一个到不了的状态码——客户端会为一个永远不会发生的情况写处理逻辑。
 
 这一层立刻抓到过一个真实错误：`DELETE /api/v1/uploads/large/{uploadId}` 被按「带路径参数」
 的惯例声明了 404，而 `abortLargeUpload` 其实是幂等的——任务不存在时同样返回成功。

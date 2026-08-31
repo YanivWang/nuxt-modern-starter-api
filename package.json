@@ -9,7 +9,7 @@
     "start": "cross-env NODE_ENV=production node dist/server.js",
     "dev": "cross-env NODE_ENV=development nodemon --exec tsx src/server.ts",
     "dev:debug": "cross-env NODE_ENV=development nodemon --inspect=0.0.0.0:9229 --exec tsx src/server.ts",
-    "check": "pnpm run architecture:check && pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run openapi:check && pnpm run test && pnpm run build",
+    "check": "pnpm run architecture:check && pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run openapi:check && pnpm run contract:check-consumer && pnpm run test && pnpm run build",
     "test": "pnpm run test:coverage && pnpm run test:integration && pnpm run test:env",
     "test:unit": "cross-env APP_ENV=test NODE_ENV=test vitest run",
     "test:coverage": "cross-env APP_ENV=test NODE_ENV=test vitest run --coverage",
@@ -37,7 +37,8 @@
     "docker:dev": "cross-env APP_ENV=development docker compose --env-file .env.development -f docker/docker-compose.base.yaml -f docker/docker-compose.dev.yaml up -d --build",
     "docker:dev:down": "cross-env APP_ENV=development docker compose --env-file .env.development -f docker/docker-compose.base.yaml -f docker/docker-compose.dev.yaml down",
     "docker:prod": "cross-env APP_ENV=production docker compose --env-file .env.production -f docker/docker-compose.base.yaml -f docker/docker-compose.yaml up -d --build",
-    "docker:prod:down": "cross-env APP_ENV=production docker compose --env-file .env.production -f docker/docker-compose.base.yaml -f docker/docker-compose.yaml down"
+    "docker:prod:down": "cross-env APP_ENV=production docker compose --env-file .env.production -f docker/docker-compose.base.yaml -f docker/docker-compose.yaml down",
+    "contract:check-consumer": "node scripts/check-consumer-contract.mjs"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

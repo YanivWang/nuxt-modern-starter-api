@@ -130,16 +130,17 @@ src/
 
 辅助文件职责：
 
-| 路径                                | 职责                                                                   |
-| ----------------------------------- | ---------------------------------------------------------------------- |
-| `scripts/generate-openapi.ts`       | 生成或校验 `docs/openapi.yaml`，CI 中通过 `openapi:check` 防止文档漂移 |
-| `scripts/validate-architecture.mjs` | 强制模块不能依赖 infrastructure、HTTP middleware 或其他模块内部实现    |
-| `scripts/reset-db.ts`               | 开发/测试用数据库重建脚本，会 drop 当前库表后重新执行迁移              |
-| `scripts/test-env.ts`               | 单独导入 `src/env.ts`，用于验证环境变量模板和启动期校验                |
-| `docker/`                           | 生产/开发镜像、Compose 组合和 Nginx 网关配置                           |
-| `.github/workflows/ci.yml`          | 运行 `pnpm run check` 的质量门禁，包含 MySQL 与 Redis services         |
-| `vitest*.config.ts`                 | 区分不依赖外部服务的单元测试与依赖 MySQL/Redis 的集成测试              |
-| `eslint.config.js`                  | TypeScript 类型感知 lint、Prettier 兼容和测试/脚本例外规则             |
+| 路径                                  | 职责                                                                   |
+| ------------------------------------- | ---------------------------------------------------------------------- |
+| `scripts/generate-openapi.ts`         | 生成或校验 `docs/openapi.yaml`，CI 中通过 `openapi:check` 防止文档漂移 |
+| `scripts/validate-architecture.mjs`   | 强制模块不能依赖 infrastructure、HTTP middleware 或其他模块内部实现    |
+| `scripts/check-consumer-contract.mjs` | 校验同机前端仓库引入的 OpenAPI 副本是否已与本仓库同步                  |
+| `scripts/reset-db.ts`                 | 开发/测试用数据库重建脚本，会 drop 当前库表后重新执行迁移              |
+| `scripts/test-env.ts`                 | 单独导入 `src/env.ts`，用于验证环境变量模板和启动期校验                |
+| `docker/`                             | 生产/开发镜像、Compose 组合和 Nginx 网关配置                           |
+| `.github/workflows/ci.yml`            | 运行 `pnpm run check` 的质量门禁，包含 MySQL 与 Redis services         |
+| `vitest*.config.ts`                   | 区分不依赖外部服务的单元测试与依赖 MySQL/Redis 的集成测试              |
+| `eslint.config.js`                    | TypeScript 类型感知 lint、Prettier 兼容和测试/脚本例外规则             |
 
 测试目录结构：
 
@@ -164,6 +165,7 @@ tests/
     content.integration.test.ts
     product-foundation.integration.test.ts
     response-contract.integration.test.ts
+    error-contract.integration.test.ts
 ```
 
 单元测试带覆盖率阈值（见 `vitest.config.ts`），已接入 `pnpm run check`。阈值只升不降：补测试后如果实测值明显高出，请顺手上调阈值，让它持续起到防回退作用。
@@ -239,10 +241,13 @@ components 分两层：以 `Body` 结尾的是完整的 `{ code, message, data }
 `tests/integration/response-contract.integration.test.ts` 会用同一份 schema 解析真实 HTTP 响应体，补上类型系统够不到的一段：controller 拼信封时把 `{ project }` 写成 `{ projects }`、或顺手多返回一个字段，`tsc` 都不会报错。
 
 ```bash
-pnpm openapi:generate # 重新生成 docs/openapi.yaml
-pnpm format           # 生成物按 Prettier 规则归一化，否则 format:check 会失败
-pnpm openapi:check    # 校验 docs/openapi.yaml 是否与源码同步
+pnpm openapi:generate        # 重新生成 docs/openapi.yaml
+pnpm format                  # 生成物按 Prettier 规则归一化，否则 format:check 会失败
+pnpm openapi:check           # 校验 docs/openapi.yaml 是否与源码同步
+pnpm contract:check-consumer # 校验同机前端仓库引入的副本是否已同步（找不到前端仓库时跳过）
 ```
+
+改了契约就会让 `contract:check-consumer` 红，直到在前端仓库跑一次 `pnpm contract:sync`。这是有意的：谁改的契约，谁的门禁先红，而不是等前端某次 CI 才发现。
 
 `pnpm run check` 已包含 `architecture:check` 与 `openapi:check`。新增或修改接口时，请同步更新 `src/openapi.ts`，再运行 `pnpm openapi:generate` 和 `pnpm format`。
 
@@ -289,6 +294,7 @@ pnpm test:unit
 - `tests/integration/product-foundation.integration.test.ts`：项目/文档 CRUD、项目删除级联清理与跨用户读取/删除隔离。
 - `tests/integration/content.integration.test.ts`：公开新闻/定价本地化读取，以及登录后新闻创建/更新/删除与 revalidate 触发。
 - `tests/integration/response-contract.integration.test.ts`：用 OpenAPI 的同一份响应 schema 校验真实响应体，覆盖认证、当前用户、项目/文档、公开内容与上传全流程。
+- `tests/integration/error-contract.integration.test.ts`：逐条触发契约声明的每个端点特有错误码（401/403/404/409/410），校验响应体符合 `ErrorBody`，并反向断言「声明过的状态码都必须能被真的触发」。
 
 ## Web App 授权约定
 
