@@ -21,7 +21,7 @@ import path from "node:path";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { createTestRuntime, resetRedisState } from "./support/test-runtime.js";
+import { createTestRuntime, resetRedisState, startTestServer, stopTestServer } from "./support/test-runtime.js";
 import { generateOpenApiSpec } from "../../src/openapi.js";
 import { projectRoot } from "../../src/utils/projectRoot.js";
 import { authTokenPairEnvelopeSchema } from "../../src/modules/auth/auth.contract.js";
@@ -53,10 +53,10 @@ import {
 } from "../../src/modules/upload/upload.contract.js";
 
 import type { AppRuntime } from "../../src/runtime.js";
-import type { Express } from "express";
+import type { Server } from "node:http";
 import type { z } from "zod";
 
-let app: Express;
+let server: Server;
 let runtime: AppRuntime;
 
 /** 大文件用例留下的落盘产物，afterAll 逐个删除，避免仓库里堆积测试残留。 */
@@ -100,10 +100,10 @@ async function registerAndLogin() {
   const username = uniqueUsername();
   const password = "password123";
 
-  const registerRes = await request(app).post("/api/v1/register").send({ username, password }).expect(200);
+  const registerRes = await request(server).post("/api/v1/register").send({ username, password }).expect(200);
   expectMatchesContract(nullDataEnvelopeSchema, registerRes.body, "POST /register");
 
-  const loginRes = await request(app).post("/api/v1/login").send({ username, password }).expect(200);
+  const loginRes = await request(server).post("/api/v1/login").send({ username, password }).expect(200);
   expectMatchesContract(authTokenPairEnvelopeSchema, loginRes.body, "POST /login");
 
   return {
@@ -115,7 +115,7 @@ async function registerAndLogin() {
 describe("API response contract", () => {
   beforeAll(async () => {
     runtime = createTestRuntime();
-    app = runtime.app;
+    server = startTestServer(runtime);
     await runtime.connect();
     // 限流 / 登录失败计数 / JWT 黑名单都带 TTL 存在 Redis 里，不清理会跨运行残留
     await resetRedisState(runtime);
@@ -127,16 +127,17 @@ describe("API response contract", () => {
     for (const file of createdFiles) {
       await fs.rm(file, { force: true }).catch(() => {});
     }
+    await stopTestServer(server);
     await runtime.disconnect();
   });
 
   it("matches the auth token contract on login, refresh and logout", async () => {
     const { accessToken, refreshToken } = await registerAndLogin();
 
-    const refreshRes = await request(app).post("/api/v1/refresh").send({ refreshToken }).expect(200);
+    const refreshRes = await request(server).post("/api/v1/refresh").send({ refreshToken }).expect(200);
     expectMatchesContract(authTokenPairEnvelopeSchema, refreshRes.body, "POST /refresh");
 
-    const logoutRes = await request(app)
+    const logoutRes = await request(server)
       .post("/api/v1/logout")
       .set("Authorization", `Bearer ${accessToken}`)
       .send({ refreshToken: refreshRes.body.data.refreshToken })
@@ -148,18 +149,18 @@ describe("API response contract", () => {
     const { accessToken } = await registerAndLogin();
     const auth = { Authorization: `Bearer ${accessToken}` };
 
-    const meRes = await request(app).get("/api/v1/me").set(auth).expect(200);
+    const meRes = await request(server).get("/api/v1/me").set(auth).expect(200);
     expectMatchesContract(meEnvelopeSchema, meRes.body, "GET /me");
 
     // 从未填写过资料时 profile 为 null，这条分支必须也在契约里成立
-    const emptyProfileRes = await request(app).get("/api/v1/me/profile").set(auth).expect(200);
+    const emptyProfileRes = await request(server).get("/api/v1/me/profile").set(auth).expect(200);
     expectMatchesContract(profileEnvelopeSchema, emptyProfileRes.body, "GET /me/profile（空）");
     expect(emptyProfileRes.body.data.profile).toBeNull();
 
-    const patchRes = await request(app).patch("/api/v1/me/profile").set(auth).send({ nickname: "契约" }).expect(200);
+    const patchRes = await request(server).patch("/api/v1/me/profile").set(auth).send({ nickname: "契约" }).expect(200);
     expectMatchesContract(updatedProfileEnvelopeSchema, patchRes.body, "PATCH /me/profile");
 
-    const filledProfileRes = await request(app).get("/api/v1/me/profile").set(auth).expect(200);
+    const filledProfileRes = await request(server).get("/api/v1/me/profile").set(auth).expect(200);
     expectMatchesContract(profileEnvelopeSchema, filledProfileRes.body, "GET /me/profile（已填写）");
   });
 
@@ -167,48 +168,48 @@ describe("API response contract", () => {
     const { accessToken } = await registerAndLogin();
     const auth = { Authorization: `Bearer ${accessToken}` };
 
-    const createRes = await request(app).post("/api/v1/projects").set(auth).send({ title: "契约项目" }).expect(201);
+    const createRes = await request(server).post("/api/v1/projects").set(auth).send({ title: "契约项目" }).expect(201);
     expectMatchesContract(projectCreatedEnvelopeSchema, createRes.body, "POST /projects");
 
     const projectId = createRes.body.data.project.id as string;
     const documentId = createRes.body.data.document.id as string;
 
-    const listRes = await request(app).get("/api/v1/projects").set(auth).expect(200);
+    const listRes = await request(server).get("/api/v1/projects").set(auth).expect(200);
     expectMatchesContract(projectListEnvelopeSchema, listRes.body, "GET /projects");
 
-    const detailRes = await request(app).get(`/api/v1/projects/${projectId}`).set(auth).expect(200);
+    const detailRes = await request(server).get(`/api/v1/projects/${projectId}`).set(auth).expect(200);
     expectMatchesContract(projectEnvelopeSchema, detailRes.body, "GET /projects/{projectId}");
 
-    const patchRes = await request(app)
+    const patchRes = await request(server)
       .patch(`/api/v1/projects/${projectId}`)
       .set(auth)
       .send({ title: "契约项目 v2" })
       .expect(200);
     expectMatchesContract(projectEnvelopeSchema, patchRes.body, "PATCH /projects/{projectId}");
 
-    const documentRes = await request(app).get(`/api/v1/documents/${documentId}`).set(auth).expect(200);
+    const documentRes = await request(server).get(`/api/v1/documents/${documentId}`).set(auth).expect(200);
     expectMatchesContract(documentEnvelopeSchema, documentRes.body, "GET /documents/{documentId}");
 
-    const saveRes = await request(app)
+    const saveRes = await request(server)
       .patch(`/api/v1/documents/${documentId}`)
       .set(auth)
       .send({ content: "<p>契约</p>" })
       .expect(200);
     expectMatchesContract(documentEnvelopeSchema, saveRes.body, "PATCH /documents/{documentId}");
 
-    const deleteRes = await request(app).delete(`/api/v1/projects/${projectId}`).set(auth).expect(200);
+    const deleteRes = await request(server).delete(`/api/v1/projects/${projectId}`).set(auth).expect(200);
     expectMatchesContract(nullDataEnvelopeSchema, deleteRes.body, "DELETE /projects/{projectId}");
   });
 
   it("matches the public content contracts for both the localized and the source shapes", async () => {
-    const listRes = await request(app).get("/api/v1/content/news").set("Accept-Language", "zh-CN").expect(200);
+    const listRes = await request(server).get("/api/v1/content/news").set("Accept-Language", "zh-CN").expect(200);
     expectMatchesContract(newsListEnvelopeSchema, listRes.body, "GET /content/news");
 
     const slug = listRes.body.data.articles[0].slug as string;
-    const detailRes = await request(app).get(`/api/v1/content/news/${slug}`).expect(200);
+    const detailRes = await request(server).get(`/api/v1/content/news/${slug}`).expect(200);
     expectMatchesContract(newsArticleEnvelopeSchema, detailRes.body, "GET /content/news/{slug}");
 
-    const pricingRes = await request(app).get("/api/v1/content/pricing").expect(200);
+    const pricingRes = await request(server).get("/api/v1/content/pricing").expect(200);
     expectMatchesContract(pricingEnvelopeSchema, pricingRes.body, "GET /content/pricing");
 
     // 写接口回显的是未折叠的双语原文，与读接口的 article 不是同一形状
@@ -222,17 +223,17 @@ describe("API response contract", () => {
       publishedAt: "2026-08-31",
     };
 
-    const createRes = await request(app).post("/api/v1/content/news").set(auth).send(created).expect(201);
+    const createRes = await request(server).post("/api/v1/content/news").set(auth).send(created).expect(201);
     expectMatchesContract(newsSourceEnvelopeSchema, createRes.body, "POST /content/news");
 
-    const patchRes = await request(app)
+    const patchRes = await request(server)
       .patch(`/api/v1/content/news/${created.slug}`)
       .set(auth)
       .send({ publishedAt: "2026-09-01" })
       .expect(200);
     expectMatchesContract(newsSourceEnvelopeSchema, patchRes.body, "PATCH /content/news/{slug}");
 
-    const deleteRes = await request(app).delete(`/api/v1/content/news/${created.slug}`).set(auth).expect(200);
+    const deleteRes = await request(server).delete(`/api/v1/content/news/${created.slug}`).set(auth).expect(200);
     expectMatchesContract(nullDataEnvelopeSchema, deleteRes.body, "DELETE /content/news/{slug}");
   });
 
@@ -246,7 +247,7 @@ describe("API response contract", () => {
 
     // multer 只按 mimetype 白名单过滤，内容本身不参与判定，因此这里用最小的合法 PNG 头即可
     const png = Buffer.from("89504e470d0a1a0a", "hex");
-    const res = await request(app)
+    const res = await request(server)
       .post(endpoint)
       .set("Authorization", `Bearer ${accessToken}`)
       .attach("files", png, { filename: "contract.png", contentType: "image/png" })
@@ -266,7 +267,7 @@ describe("API response contract", () => {
     // 前端 UpdateProfilePayload 收敛到可写字段正是因为这条。
     // 端点特有的 401/403/404/409/410 由 error-contract.integration.test.ts 统一覆盖，
     // 400 来自全局 validate 中间件，在这里挑一个代表性端点验证即可。
-    const response = await request(app)
+    const response = await request(server)
       .patch("/api/v1/me/profile")
       .set("Authorization", `Bearer ${accessToken}`)
       .send({ notAProfileField: 1 })
@@ -281,7 +282,7 @@ describe("API response contract", () => {
 
     // 取消是幂等的：任务不存在或已清理时仍返回成功。契约因此刻意不声明 404，
     // 这条用例把「不 404」本身钉住 —— 否则以后有人给它加个 404，两边都不会有人发现。
-    const response = await request(app)
+    const response = await request(server)
       .delete("/api/v1/uploads/large/00000000-0000-4000-8000-000000000000")
       .set("Authorization", `Bearer ${accessToken}`)
       .expect(200);
@@ -303,13 +304,13 @@ describe("API response contract", () => {
     const fileMd5 = createHash("md5").update(content).digest("hex");
     const initBody = { fileName: "contract.bin", fileSize: content.length, chunkSize, fileMd5 };
 
-    const initRes = await request(app).post("/api/v1/uploads/large/init").set(auth).send(initBody).expect(200);
+    const initRes = await request(server).post("/api/v1/uploads/large/init").set(auth).send(initBody).expect(200);
     expectMatchesContract(largeUploadInitEnvelopeSchema, initRes.body, "POST /uploads/large/init");
     expect(initRes.body.data.instant).toBe(false);
 
     const uploadId = initRes.body.data.uploadId as string;
 
-    const chunkRes = await request(app)
+    const chunkRes = await request(server)
       .put(`/api/v1/uploads/large/${uploadId}/chunks/0`)
       .set(auth)
       .set("X-Chunk-Md5", createHash("md5").update(content).digest("hex"))
@@ -317,11 +318,15 @@ describe("API response contract", () => {
       .expect(200);
     expectMatchesContract(chunkAcceptedEnvelopeSchema, chunkRes.body, "PUT /uploads/large/{uploadId}/chunks/{index}");
 
-    const statusRes = await request(app).get(`/api/v1/uploads/large/${uploadId}/status`).set(auth).expect(200);
+    const statusRes = await request(server).get(`/api/v1/uploads/large/${uploadId}/status`).set(auth).expect(200);
     expectMatchesContract(largeUploadStatusEnvelopeSchema, statusRes.body, "GET /uploads/large/{uploadId}/status");
     expect(statusRes.body.data.receivedIndices).toEqual([0]);
 
-    const mergeRes = await request(app).post(`/api/v1/uploads/large/${uploadId}/merge`).set(auth).send({}).expect(200);
+    const mergeRes = await request(server)
+      .post(`/api/v1/uploads/large/${uploadId}/merge`)
+      .set(auth)
+      .send({})
+      .expect(200);
     expectMatchesContract(largeUploadMergeEnvelopeSchema, mergeRes.body, "POST /uploads/large/{uploadId}/merge");
 
     const publicUrl = mergeRes.body.data.url as string;
@@ -332,7 +337,7 @@ describe("API response contract", () => {
     );
 
     // 合并完成后临时目录已删，status 走的是 done marker 分支——字段与上面那次并不相同
-    const doneStatusRes = await request(app).get(`/api/v1/uploads/large/${uploadId}/status`).set(auth).expect(200);
+    const doneStatusRes = await request(server).get(`/api/v1/uploads/large/${uploadId}/status`).set(auth).expect(200);
     expectMatchesContract(
       largeUploadStatusEnvelopeSchema,
       doneStatusRes.body,
@@ -341,13 +346,13 @@ describe("API response contract", () => {
     expect(doneStatusRes.body.data.status).toBe("done");
 
     // 同一 MD5 再 init 一次会命中秒传索引，走的是 instant 分支
-    const instantRes = await request(app).post("/api/v1/uploads/large/init").set(auth).send(initBody).expect(200);
+    const instantRes = await request(server).post("/api/v1/uploads/large/init").set(auth).send(initBody).expect(200);
     expectMatchesContract(largeUploadInitEnvelopeSchema, instantRes.body, "POST /uploads/large/init（秒传）");
     expect(instantRes.body.data.instant).toBe(true);
 
     // 取消一个全新的任务：它返回空对象而不是 null，这条也在契约里
     const otherContent = randomBytes(chunkSize);
-    const otherInit = await request(app)
+    const otherInit = await request(server)
       .post("/api/v1/uploads/large/init")
       .set(auth)
       .send({
@@ -358,7 +363,7 @@ describe("API response contract", () => {
       })
       .expect(200);
 
-    const abortRes = await request(app)
+    const abortRes = await request(server)
       .delete(`/api/v1/uploads/large/${otherInit.body.data.uploadId}`)
       .set(auth)
       .expect(200);

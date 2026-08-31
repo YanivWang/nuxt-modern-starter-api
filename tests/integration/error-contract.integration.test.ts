@@ -21,16 +21,16 @@ import path from "node:path";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { createTestRuntime, resetRedisState } from "./support/test-runtime.js";
+import { createTestRuntime, resetRedisState, startTestServer, stopTestServer } from "./support/test-runtime.js";
 import { generateOpenApiSpec } from "../../src/openapi.js";
 import { errorEnvelopeSchema } from "../../src/shared/http/api-envelope.js";
 import { localFileStorage } from "../../src/infrastructure/storage/local-file-storage.adapter.js";
 import { LARGE_CHUNKS_TEMP_SEGMENT } from "../../src/infrastructure/storage/local-large-upload.adapter.js";
 
 import type { AppRuntime } from "../../src/runtime.js";
-import type { Express } from "express";
+import type { Server } from "node:http";
 
-let app: Express;
+let server: Server;
 let runtime: AppRuntime;
 
 const spec = generateOpenApiSpec();
@@ -81,8 +81,8 @@ async function registerAndLogin() {
   const username = uniqueUsername();
   const password = "password123";
 
-  await request(app).post("/api/v1/register").send({ username, password }).expect(200);
-  const login = await request(app).post("/api/v1/login").send({ username, password }).expect(200);
+  await request(server).post("/api/v1/register").send({ username, password }).expect(200);
+  const login = await request(server).post("/api/v1/login").send({ username, password }).expect(200);
 
   return {
     username,
@@ -106,7 +106,7 @@ async function patchMeta(fileMd5: string, uploadId: string, patch: Record<string
 async function initUpload(accessToken: string, chunkTotal = 1) {
   const content = randomBytes(CHUNK_SIZE);
   const fileMd5 = md5(content);
-  const response = await request(app)
+  const response = await request(server)
     .post("/api/v1/uploads/large/init")
     .set("Authorization", `Bearer ${accessToken}`)
     .send({
@@ -131,7 +131,7 @@ const attachChunk = (req: request.Test, content: Buffer) =>
 describe("API error contract", () => {
   beforeAll(async () => {
     runtime = createTestRuntime();
-    app = runtime.app;
+    server = startTestServer(runtime);
     await runtime.connect();
     await resetRedisState(runtime);
   });
@@ -147,6 +147,7 @@ describe("API error contract", () => {
     for (const dir of createdDirs) {
       await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
     }
+    await stopTestServer(server);
     await runtime.disconnect();
   });
 
@@ -162,7 +163,7 @@ describe("API error contract", () => {
     for (const { endpoint, method, routePath } of secured) {
       // auth 中间件排在 validate 之前，因此路径参数填什么都不影响 401
       const concrete = routePath.replace("{uploadId}", UNKNOWN_UUID).replace(/\{[^}]+\}/g, "placeholder");
-      const response = await request(app)[method.toLowerCase() as "get"](concrete);
+      const response = await request(server)[method.toLowerCase() as "get"](concrete);
 
       expectDeclaredError(endpoint, 401, response);
     }
@@ -174,12 +175,12 @@ describe("API error contract", () => {
     expectDeclaredError(
       "POST /api/v1/login",
       401,
-      await request(app).post("/api/v1/login").send({ username, password: "wrong-password" }),
+      await request(server).post("/api/v1/login").send({ username, password: "wrong-password" }),
     );
     expectDeclaredError(
       "POST /api/v1/refresh",
       401,
-      await request(app).post("/api/v1/refresh").send({ refreshToken: "not-a-real-token" }),
+      await request(server).post("/api/v1/refresh").send({ refreshToken: "not-a-real-token" }),
     );
   });
 
@@ -190,7 +191,7 @@ describe("API error contract", () => {
     expectDeclaredError(
       "POST /api/v1/refresh",
       403,
-      await request(app).post("/api/v1/refresh").set("Cookie", cookies).send({}),
+      await request(server).post("/api/v1/refresh").set("Cookie", cookies).send({}),
     );
   });
 
@@ -201,42 +202,46 @@ describe("API error contract", () => {
     expectDeclaredError(
       "GET /api/v1/content/news/{slug}",
       404,
-      await request(app).get("/api/v1/content/news/no-such-article"),
+      await request(server).get("/api/v1/content/news/no-such-article"),
     );
 
     for (const [endpoint, run] of [
       [
         "PATCH /api/v1/content/news/{slug}",
-        () => request(app).patch("/api/v1/content/news/no-such-article").set(auth).send({ publishedAt: "2026-09-01" }),
+        () =>
+          request(server).patch("/api/v1/content/news/no-such-article").set(auth).send({ publishedAt: "2026-09-01" }),
       ],
       [
         "DELETE /api/v1/content/news/{slug}",
-        () => request(app).delete("/api/v1/content/news/no-such-article").set(auth),
+        () => request(server).delete("/api/v1/content/news/no-such-article").set(auth),
       ],
-      ["GET /api/v1/projects/{projectId}", () => request(app).get(`/api/v1/projects/${UNKNOWN_UUID}`).set(auth)],
+      ["GET /api/v1/projects/{projectId}", () => request(server).get(`/api/v1/projects/${UNKNOWN_UUID}`).set(auth)],
       [
         "PATCH /api/v1/projects/{projectId}",
-        () => request(app).patch(`/api/v1/projects/${UNKNOWN_UUID}`).set(auth).send({ title: "x" }),
+        () => request(server).patch(`/api/v1/projects/${UNKNOWN_UUID}`).set(auth).send({ title: "x" }),
       ],
-      ["DELETE /api/v1/projects/{projectId}", () => request(app).delete(`/api/v1/projects/${UNKNOWN_UUID}`).set(auth)],
-      ["GET /api/v1/documents/{documentId}", () => request(app).get(`/api/v1/documents/${UNKNOWN_UUID}`).set(auth)],
+      [
+        "DELETE /api/v1/projects/{projectId}",
+        () => request(server).delete(`/api/v1/projects/${UNKNOWN_UUID}`).set(auth),
+      ],
+      ["GET /api/v1/documents/{documentId}", () => request(server).get(`/api/v1/documents/${UNKNOWN_UUID}`).set(auth)],
       [
         "PATCH /api/v1/documents/{documentId}",
-        () => request(app).patch(`/api/v1/documents/${UNKNOWN_UUID}`).set(auth).send({ content: "x" }),
+        () => request(server).patch(`/api/v1/documents/${UNKNOWN_UUID}`).set(auth).send({ content: "x" }),
       ],
       [
         "GET /api/v1/uploads/large/{uploadId}/status",
-        () => request(app).get(`/api/v1/uploads/large/${UNKNOWN_UUID}/status`).set(auth),
+        () => request(server).get(`/api/v1/uploads/large/${UNKNOWN_UUID}/status`).set(auth),
       ],
       [
         "POST /api/v1/uploads/large/{uploadId}/merge",
-        () => request(app).post(`/api/v1/uploads/large/${UNKNOWN_UUID}/merge`).set(auth).send({}),
+        () => request(server).post(`/api/v1/uploads/large/${UNKNOWN_UUID}/merge`).set(auth).send({}),
       ],
       [
         "PUT /api/v1/uploads/large/{uploadId}/chunks/{chunkIndex}",
         () =>
           attachChunk(
-            request(app).put(`/api/v1/uploads/large/${UNKNOWN_UUID}/chunks/0`).set(auth),
+            request(server).put(`/api/v1/uploads/large/${UNKNOWN_UUID}/chunks/0`).set(auth),
             randomBytes(CHUNK_SIZE),
           ),
       ],
@@ -254,22 +259,22 @@ describe("API error contract", () => {
     expectDeclaredError(
       "GET /api/v1/uploads/large/{uploadId}/status",
       403,
-      await request(app).get(`/api/v1/uploads/large/${uploadId}/status`).set(intruderAuth),
+      await request(server).get(`/api/v1/uploads/large/${uploadId}/status`).set(intruderAuth),
     );
     expectDeclaredError(
       "POST /api/v1/uploads/large/{uploadId}/merge",
       403,
-      await request(app).post(`/api/v1/uploads/large/${uploadId}/merge`).set(intruderAuth).send({}),
+      await request(server).post(`/api/v1/uploads/large/${uploadId}/merge`).set(intruderAuth).send({}),
     );
     expectDeclaredError(
       "DELETE /api/v1/uploads/large/{uploadId}",
       403,
-      await request(app).delete(`/api/v1/uploads/large/${uploadId}`).set(intruderAuth),
+      await request(server).delete(`/api/v1/uploads/large/${uploadId}`).set(intruderAuth),
     );
     expectDeclaredError(
       "PUT /api/v1/uploads/large/{uploadId}/chunks/{chunkIndex}",
       403,
-      await attachChunk(request(app).put(`/api/v1/uploads/large/${uploadId}/chunks/0`).set(intruderAuth), content),
+      await attachChunk(request(server).put(`/api/v1/uploads/large/${uploadId}/chunks/0`).set(intruderAuth), content),
     );
   });
 
@@ -280,7 +285,7 @@ describe("API error contract", () => {
     expectDeclaredError(
       "POST /api/v1/register",
       409,
-      await request(app).post("/api/v1/register").send({ username: user.username, password: "password123" }),
+      await request(server).post("/api/v1/register").send({ username: user.username, password: "password123" }),
     );
 
     const slug = `error-contract-${Date.now()}`;
@@ -291,20 +296,20 @@ describe("API error contract", () => {
       body: { "zh-CN": ["段落"], "en-US": ["Paragraph"] },
       publishedAt: "2026-08-31",
     };
-    await request(app).post("/api/v1/content/news").set(auth).send(article).expect(201);
+    await request(server).post("/api/v1/content/news").set(auth).send(article).expect(201);
     expectDeclaredError(
       "POST /api/v1/content/news",
       409,
-      await request(app).post("/api/v1/content/news").set(auth).send(article),
+      await request(server).post("/api/v1/content/news").set(auth).send(article),
     );
-    await request(app).delete(`/api/v1/content/news/${slug}`).set(auth).expect(200);
+    await request(server).delete(`/api/v1/content/news/${slug}`).set(auth).expect(200);
 
     // 声明了两个分片却一个都没传：merge 校验分片就绪时冲突
     const incomplete = await initUpload(user.accessToken, 2);
     expectDeclaredError(
       "POST /api/v1/uploads/large/{uploadId}/merge",
       409,
-      await request(app).post(`/api/v1/uploads/large/${incomplete.uploadId}/merge`).set(auth).send({}),
+      await request(server).post(`/api/v1/uploads/large/${incomplete.uploadId}/merge`).set(auth).send({}),
     );
 
     // 进程在合并中途崩溃，磁盘上留下的就是这个状态：status=merging 且会话仍在
@@ -314,14 +319,14 @@ describe("API error contract", () => {
       "PUT /api/v1/uploads/large/{uploadId}/chunks/{chunkIndex}",
       409,
       await attachChunk(
-        request(app).put(`/api/v1/uploads/large/${merging.uploadId}/chunks/0`).set(auth),
+        request(server).put(`/api/v1/uploads/large/${merging.uploadId}/chunks/0`).set(auth),
         merging.content,
       ),
     );
     expectDeclaredError(
       "POST /api/v1/uploads/large/{uploadId}/merge",
       409,
-      await request(app).post(`/api/v1/uploads/large/${merging.uploadId}/merge`).set(auth).send({}),
+      await request(server).post(`/api/v1/uploads/large/${merging.uploadId}/merge`).set(auth).send({}),
     );
   });
 
@@ -339,17 +344,17 @@ describe("API error contract", () => {
     expectDeclaredError(
       "GET /api/v1/uploads/large/{uploadId}/status",
       410,
-      await request(app).get(`/api/v1/uploads/large/${uploadId}/status`).set(auth),
+      await request(server).get(`/api/v1/uploads/large/${uploadId}/status`).set(auth),
     );
     expectDeclaredError(
       "POST /api/v1/uploads/large/{uploadId}/merge",
       410,
-      await request(app).post(`/api/v1/uploads/large/${uploadId}/merge`).set(auth).send({}),
+      await request(server).post(`/api/v1/uploads/large/${uploadId}/merge`).set(auth).send({}),
     );
     expectDeclaredError(
       "PUT /api/v1/uploads/large/{uploadId}/chunks/{chunkIndex}",
       410,
-      await attachChunk(request(app).put(`/api/v1/uploads/large/${uploadId}/chunks/0`).set(auth), content),
+      await attachChunk(request(server).put(`/api/v1/uploads/large/${uploadId}/chunks/0`).set(auth), content),
     );
   });
 

@@ -5,12 +5,12 @@
 import request from "supertest";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import { createTestRuntime, resetRedisState } from "./support/test-runtime.js";
+import { createTestRuntime, resetRedisState, startTestServer, stopTestServer } from "./support/test-runtime.js";
 
 import type { AppRuntime } from "../../src/runtime.js";
-import type { Express } from "express";
+import type { Server } from "node:http";
 
-let app: Express;
+let server: Server;
 let runtime: AppRuntime;
 
 function uniqueUsername() {
@@ -28,8 +28,8 @@ async function cleanDatabase() {
 }
 
 async function registerAndLogin(username = uniqueUsername(), password = "password123") {
-  await request(app).post("/api/v1/register").send({ username, password }).expect(200);
-  const loginRes = await request(app).post("/api/v1/login").send({ username, password }).expect(200);
+  await request(server).post("/api/v1/register").send({ username, password }).expect(200);
+  const loginRes = await request(server).post("/api/v1/login").send({ username, password }).expect(200);
 
   return {
     username,
@@ -41,7 +41,7 @@ async function registerAndLogin(username = uniqueUsername(), password = "passwor
 describe("product foundation API", () => {
   beforeAll(async () => {
     runtime = createTestRuntime();
-    app = runtime.app;
+    server = startTestServer(runtime);
     await runtime.connect();
     // 限流 / 登录失败计数 / JWT 黑名单都带 TTL 存在 Redis 里，不清理会跨运行残留
     await resetRedisState(runtime);
@@ -53,6 +53,7 @@ describe("product foundation API", () => {
 
   afterAll(async () => {
     await cleanDatabase().catch(() => {});
+    await stopTestServer(server);
     await runtime.disconnect();
   });
 
@@ -60,7 +61,7 @@ describe("product foundation API", () => {
     const username = uniqueUsername();
     const password = "password123";
 
-    const res = await request(app).post("/api/v1/register").send({ username, password }).expect(200);
+    const res = await request(server).post("/api/v1/register").send({ username, password }).expect(200);
 
     expect(res.body).toEqual({
       code: 200,
@@ -72,7 +73,7 @@ describe("product foundation API", () => {
   it("creates, lists, reads, and saves authenticated user projects and documents", async () => {
     const { accessToken } = await registerAndLogin();
 
-    const createRes = await request(app)
+    const createRes = await request(server)
       .post("/api/v1/projects")
       .set("Authorization", `Bearer ${accessToken}`)
       .send({
@@ -100,7 +101,7 @@ describe("product foundation API", () => {
     const projectId = createRes.body.data.project.id as string;
     const documentId = createRes.body.data.document.id as string;
 
-    const listRes = await request(app)
+    const listRes = await request(server)
       .get("/api/v1/projects")
       .set("Authorization", `Bearer ${accessToken}`)
       .expect(200);
@@ -116,7 +117,7 @@ describe("product foundation API", () => {
     expect(listRes.body.data.projects[0]).not.toHaveProperty("editPath");
     expect(listRes.body.data.projects[0]).not.toHaveProperty("previewPath");
 
-    const documentRes = await request(app)
+    const documentRes = await request(server)
       .get(`/api/v1/documents/${documentId}`)
       .set("Authorization", `Bearer ${accessToken}`)
       .expect(200);
@@ -127,7 +128,7 @@ describe("product foundation API", () => {
       content: "",
     });
 
-    const saveRes = await request(app)
+    const saveRes = await request(server)
       .patch(`/api/v1/documents/${documentId}`)
       .set("Authorization", `Bearer ${accessToken}`)
       .send({
@@ -147,7 +148,7 @@ describe("product foundation API", () => {
     const firstUser = await registerAndLogin();
     const secondUser = await registerAndLogin();
 
-    const createRes = await request(app)
+    const createRes = await request(server)
       .post("/api/v1/projects")
       .set("Authorization", `Bearer ${firstUser.accessToken}`)
       .send({ title: "私有文档" })
@@ -155,7 +156,7 @@ describe("product foundation API", () => {
 
     const documentId = createRes.body.data.document.id as string;
 
-    await request(app)
+    await request(server)
       .get(`/api/v1/documents/${documentId}`)
       .set("Authorization", `Bearer ${secondUser.accessToken}`)
       .expect(404);
@@ -164,7 +165,7 @@ describe("product foundation API", () => {
   it("updates authenticated user project title and syncs linked document title", async () => {
     const { accessToken } = await registerAndLogin();
 
-    const createRes = await request(app)
+    const createRes = await request(server)
       .post("/api/v1/projects")
       .set("Authorization", `Bearer ${accessToken}`)
       .send({ title: "原始标题" })
@@ -173,7 +174,7 @@ describe("product foundation API", () => {
     const projectId = createRes.body.data.project.id as string;
     const documentId = createRes.body.data.document.id as string;
 
-    const patchRes = await request(app)
+    const patchRes = await request(server)
       .patch(`/api/v1/projects/${projectId}`)
       .set("Authorization", `Bearer ${accessToken}`)
       .send({ title: "更新后的标题" })
@@ -190,7 +191,7 @@ describe("product foundation API", () => {
       },
     });
 
-    const documentRes = await request(app)
+    const documentRes = await request(server)
       .get(`/api/v1/documents/${documentId}`)
       .set("Authorization", `Bearer ${accessToken}`)
       .expect(200);
@@ -205,7 +206,7 @@ describe("product foundation API", () => {
     const firstUser = await registerAndLogin();
     const secondUser = await registerAndLogin();
 
-    const createRes = await request(app)
+    const createRes = await request(server)
       .post("/api/v1/projects")
       .set("Authorization", `Bearer ${firstUser.accessToken}`)
       .send({ title: "不可更新项目" })
@@ -213,7 +214,7 @@ describe("product foundation API", () => {
 
     const projectId = createRes.body.data.project.id as string;
 
-    await request(app)
+    await request(server)
       .patch(`/api/v1/projects/${projectId}`)
       .set("Authorization", `Bearer ${secondUser.accessToken}`)
       .send({ title: "越权标题" })
@@ -225,14 +226,14 @@ describe("product foundation API", () => {
     const auth = { Authorization: `Bearer ${accessToken}` };
 
     for (const title of ["p1", "p2", "p3"]) {
-      await request(app).post("/api/v1/projects").set(auth).send({ title }).expect(201);
+      await request(server).post("/api/v1/projects").set(auth).send({ title }).expect(201);
     }
 
-    const firstPage = await request(app).get("/api/v1/projects?limit=2&offset=0").set(auth).expect(200);
+    const firstPage = await request(server).get("/api/v1/projects?limit=2&offset=0").set(auth).expect(200);
     expect(firstPage.body.data.projects).toHaveLength(2);
     expect(firstPage.body.data.pagination).toEqual({ total: 3, limit: 2, offset: 0, hasMore: true });
 
-    const lastPage = await request(app).get("/api/v1/projects?limit=2&offset=2").set(auth).expect(200);
+    const lastPage = await request(server).get("/api/v1/projects?limit=2&offset=2").set(auth).expect(200);
     expect(lastPage.body.data.projects).toHaveLength(1);
     expect(lastPage.body.data.pagination).toEqual({ total: 3, limit: 2, offset: 2, hasMore: false });
 
@@ -247,18 +248,18 @@ describe("product foundation API", () => {
     const { accessToken } = await registerAndLogin();
     const auth = { Authorization: `Bearer ${accessToken}` };
 
-    const defaulted = await request(app).get("/api/v1/projects").set(auth).expect(200);
+    const defaulted = await request(server).get("/api/v1/projects").set(auth).expect(200);
     expect(defaulted.body.data.pagination).toMatchObject({ limit: 20, offset: 0 });
 
     // 上限存在的意义就是不允许客户端把分页退化成全表扫描。
-    await request(app).get("/api/v1/projects?limit=1000").set(auth).expect(400);
-    await request(app).get("/api/v1/projects?offset=-1").set(auth).expect(400);
+    await request(server).get("/api/v1/projects?limit=1000").set(auth).expect(400);
+    await request(server).get("/api/v1/projects?offset=-1").set(auth).expect(400);
   });
 
   it("deletes authenticated user projects and their documents", async () => {
     const { accessToken } = await registerAndLogin();
 
-    const createRes = await request(app)
+    const createRes = await request(server)
       .post("/api/v1/projects")
       .set("Authorization", `Bearer ${accessToken}`)
       .send({ title: "待删除项目" })
@@ -267,7 +268,7 @@ describe("product foundation API", () => {
     const projectId = createRes.body.data.project.id as string;
     const documentId = createRes.body.data.document.id as string;
 
-    const deleteRes = await request(app)
+    const deleteRes = await request(server)
       .delete(`/api/v1/projects/${projectId}`)
       .set("Authorization", `Bearer ${accessToken}`)
       .expect(200);
@@ -278,20 +279,23 @@ describe("product foundation API", () => {
       data: null,
     });
 
-    const listRes = await request(app)
+    const listRes = await request(server)
       .get("/api/v1/projects")
       .set("Authorization", `Bearer ${accessToken}`)
       .expect(200);
     expect(listRes.body.data.projects).toEqual([]);
 
-    await request(app).get(`/api/v1/documents/${documentId}`).set("Authorization", `Bearer ${accessToken}`).expect(404);
+    await request(server)
+      .get(`/api/v1/documents/${documentId}`)
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(404);
   });
 
   it("prevents users from deleting another user's project", async () => {
     const firstUser = await registerAndLogin();
     const secondUser = await registerAndLogin();
 
-    const createRes = await request(app)
+    const createRes = await request(server)
       .post("/api/v1/projects")
       .set("Authorization", `Bearer ${firstUser.accessToken}`)
       .send({ title: "不可删除项目" })
@@ -299,7 +303,7 @@ describe("product foundation API", () => {
 
     const projectId = createRes.body.data.project.id as string;
 
-    await request(app)
+    await request(server)
       .delete(`/api/v1/projects/${projectId}`)
       .set("Authorization", `Bearer ${secondUser.accessToken}`)
       .expect(404);
@@ -309,7 +313,7 @@ describe("product foundation API", () => {
     const firstUser = await registerAndLogin();
     const secondUser = await registerAndLogin();
 
-    const createRes = await request(app)
+    const createRes = await request(server)
       .post("/api/v1/projects")
       .set("Authorization", `Bearer ${firstUser.accessToken}`)
       .send({ title: "私有项目" })
@@ -317,7 +321,7 @@ describe("product foundation API", () => {
 
     const projectId = createRes.body.data.project.id as string;
 
-    await request(app)
+    await request(server)
       .get(`/api/v1/projects/${projectId}`)
       .set("Authorization", `Bearer ${secondUser.accessToken}`)
       .expect(404);

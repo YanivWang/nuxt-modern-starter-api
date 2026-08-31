@@ -148,6 +148,7 @@ src/
 tests/
   unit/
     openapi.test.ts
+    integration-harness.test.ts
     env.redis.test.ts
     utils/http-helpers.test.ts
     infrastructure/revalidation.test.ts
@@ -178,6 +179,7 @@ tests/
 - Service 不依赖 Express middleware；业务错误使用 `src/shared/errors/app-error.ts`。只有 `src/runtime.ts` 可以选择并组装 `src/infrastructure/` 的具体 Adapter。
 - 数据库模型仍由模块内的 `*.model.ts` 定义，通过 `src/db/models.ts` 统一注册；Service 由组合根注入 `AppDatabase`，不再导入全局模型命名导出。
 - 测试统一放在顶层 `tests/`，`tests/unit/` 承载不依赖外部服务的单元测试，`tests/integration/` 承载依赖 MySQL/Redis 的 API 集成测试；`src/` 只保留运行时代码。
+- 集成测试必须用 `startTestServer(runtime)` 起一个供整个文件复用的常驻 server，把它交给 supertest，并在 `runtime.disconnect()` 之前 `stopTestServer(server)`。**不要把 Express app 直接传给 supertest**：那样它会为每个请求新建 server 再关掉，CPU 紧张时请求会绕过 Express、拿到一个空 404，表现为随机的状态码错乱。`tests/unit/integration-harness.test.ts` 会强制这条约定。
 - 企业级 SaaS 后续扩展如 `organization`、`member`、`audit`、`billing` 仍按 `src/modules/<domain>/` 落地；没有真实业务前不空建目录。
 - `dist/`、`logs/`、`uploads/`、`.data/`、`docs-site/.vitepress/dist/` 属于构建产物或运行时数据，只能由命令生成，不作为可维护源码提交。
 

@@ -4,12 +4,12 @@
 import request from "supertest";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { createTestRuntime, resetRedisState } from "./support/test-runtime.js";
+import { createTestRuntime, resetRedisState, startTestServer, stopTestServer } from "./support/test-runtime.js";
 
 import type { AppRuntime } from "../../src/runtime.js";
-import type { Express } from "express";
+import type { Server } from "node:http";
 
-let app: Express;
+let server: Server;
 let runtime: AppRuntime;
 
 function uniqueSlug() {
@@ -30,8 +30,8 @@ async function registerAndLogin() {
   const username = uniqueUsername();
   const password = "password123";
 
-  await request(app).post("/api/v1/register").send({ username, password }).expect(200);
-  const loginRes = await request(app).post("/api/v1/login").send({ username, password }).expect(200);
+  await request(server).post("/api/v1/register").send({ username, password }).expect(200);
+  const loginRes = await request(server).post("/api/v1/login").send({ username, password }).expect(200);
 
   return {
     accessToken: loginRes.body.data.accessToken as string,
@@ -41,7 +41,7 @@ async function registerAndLogin() {
 describe("public content API", () => {
   beforeAll(async () => {
     runtime = createTestRuntime();
-    app = runtime.app;
+    server = startTestServer(runtime);
     await runtime.connect();
     // 限流 / 登录失败计数 / JWT 黑名单都带 TTL 存在 Redis 里，不清理会跨运行残留
     await resetRedisState(runtime);
@@ -53,12 +53,13 @@ describe("public content API", () => {
 
   afterAll(async () => {
     await cleanDatabase().catch(() => {});
+    await stopTestServer(server);
     await runtime.disconnect();
   });
 
   it("returns localized news list without auth", async () => {
-    const zhRes = await request(app).get("/api/v1/content/news").set("Accept-Language", "zh-CN").expect(200);
-    const enRes = await request(app).get("/api/v1/content/news").set("Accept-Language", "en-US").expect(200);
+    const zhRes = await request(server).get("/api/v1/content/news").set("Accept-Language", "zh-CN").expect(200);
+    const enRes = await request(server).get("/api/v1/content/news").set("Accept-Language", "en-US").expect(200);
 
     expect(zhRes.body).toEqual({
       code: 200,
@@ -80,7 +81,7 @@ describe("public content API", () => {
   });
 
   it("returns localized news detail and 404 for unknown slug", async () => {
-    const detailRes = await request(app)
+    const detailRes = await request(server)
       .get("/api/v1/content/news/starter-release")
       .set("Accept-Language", "zh-CN")
       .expect(200);
@@ -95,7 +96,7 @@ describe("public content API", () => {
       }),
     );
 
-    const missingRes = await request(app).get("/api/v1/content/news/unknown-slug").expect(404);
+    const missingRes = await request(server).get("/api/v1/content/news/unknown-slug").expect(404);
 
     expect(missingRes.body).toEqual({
       code: 404,
@@ -105,8 +106,8 @@ describe("public content API", () => {
   });
 
   it("returns localized pricing page content without auth", async () => {
-    const zhRes = await request(app).get("/api/v1/content/pricing").set("Accept-Language", "zh-CN").expect(200);
-    const enRes = await request(app).get("/api/v1/content/pricing").set("Accept-Language", "en-US").expect(200);
+    const zhRes = await request(server).get("/api/v1/content/pricing").set("Accept-Language", "zh-CN").expect(200);
+    const enRes = await request(server).get("/api/v1/content/pricing").set("Accept-Language", "en-US").expect(200);
 
     expect(zhRes.body).toEqual({
       code: 200,
@@ -154,7 +155,7 @@ describe("public content API", () => {
       publishedAt: "2026-07-08",
     };
 
-    const createRes = await request(app)
+    const createRes = await request(server)
       .post("/api/v1/content/news")
       .set("Authorization", `Bearer ${accessToken}`)
       .send(createPayload)
@@ -171,7 +172,7 @@ describe("public content API", () => {
       }),
     );
 
-    const patchRes = await request(app)
+    const patchRes = await request(server)
       .patch(`/api/v1/content/news/${slug}`)
       .set("Authorization", `Bearer ${accessToken}`)
       .send({
@@ -184,14 +185,17 @@ describe("public content API", () => {
 
     expect(patchRes.body.data.article.description["zh-CN"]).toBe("更新后的摘要");
 
-    await request(app).delete(`/api/v1/content/news/${slug}`).set("Authorization", `Bearer ${accessToken}`).expect(200);
+    await request(server)
+      .delete(`/api/v1/content/news/${slug}`)
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(200);
 
-    const missingRes = await request(app).get(`/api/v1/content/news/${slug}`).expect(404);
+    const missingRes = await request(server).get(`/api/v1/content/news/${slug}`).expect(404);
     expect(missingRes.body.message).toBe("新闻不存在");
   });
 
   it("rejects news mutations without auth", async () => {
-    await request(app)
+    await request(server)
       .post("/api/v1/content/news")
       .send({
         slug: "unauthorized-news",

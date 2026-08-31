@@ -1,8 +1,11 @@
-/** 文件职责：创建带测试库名称硬保护的集成测试 Runtime，并提供 Redis 状态清理。 */
+/**
+ * 文件职责：创建带测试库名称硬保护的集成测试 Runtime，提供常驻 HTTP server 与 Redis 状态清理。
+ */
 import { APP_ENV, DB_NAME, REDIS_URL } from "../../../src/env.js";
 import { createRuntime } from "../../../src/runtime.js";
 
 import type { AppRuntime } from "../../../src/runtime.js";
+import type { Server } from "node:http";
 
 export function createTestRuntime() {
   if (APP_ENV !== "test" || !/(^|[_-])test($|[_-])/i.test(DB_NAME)) {
@@ -39,4 +42,31 @@ export async function resetRedisState(runtime: AppRuntime) {
 
   await runtime.redis.connect();
   await runtime.redis.client?.flushDb();
+}
+
+/**
+ * 起一个供整个测试文件复用的 HTTP server。
+ *
+ * 必须显式起 server，并把它（而不是 Express app）交给 supertest：
+ * 传 app 时 supertest 会为**每个请求**新建 http.Server + listen(0)，响应后再 close()。
+ * 一个集成测试文件下来就是上百个短命 server，CPU 紧张时会出现请求根本没落到 Express 上、
+ * 由更底层直接回一个空 404（text/html、content-length 0、且没有 x-request-id ——
+ * 而 requestIdMiddleware 挂在最前面，凡是进过应用的响应都必然带这个头）。
+ *
+ * 表现出来就是「断言拿到一个毫不相关的状态码」这类随机失败：
+ * 期望 200 得到 404、期望 409 得到 404、期望 200 得到 400。看着像业务逻辑错乱，
+ * 其实是那次请求压根没经过业务逻辑。
+ */
+export function startTestServer(runtime: AppRuntime): Server {
+  return runtime.app.listen(0);
+}
+
+/** 关闭常驻 server；必须在断开数据库/Redis 之前调用，避免在途请求打到已关闭的连接池。 */
+export function stopTestServer(server: Server): Promise<void> {
+  return new Promise((resolve) => {
+    // supertest 客户端走的是带 keep-alive 的 globalAgent，close() 不会主动断开空闲连接，
+    // 不显式关掉的话 afterAll 要一直等到 keepAliveTimeout（默认 5 秒）才返回。
+    server.closeAllConnections();
+    server.close(() => resolve());
+  });
 }
