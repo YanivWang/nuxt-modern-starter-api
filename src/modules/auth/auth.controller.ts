@@ -7,7 +7,8 @@ import { getValidated } from "../../utils/getValidated.js";
 import { success } from "../../utils/response.js";
 import { clearAuthCookies, csrfTokensMatch, readRefreshTokenCookie, setAuthCookies } from "./authCookie.js";
 
-import type { AuthSessionService, AuthTokenPair } from "./auth-session.service.js";
+import type { AuthSessionService } from "./auth-session.service.js";
+import type { AuthTokenPair } from "./auth.contract.js";
 import type { AuthService } from "./auth.service.js";
 import type {
   ValidatedLoginSchema,

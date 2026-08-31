@@ -1,14 +1,14 @@
 /**
  * 文件职责：公开定价页内容的 hardcoded 数据源。
  */
-import type { SupportedLocale } from "./content.data.js";
+import type { PricingCtaPath, PricingPlanKey, SupportedLocale } from "./content.contract.js";
 
-export type PricingPlanKey = "starter" | "growth" | "custom";
+export type { PricingPlanKey } from "./content.contract.js";
 
 export type PricingPlan = {
   key: PricingPlanKey;
   featured: boolean;
-  ctaPath: "/sign-up" | "/help";
+  ctaPath: PricingCtaPath;
   name: Record<SupportedLocale, string>;
   badge: Record<SupportedLocale, string>;
   price: Record<SupportedLocale, string>;

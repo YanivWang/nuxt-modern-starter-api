@@ -2,50 +2,19 @@
  * 文件职责：工作台项目用例与 ProjectDto 映射。
  * 创建项目时在同一事务内保证个人 Workspace、Project、Document 一起就绪；查询一律按 ownerId 过滤。
  */
+import { PROJECT_ACCENTS } from "./workspace.contract.js";
 import { toDocumentDto } from "../document/index.js";
 
+import type { ProjectAccent, ProjectDto, ProjectListResult, ProjectStatus } from "./workspace.contract.js";
 import type { AppDatabase } from "../../db/index.js";
 import type { Project } from "./project.model.js";
 import type { Transaction } from "sequelize";
 
-/** 项目状态。收窄为联合类型，避免 DTO 声明成 string 而让消费方无从校验。 */
-export type ProjectStatus = "draft" | "published" | "archived";
-
-/** 卡片主题色。前端据此拼 CSS 类名，取值超出集合会静默渲染成无样式卡片。 */
-export type ProjectAccent = "blue" | "green" | "violet" | "amber" | "cyan" | "rose";
-
-export const PROJECT_ACCENTS: readonly ProjectAccent[] = ["blue", "green", "violet", "amber", "cyan", "rose"];
+export type { ProjectAccent, ProjectDto, ProjectListResult, ProjectStatus } from "./workspace.contract.js";
+export { PROJECT_ACCENTS } from "./workspace.contract.js";
 
 const DEFAULT_ACCENT: ProjectAccent = "blue";
 const DEFAULT_STATUS: ProjectStatus = "draft";
-
-/**
- * 注意这里不包含 editPath / previewPath 之类的前端路由字段。
- * 路由表属于前端，后端拼出来的路径既无人消费，又会在前端改路由时变成错误数据。
- */
-export type ProjectDto = {
-  id: string;
-  workspaceId: string;
-  documentId: string | null;
-  title: string;
-  description: string | null;
-  status: ProjectStatus;
-  slideCount: number;
-  accent: ProjectAccent;
-  updatedAt: string;
-};
-
-export type Pagination = {
-  total: number;
-  limit: number;
-  offset: number;
-  hasMore: boolean;
-};
-
-export type ProjectListResult = {
-  projects: ProjectDto[];
-  pagination: Pagination;
-};
 
 // 列存的是自由文本，历史数据或人工改库都可能落在集合之外；出库时归一化，保证 DTO 与其声明一致。
 const toAccent = (value: string): ProjectAccent =>

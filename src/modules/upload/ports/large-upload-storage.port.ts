@@ -1,16 +1,13 @@
-/** 文件职责：声明分片上传会话、分片写入、合并和取消能力。 */
+/**
+ * 文件职责：声明分片上传会话、分片写入、合并和取消能力。
+ *
+ * 返回类型统一由 upload.contract.ts 的响应 schema 推导：
+ * Port 自己再抄一份类型，就会出现「Adapter 多返回几个字段、Port 没声明、文档也没写」的三方不一致。
+ */
 import type { LargeUploadInitBody } from "../large-upload.schema.js";
+import type { InitLargeUploadResult, LargeUploadMergeResult, LargeUploadStatus } from "../upload.contract.js";
 
-export type InitLargeUploadResult =
-  | { instant: true; publicUrl: string; chunkTotal: 0; expiresAt: string }
-  | { instant: false; uploadId: string; chunkTotal: number; expiresAt: string };
-
-export type LargeUploadStatus = {
-  status: "uploading" | "merging" | "done" | "failed";
-  chunkTotal: number;
-  receivedIndices: number[];
-  publicUrl?: string;
-};
+export type { InitLargeUploadResult, LargeUploadMergeResult, LargeUploadStatus } from "../upload.contract.js";
 
 export interface LargeUploadStorage {
   resolveChunkDir(uploadId: string): string;
@@ -24,7 +21,7 @@ export interface LargeUploadStorage {
     savedPath: string,
     chunkMd5: string,
   ): Promise<void>;
-  merge(uploadId: string, userId: number): Promise<{ url: string; merged: boolean }>;
+  merge(uploadId: string, userId: number): Promise<LargeUploadMergeResult>;
   abort(uploadId: string, userId: number): Promise<void>;
   /**
    * 清理超过保留期的临时分片与会话文件。

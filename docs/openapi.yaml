@@ -17,14 +17,876 @@ components:
       scheme: bearer
       bearerFormat: JWT
   schemas:
-    SuccessBody:
+    Pagination:
+      type: object
+      properties:
+        total:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        limit:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        offset:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        hasMore:
+          type: boolean
+      required:
+        - total
+        - limit
+        - offset
+        - hasMore
+      additionalProperties: false
+    ProjectDto:
+      type: object
+      properties:
+        id:
+          type: string
+        workspaceId:
+          type: string
+        documentId:
+          anyOf:
+            - type: string
+            - type: "null"
+        title:
+          type: string
+        description:
+          anyOf:
+            - type: string
+            - type: "null"
+        status:
+          type: string
+          enum:
+            - draft
+            - published
+            - archived
+        slideCount:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        accent:
+          type: string
+          enum:
+            - blue
+            - green
+            - violet
+            - amber
+            - cyan
+            - rose
+        updatedAt:
+          type: string
+      required:
+        - id
+        - workspaceId
+        - documentId
+        - title
+        - description
+        - status
+        - slideCount
+        - accent
+        - updatedAt
+      additionalProperties: false
+    DocumentDto:
+      type: object
+      properties:
+        id:
+          type: string
+        projectId:
+          type: string
+        title:
+          type: string
+        content:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - projectId
+        - title
+        - content
+        - updatedAt
+      additionalProperties: false
+    AuthTokenPair:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        accessTokenExpiresIn:
+          type: integer
+          exclusiveMinimum: 0
+          maximum: 9007199254740991
+        refreshTokenExpiresIn:
+          type: integer
+          exclusiveMinimum: 0
+          maximum: 9007199254740991
+      required:
+        - accessToken
+        - refreshToken
+        - accessTokenExpiresIn
+        - refreshTokenExpiresIn
+      additionalProperties: false
+    PublicUser:
+      type: object
+      properties:
+        id:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        username:
+          type: string
+        avatar:
+          anyOf:
+            - type: string
+            - type: "null"
+        nickname:
+          anyOf:
+            - type: string
+            - type: "null"
+      required:
+        - id
+        - username
+        - avatar
+        - nickname
+      additionalProperties: false
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        userId:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        nickname:
+          anyOf:
+            - type: string
+            - type: "null"
+        avatar:
+          anyOf:
+            - type: string
+            - type: "null"
+        gender:
+          anyOf:
+            - type: string
+            - type: "null"
+        birthday:
+          anyOf:
+            - type: string
+            - type: "null"
+        bio:
+          anyOf:
+            - type: string
+            - type: "null"
+        address:
+          anyOf:
+            - type: string
+            - type: "null"
+        company:
+          anyOf:
+            - type: string
+            - type: "null"
+        jobTitle:
+          anyOf:
+            - type: string
+            - type: "null"
+        isMarried:
+          anyOf:
+            - type: boolean
+            - type: "null"
+        mom:
+          anyOf:
+            - type: string
+            - type: "null"
+        father:
+          anyOf:
+            - type: string
+            - type: "null"
+        university:
+          anyOf:
+            - type: string
+            - type: "null"
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - userId
+        - nickname
+        - avatar
+        - gender
+        - birthday
+        - bio
+        - address
+        - company
+        - jobTitle
+        - isMarried
+        - mom
+        - father
+        - university
+        - createdAt
+        - updatedAt
+      additionalProperties: false
+    NewsArticleSource:
+      type: object
+      properties:
+        slug:
+          type: string
+          minLength: 1
+          pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+        title:
+          type: object
+          properties:
+            zh-CN:
+              type: string
+              minLength: 1
+            en-US:
+              type: string
+              minLength: 1
+          required:
+            - zh-CN
+            - en-US
+          additionalProperties: false
+        description:
+          type: object
+          properties:
+            zh-CN:
+              type: string
+              minLength: 1
+            en-US:
+              type: string
+              minLength: 1
+          required:
+            - zh-CN
+            - en-US
+          additionalProperties: false
+        body:
+          type: object
+          properties:
+            zh-CN:
+              minItems: 1
+              type: array
+              items:
+                type: string
+                minLength: 1
+            en-US:
+              minItems: 1
+              type: array
+              items:
+                type: string
+                minLength: 1
+          required:
+            - zh-CN
+            - en-US
+          additionalProperties: false
+        publishedAt:
+          type: string
+          minLength: 1
+      required:
+        - slug
+        - title
+        - description
+        - body
+        - publishedAt
+      additionalProperties: false
+    LocalizedNewsSummary:
+      type: object
+      properties:
+        slug:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        publishedAt:
+          type: string
+      required:
+        - slug
+        - title
+        - description
+        - publishedAt
+      additionalProperties: false
+    LocalizedNewsArticle:
+      type: object
+      properties:
+        slug:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        publishedAt:
+          type: string
+        body:
+          type: array
+          items:
+            type: string
+      required:
+        - slug
+        - title
+        - description
+        - publishedAt
+        - body
+      additionalProperties: false
+    LocalizedPricingPlan:
+      type: object
+      properties:
+        key:
+          type: string
+          enum:
+            - starter
+            - growth
+            - custom
+        featured:
+          type: boolean
+        ctaPath:
+          type: string
+          enum:
+            - /sign-up
+            - /help
+        name:
+          type: string
+        badge:
+          type: string
+        price:
+          type: string
+        period:
+          type: string
+        description:
+          type: string
+        cta:
+          type: string
+        features:
+          type: array
+          items:
+            type: string
+      required:
+        - key
+        - featured
+        - ctaPath
+        - name
+        - badge
+        - price
+        - period
+        - description
+        - cta
+        - features
+      additionalProperties: false
+    LocalizedPricingPage:
+      type: object
+      properties:
+        eyebrow:
+          type: string
+        title:
+          type: string
+        lead:
+          type: string
+        note:
+          type: string
+        plans:
+          type: array
+          items:
+            $ref: "#/components/schemas/LocalizedPricingPlan"
+        includes:
+          type: object
+          properties:
+            eyebrow:
+              type: string
+            title:
+              type: string
+            items:
+              type: array
+              items:
+                type: string
+          required:
+            - eyebrow
+            - title
+            - items
+          additionalProperties: false
+      required:
+        - eyebrow
+        - title
+        - lead
+        - note
+        - plans
+        - includes
+      additionalProperties: false
+    ImageUploadResult:
+      type: object
+      properties:
+        urls:
+          type: array
+          items:
+            type: string
+      required:
+        - urls
+      additionalProperties: false
+    LargeUploadInitResult:
+      oneOf:
+        - type: object
+          properties:
+            instant:
+              type: boolean
+              const: true
+            publicUrl:
+              type: string
+            chunkTotal:
+              type: number
+              const: 0
+            expiresAt:
+              type: string
+          required:
+            - instant
+            - publicUrl
+            - chunkTotal
+            - expiresAt
+          additionalProperties: false
+        - type: object
+          properties:
+            instant:
+              type: boolean
+              const: false
+            uploadId:
+              type: string
+            chunkTotal:
+              type: integer
+              exclusiveMinimum: 0
+              maximum: 9007199254740991
+            expiresAt:
+              type: string
+          required:
+            - instant
+            - uploadId
+            - chunkTotal
+            - expiresAt
+          additionalProperties: false
+    LargeUploadStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - uploading
+            - merging
+            - done
+            - failed
+        chunkTotal:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        receivedIndices:
+          type: array
+          items:
+            type: integer
+            minimum: 0
+            maximum: 9007199254740991
+        publicUrl:
+          type: string
+        fileName:
+          type: string
+        fileSize:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        chunkSize:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+      required:
+        - status
+        - chunkTotal
+        - receivedIndices
+      additionalProperties: false
+    LargeUploadMergeResult:
+      type: object
+      properties:
+        url:
+          type: string
+        merged:
+          type: boolean
+      required:
+        - url
+        - merged
+      additionalProperties: false
+    ChunkAccepted:
+      type: object
+      properties:
+        chunkIndex:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+      required:
+        - chunkIndex
+      additionalProperties: false
+    EmptyData:
+      type: object
+      properties: {}
+      additionalProperties: false
+    NullDataBody:
       type: object
       properties:
         code:
-          type: integer
+          type: number
+          const: 200
         message:
           type: string
-        data: {}
+        data:
+          type: "null"
+      required:
+        - code
+        - message
+        - data
+      additionalProperties: false
+    AuthTokenPairBody:
+      type: object
+      properties:
+        code:
+          type: number
+          const: 200
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/AuthTokenPair"
+      required:
+        - code
+        - message
+        - data
+      additionalProperties: false
+    MeBody:
+      type: object
+      properties:
+        code:
+          type: number
+          const: 200
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            user:
+              $ref: "#/components/schemas/PublicUser"
+          required:
+            - user
+          additionalProperties: false
+      required:
+        - code
+        - message
+        - data
+      additionalProperties: false
+    ProfileBody:
+      type: object
+      properties:
+        code:
+          type: number
+          const: 200
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            profile:
+              anyOf:
+                - $ref: "#/components/schemas/UserProfile"
+                - type: "null"
+          required:
+            - profile
+          additionalProperties: false
+      required:
+        - code
+        - message
+        - data
+      additionalProperties: false
+    UpdatedProfileBody:
+      type: object
+      properties:
+        code:
+          type: number
+          const: 200
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            profile:
+              $ref: "#/components/schemas/UserProfile"
+          required:
+            - profile
+          additionalProperties: false
+      required:
+        - code
+        - message
+        - data
+      additionalProperties: false
+    NewsListBody:
+      type: object
+      properties:
+        code:
+          type: number
+          const: 200
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            articles:
+              type: array
+              items:
+                $ref: "#/components/schemas/LocalizedNewsSummary"
+          required:
+            - articles
+          additionalProperties: false
+      required:
+        - code
+        - message
+        - data
+      additionalProperties: false
+    NewsArticleBody:
+      type: object
+      properties:
+        code:
+          type: number
+          const: 200
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            article:
+              $ref: "#/components/schemas/LocalizedNewsArticle"
+          required:
+            - article
+          additionalProperties: false
+      required:
+        - code
+        - message
+        - data
+      additionalProperties: false
+    NewsSourceBody:
+      type: object
+      properties:
+        code:
+          type: number
+          const: 200
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            article:
+              $ref: "#/components/schemas/NewsArticleSource"
+          required:
+            - article
+          additionalProperties: false
+      required:
+        - code
+        - message
+        - data
+      additionalProperties: false
+    PricingBody:
+      type: object
+      properties:
+        code:
+          type: number
+          const: 200
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            pricing:
+              $ref: "#/components/schemas/LocalizedPricingPage"
+          required:
+            - pricing
+          additionalProperties: false
+      required:
+        - code
+        - message
+        - data
+      additionalProperties: false
+    ProjectListBody:
+      type: object
+      properties:
+        code:
+          type: number
+          const: 200
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            projects:
+              type: array
+              items:
+                $ref: "#/components/schemas/ProjectDto"
+            pagination:
+              $ref: "#/components/schemas/Pagination"
+          required:
+            - projects
+            - pagination
+          additionalProperties: false
+      required:
+        - code
+        - message
+        - data
+      additionalProperties: false
+    ProjectBody:
+      type: object
+      properties:
+        code:
+          type: number
+          const: 200
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            project:
+              $ref: "#/components/schemas/ProjectDto"
+          required:
+            - project
+          additionalProperties: false
+      required:
+        - code
+        - message
+        - data
+      additionalProperties: false
+    ProjectCreatedBody:
+      type: object
+      properties:
+        code:
+          type: number
+          const: 200
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            project:
+              $ref: "#/components/schemas/ProjectDto"
+            document:
+              $ref: "#/components/schemas/DocumentDto"
+          required:
+            - project
+            - document
+          additionalProperties: false
+      required:
+        - code
+        - message
+        - data
+      additionalProperties: false
+    DocumentBody:
+      type: object
+      properties:
+        code:
+          type: number
+          const: 200
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            document:
+              $ref: "#/components/schemas/DocumentDto"
+          required:
+            - document
+          additionalProperties: false
+      required:
+        - code
+        - message
+        - data
+      additionalProperties: false
+    ImageUploadBody:
+      type: object
+      properties:
+        code:
+          type: number
+          const: 200
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/ImageUploadResult"
+      required:
+        - code
+        - message
+        - data
+      additionalProperties: false
+    LargeUploadInitResultBody:
+      type: object
+      properties:
+        code:
+          type: number
+          const: 200
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/LargeUploadInitResult"
+      required:
+        - code
+        - message
+        - data
+      additionalProperties: false
+    LargeUploadStatusBody:
+      type: object
+      properties:
+        code:
+          type: number
+          const: 200
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/LargeUploadStatus"
+      required:
+        - code
+        - message
+        - data
+      additionalProperties: false
+    LargeUploadMergeBody:
+      type: object
+      properties:
+        code:
+          type: number
+          const: 200
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/LargeUploadMergeResult"
+      required:
+        - code
+        - message
+        - data
+      additionalProperties: false
+    ChunkAcceptedBody:
+      type: object
+      properties:
+        code:
+          type: number
+          const: 200
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/ChunkAccepted"
+      required:
+        - code
+        - message
+        - data
+      additionalProperties: false
+    EmptyDataBody:
+      type: object
+      properties:
+        code:
+          type: number
+          const: 200
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/EmptyData"
       required:
         - code
         - message
@@ -142,11 +1004,11 @@ paths:
                 - password
       responses:
         "200":
-          description: 注册成功
+          description: 注册成功；不自动登录，data 为 null
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessBody"
+                $ref: "#/components/schemas/NullDataBody"
         "400":
           description: 请求参数错误
           content:
@@ -193,7 +1055,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessBody"
+                $ref: "#/components/schemas/AuthTokenPairBody"
         "400":
           description: 请求参数错误
           content:
@@ -233,7 +1095,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessBody"
+                $ref: "#/components/schemas/AuthTokenPairBody"
         "400":
           description: 请求参数错误
           content:
@@ -271,11 +1133,11 @@ paths:
                   minLength: 1
       responses:
         "200":
-          description: 退出登录成功
+          description: 退出登录成功，data 为 null
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessBody"
+                $ref: "#/components/schemas/NullDataBody"
         "400":
           description: 请求参数错误
           content:
@@ -307,7 +1169,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessBody"
+                $ref: "#/components/schemas/MeBody"
         "400":
           description: 请求参数错误
           content:
@@ -335,11 +1197,11 @@ paths:
         - bearerAuth: []
       responses:
         "200":
-          description: 当前用户扩展资料
+          description: 当前用户扩展资料；从未填写过时 profile 为 null
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessBody"
+                $ref: "#/components/schemas/ProfileBody"
         "400":
           description: 请求参数错误
           content:
@@ -436,11 +1298,11 @@ paths:
               additionalProperties: false
       responses:
         "200":
-          description: 更新当前用户扩展资料
+          description: 更新后的当前用户扩展资料
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessBody"
+                $ref: "#/components/schemas/UpdatedProfileBody"
         "400":
           description: 请求参数错误
           content:
@@ -475,11 +1337,11 @@ paths:
               - en-US
       responses:
         "200":
-          description: 本地化新闻列表
+          description: 本地化新闻列表（摘要，不含正文）
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessBody"
+                $ref: "#/components/schemas/NewsListBody"
         "400":
           description: 请求参数错误
           content:
@@ -567,12 +1429,12 @@ paths:
                 - body
                 - publishedAt
       responses:
-        "200":
-          description: 创建新闻
+        "201":
+          description: 创建新闻成功，回显未折叠的双语原文
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessBody"
+                $ref: "#/components/schemas/NewsSourceBody"
         "400":
           description: 请求参数错误
           content:
@@ -611,7 +1473,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessBody"
+                $ref: "#/components/schemas/PricingBody"
         "400":
           description: 请求参数错误
           content:
@@ -653,11 +1515,11 @@ paths:
               - en-US
       responses:
         "200":
-          description: 本地化新闻详情
+          description: 本地化新闻详情（含正文段落）
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessBody"
+                $ref: "#/components/schemas/NewsArticleBody"
         "400":
           description: 请求参数错误
           content:
@@ -744,11 +1606,11 @@ paths:
                   minLength: 1
       responses:
         "200":
-          description: 更新新闻
+          description: 更新新闻成功，回显未折叠的双语原文
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessBody"
+                $ref: "#/components/schemas/NewsSourceBody"
         "400":
           description: 请求参数错误
           content:
@@ -783,11 +1645,11 @@ paths:
             pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
       responses:
         "200":
-          description: 删除新闻
+          description: 删除新闻成功，data 为 null
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessBody"
+                $ref: "#/components/schemas/NullDataBody"
         "400":
           description: 请求参数错误
           content:
@@ -838,7 +1700,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessBody"
+                $ref: "#/components/schemas/ProjectListBody"
         "400":
           description: 请求参数错误
           content:
@@ -880,12 +1742,12 @@ paths:
               required:
                 - title
       responses:
-        "200":
-          description: 创建项目成功
+        "201":
+          description: 创建项目成功，同时返回同事务里初始化出的文档
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessBody"
+                $ref: "#/components/schemas/ProjectCreatedBody"
         "400":
           description: 请求参数错误
           content:
@@ -926,7 +1788,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessBody"
+                $ref: "#/components/schemas/ProjectBody"
         "400":
           description: 请求参数错误
           content:
@@ -980,7 +1842,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessBody"
+                $ref: "#/components/schemas/ProjectBody"
         "400":
           description: 请求参数错误
           content:
@@ -1016,11 +1878,11 @@ paths:
               ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
       responses:
         "200":
-          description: 删除项目成功
+          description: 删除项目成功，data 为 null
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessBody"
+                $ref: "#/components/schemas/NullDataBody"
         "400":
           description: 请求参数错误
           content:
@@ -1061,7 +1923,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessBody"
+                $ref: "#/components/schemas/DocumentBody"
         "400":
           description: 请求参数错误
           content:
@@ -1115,7 +1977,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessBody"
+                $ref: "#/components/schemas/DocumentBody"
         "400":
           description: 请求参数错误
           content:
@@ -1157,11 +2019,11 @@ paths:
                 - files
       responses:
         "200":
-          description: 上传通用图片，返回 /uploads/common/... URL
+          description: 上传通用图片，返回 /uploads/common/... 相对 URL
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessBody"
+                $ref: "#/components/schemas/ImageUploadBody"
         "400":
           description: 请求参数错误
           content:
@@ -1203,11 +2065,11 @@ paths:
                 - files
       responses:
         "200":
-          description: 上传用户头像/资料图
+          description: 上传用户头像/资料图，返回 /uploads/profiles/... 相对 URL
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessBody"
+                $ref: "#/components/schemas/ImageUploadBody"
         "400":
           description: 请求参数错误
           content:
@@ -1267,11 +2129,11 @@ paths:
                 - fileMd5
       responses:
         "200":
-          description: 创建大文件分片上传任务或秒传
+          description: 创建上传任务；MD5 命中时 instant 为 true 并直接返回 publicUrl
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessBody"
+                $ref: "#/components/schemas/LargeUploadInitResultBody"
         "400":
           description: 请求参数错误
           content:
@@ -1308,11 +2170,11 @@ paths:
               ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
       responses:
         "200":
-          description: 查询上传状态
+          description: 查询上传状态；receivedIndices 用于断点续传
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessBody"
+                $ref: "#/components/schemas/LargeUploadStatusBody"
         "400":
           description: 请求参数错误
           content:
@@ -1376,11 +2238,11 @@ paths:
                 - chunk
       responses:
         "200":
-          description: 分片已接收
+          description: 分片已接收，回显 chunkIndex
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessBody"
+                $ref: "#/components/schemas/ChunkAcceptedBody"
         "400":
           description: 请求参数错误
           content:
@@ -1417,11 +2279,11 @@ paths:
               ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
       responses:
         "200":
-          description: 合并完成
+          description: 合并完成；merged 为 false 表示此前已合并过的幂等重放
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessBody"
+                $ref: "#/components/schemas/LargeUploadMergeBody"
         "400":
           description: 请求参数错误
           content:
@@ -1458,11 +2320,11 @@ paths:
               ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
       responses:
         "200":
-          description: 已取消
+          description: 已取消；data 为空对象而非 null
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessBody"
+                $ref: "#/components/schemas/EmptyDataBody"
         "400":
           description: 请求参数错误
           content:

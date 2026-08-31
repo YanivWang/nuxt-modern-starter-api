@@ -2,15 +2,9 @@
  * 文件职责：公开新闻内容的 hardcoded 数据源。
  * starter 阶段先用本地常量，后续可替换为 CMS 或数据库而不改路由契约。
  */
-export type SupportedLocale = "zh-CN" | "en-US";
+import type { NewsArticle } from "./content.contract.js";
 
-export type NewsArticle = {
-  slug: string;
-  title: Record<SupportedLocale, string>;
-  description: Record<SupportedLocale, string>;
-  body: Record<SupportedLocale, string[]>;
-  publishedAt: string;
-};
+export type { NewsArticle, SupportedLocale } from "./content.contract.js";
 
 export const newsArticles: NewsArticle[] = [
   {

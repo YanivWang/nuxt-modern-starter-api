@@ -1,5 +1,5 @@
 /** 文件职责：声明新闻和定价内容的数据访问能力。 */
-import type { NewsArticle } from "../content.data.js";
+import type { NewsArticle } from "../content.contract.js";
 import type { PricingPageContent } from "../pricing.data.js";
 
 export interface ContentRepository {

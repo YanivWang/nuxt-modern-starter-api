@@ -88,7 +88,7 @@ server.ts
 | `src/redis.ts`                     | JWT 黑名单 Redis 连接；关闭黑名单时可不启用 Redis                              |
 | `src/runtime.ts`                   | 唯一组合根：创建 Adapter、组装模块并管理依赖生命周期                           |
 | `src/infrastructure/`              | Redis、内存内容、Nuxt revalidate、本地文件、限流存储、指标、清理任务等 Adapter |
-| `src/shared/http/`                 | 全站共用的 HTTP 契约，如分页入参约定                                           |
+| `src/shared/http/`                 | 全站共用的 HTTP 契约，如分页入参约定与 `{ code, message, data }` 响应信封      |
 | `src/shared/errors/`               | 与 HTTP 解耦的应用错误；状态码只在错误中间件映射                               |
 | `src/middlewares/`                 | 统一错误、认证、限流、请求 ID、日志、Zod 校验等横切能力                        |
 | `src/modules/auth/`                | 注册、登录、access/refresh token、Cookie/CSRF、登出黑名单                      |
@@ -163,6 +163,7 @@ tests/
     auth.integration.test.ts
     content.integration.test.ts
     product-foundation.integration.test.ts
+    response-contract.integration.test.ts
 ```
 
 单元测试带覆盖率阈值（见 `vitest.config.ts`），已接入 `pnpm run check`。阈值只升不降：补测试后如果实测值明显高出，请顺手上调阈值，让它持续起到防回退作用。
@@ -170,6 +171,7 @@ tests/
 目录维护约定：
 
 - 新增业务能力默认放入 `src/modules/<domain>/`；每个模块通过 `index.ts` 暴露模块工厂，通过 `ports/` 和 `*.contract.ts` 暴露稳定契约，禁止跨模块导入内部 Service。
+- `*.contract.ts` 是该模块响应形状的唯一来源：先写 Zod schema，再用 `z.infer` 推导 DTO 类型，mapper 显式标注这个返回类型。手写一份类型再手写一份文档 schema，两者迟早分叉，而分叉时没有任何一侧会报错。
 - 跨模块引用 `*.model.ts` 只允许 `import type`。模型之间存在数据库外键关系，类型引用不可避免，但类型导入在编译后被擦除，不会建立运行时依赖；值导入仍会被 `architecture:check` 拒绝。
 - Service 不依赖 Express middleware；业务错误使用 `src/shared/errors/app-error.ts`。只有 `src/runtime.ts` 可以选择并组装 `src/infrastructure/` 的具体 Adapter。
 - 数据库模型仍由模块内的 `*.model.ts` 定义，通过 `src/db/models.ts` 统一注册；Service 由组合根注入 `AppDatabase`，不再导入全局模型命名导出。
@@ -207,6 +209,8 @@ tests/
 
 错误响应同样使用 `{ "code", "message", "data": null }`。
 
+`data` 的真实形状在 OpenAPI 里逐字段描述，不再是一个等价于「任意值」的空 schema。创建类接口（`POST /api/v1/projects`、`POST /api/v1/content/news`）的 HTTP status 是 201，信封里的 `code` 仍然是 200。
+
 ### 列表分页
 
 所有列表接口使用统一的 `limit` / `offset` 约定（定义见 `src/shared/http/pagination.ts`），默认单页 20 条，上限 100。响应在 `data` 中附带分页元信息：
@@ -224,7 +228,13 @@ tests/
 
 ## OpenAPI 文档
 
-OpenAPI 由 `src/openapi.ts` 统一生成，运行时 Swagger 和 `docs/openapi.yaml` 都来自同一份定义；请求体 schema 直接复用现有 Zod 校验规则，统一成功/错误响应也在 OpenAPI components 中声明，避免接口校验和文档分叉。
+OpenAPI 由 `src/openapi.ts` 统一生成，运行时 Swagger 和 `docs/openapi.yaml` 都来自同一份定义。
+
+请求体 schema 复用路由的 Zod 校验规则；响应 schema 复用各模块 `*.contract.ts` 里的响应契约——同一份 schema 又通过 `z.infer` 推导出 DTO 类型，因此「文档写的响应」和「mapper 真正返回的响应」在结构上不可能各说各话。
+
+components 分两层：以 `Body` 结尾的是完整的 `{ code, message, data }` 信封（`code` 钉在字面量 200），不带后缀的是 `data` 里被多个响应共用的实体（`ProjectDto`、`Pagination` 等），只声明一次并由信封 `$ref` 引用。
+
+`tests/integration/response-contract.integration.test.ts` 会用同一份 schema 解析真实 HTTP 响应体，补上类型系统够不到的一段：controller 拼信封时把 `{ project }` 写成 `{ projects }`、或顺手多返回一个字段，`tsc` 都不会报错。
 
 ```bash
 pnpm openapi:generate # 重新生成 docs/openapi.yaml
@@ -276,6 +286,7 @@ pnpm test:unit
 - `tests/integration/auth.integration.test.ts`：注册/登录/refresh/logout、Bearer 与 Cookie、CSRF、黑名单。
 - `tests/integration/product-foundation.integration.test.ts`：项目/文档 CRUD、项目删除级联清理与跨用户读取/删除隔离。
 - `tests/integration/content.integration.test.ts`：公开新闻/定价本地化读取，以及登录后新闻创建/更新/删除与 revalidate 触发。
+- `tests/integration/response-contract.integration.test.ts`：用 OpenAPI 的同一份响应 schema 校验真实响应体，覆盖认证、当前用户、项目/文档、公开内容与上传全流程。
 
 ## Web App 授权约定
 

@@ -16,6 +16,8 @@ import { projectRoot } from "../../utils/projectRoot.js";
 import type { LargeUploadInitBody } from "../../modules/upload/large-upload.schema.js";
 import type {
   InitLargeUploadResult,
+  LargeUploadMergeResult,
+  LargeUploadStatus,
   LargeUploadStorage,
 } from "../../modules/upload/ports/large-upload-storage.port.js";
 
@@ -269,7 +271,9 @@ export async function initLargeUpload(body: LargeUploadInitBody, userId: number)
   return { instant: false, uploadId, chunkTotal, expiresAt };
 }
 
-export async function getLargeUploadStatus(uploadId: string, userId: number) {
+// 显式标注返回类型（而不是让 TS 推断）：推断出的类型只会比契约更宽，
+// 多返回的字段既不在 Port 里也不在 OpenAPI 里，却已经被客户端看到。
+export async function getLargeUploadStatus(uploadId: string, userId: number): Promise<LargeUploadStatus> {
   const markerFile = doneMarkerPath(uploadId);
   try {
     // 合并完成后临时目录会被删除，status 必须先看 done marker 才能支持客户端轮询/刷新后的幂等查询。
@@ -360,7 +364,7 @@ export async function finalizeChunkWrite(
   }
 }
 
-export async function mergeLargeUpload(uploadId: string, userId: number) {
+export async function mergeLargeUpload(uploadId: string, userId: number): Promise<LargeUploadMergeResult> {
   const markerFile = doneMarkerPath(uploadId);
   try {
     // merge 可能因网络重试重复提交；已完成任务直接返回旧 URL，不再触碰已清理的临时分片。

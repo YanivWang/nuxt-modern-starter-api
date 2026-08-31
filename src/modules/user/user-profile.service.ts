@@ -7,27 +7,11 @@ import { Transaction } from "sequelize";
 import { internalError } from "../../shared/errors/app-error.js";
 
 import type { UserProfile } from "./user-profile.model.js";
+import type { UserProfilePlain } from "./user.contract.js";
 import type { PatchUserProfileBody } from "./user-profile.schema.js";
 import type { AppDatabase } from "../../db/index.js";
 
-export type UserProfilePlain = {
-  id: number;
-  userId: number;
-  nickname: string | null;
-  avatar: string | null;
-  gender: string | null;
-  birthday: string | null;
-  bio: string | null;
-  address: string | null;
-  company: string | null;
-  jobTitle: string | null;
-  isMarried: boolean | null;
-  mom: string | null;
-  father: string | null;
-  university: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
+export type { UserProfilePlain } from "./user.contract.js";
 
 /** UserProfiles 上可被 PATCH 直接写入的字段（avatar 不在此列，它属于 Users）。 */
 const PROFILE_KEYS = [

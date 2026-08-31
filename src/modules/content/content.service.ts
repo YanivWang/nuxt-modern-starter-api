@@ -2,7 +2,13 @@
  * 文件职责：公开内容用例。
  * 通过 ContentRepository 读写数据、按 locale 折叠双语字段，并在写操作成功后触发 ContentRevalidator。
  */
-import type { NewsArticle, SupportedLocale } from "./content.data.js";
+import type {
+  LocalizedNewsArticle,
+  LocalizedNewsSummary,
+  LocalizedPricingPage,
+  NewsArticle,
+  SupportedLocale,
+} from "./content.contract.js";
 import type { ContentRepository } from "./ports/content-repository.port.js";
 import type { ContentRevalidator } from "./ports/content-revalidator.port.js";
 
@@ -15,21 +21,23 @@ export function createContentService(repository: ContentRepository, revalidator:
     return acceptLanguage?.trim().toLowerCase().startsWith("en") ? "en-US" : "zh-CN";
   };
 
-  const localizeSummary = (article: NewsArticle, locale: SupportedLocale) => ({
+  // 返回类型显式标注为契约推导出的类型：折叠逻辑漏掉或多写一个字段会直接编译失败，
+  // 而不是等到 OpenAPI 文档与真实响应对不上时才被人发现。
+  const localizeSummary = (article: NewsArticle, locale: SupportedLocale): LocalizedNewsSummary => ({
     slug: article.slug,
     title: article.title[locale],
     description: article.description[locale],
     publishedAt: article.publishedAt,
   });
 
-  const listNews = (locale: SupportedLocale) =>
+  const listNews = (locale: SupportedLocale): LocalizedNewsSummary[] =>
     repository.listNews().map((article) => localizeSummary(article, locale));
-  const findNews = (slug: string, locale: SupportedLocale) => {
+  const findNews = (slug: string, locale: SupportedLocale): LocalizedNewsArticle | null => {
     const article = repository.findNews(slug);
     return article ? { ...localizeSummary(article, locale), body: article.body[locale] } : null;
   };
 
-  const pricing = (locale: SupportedLocale) => {
+  const pricing = (locale: SupportedLocale): LocalizedPricingPage => {
     const source = repository.getPricing();
     return {
       eyebrow: source.eyebrow[locale],

@@ -27,3 +27,17 @@ export const paginationQuerySchema = z.object({
 });
 
 export type PaginationQuery = z.infer<typeof paginationQuerySchema>;
+
+/**
+ * 列表响应里的分页元信息。
+ * hasMore 由服务端按「offset + 本页条数 < total」算好后下发，消费方不应自己推断——
+ * 客户端拿不到「本页实际条数与 limit 不等」之外的信息，自己推会在最后一页多发一次请求。
+ */
+export const paginationSchema = z.object({
+  total: z.number().int().nonnegative(),
+  limit: z.number().int(),
+  offset: z.number().int(),
+  hasMore: z.boolean(),
+});
+
+export type Pagination = z.infer<typeof paginationSchema>;

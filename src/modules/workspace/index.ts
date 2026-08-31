@@ -6,7 +6,7 @@ import { createWorkspaceService } from "./workspace.service.js";
 import type { AppDatabase } from "../../db/index.js";
 import type { AuthMiddleware } from "../../middlewares/auth.middleware.js";
 
-export { type ProjectDto } from "./workspace.service.js";
+export { type ProjectDto } from "./workspace.contract.js";
 
 export function createWorkspaceModule(database: AppDatabase, auth: AuthMiddleware) {
   const service = createWorkspaceService(database);

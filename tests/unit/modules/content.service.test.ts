@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createContentService } from "../../../src/modules/content/content.service.js";
 
-import type { NewsArticle } from "../../../src/modules/content/content.data.js";
+import type { NewsArticle } from "../../../src/modules/content/content.contract.js";
 import type { ContentRepository } from "../../../src/modules/content/ports/content-repository.port.js";
 
 const article: NewsArticle = {

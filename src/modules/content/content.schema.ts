@@ -3,23 +3,15 @@
  */
 import { z } from "zod";
 
-const localeSchema = z.enum(["zh-CN", "en-US"]);
-
-const localizedTextSchema = z.object({
-  "zh-CN": z.string({ error: "中文标题不能为空" }).trim().min(1, "中文标题不能为空"),
-  "en-US": z.string({ error: "英文标题不能为空" }).trim().min(1, "英文标题不能为空"),
-});
-
-const localizedBodySchema = z.object({
-  "zh-CN": z.array(z.string().trim().min(1, "中文段落不能为空")).min(1, "中文正文至少一段"),
-  "en-US": z.array(z.string().trim().min(1, "英文段落不能为空")).min(1, "英文正文至少一段"),
-});
-
-const slugValueSchema = z
-  .string({ error: "slug 不能为空" })
-  .trim()
-  .min(1, "slug 不能为空")
-  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "slug 只能包含小写字母、数字和连字符");
+// 入参 schema 直接复用 content.contract.ts 的实体定义：
+// 新闻写接口提交的就是双语原文本身，两边各写一份只会在改字段时漏改一边。
+import {
+  localizedBodySchema,
+  localizedTextSchema,
+  newsArticleSchema,
+  slugValueSchema,
+  supportedLocaleSchema as localeSchema,
+} from "./content.contract.js";
 
 export const listNewsSchema = z.object({
   query: z.object({
@@ -43,13 +35,7 @@ export const newsSlugSchema = z.object({
 });
 
 export const createNewsSchema = z.object({
-  body: z.object({
-    slug: slugValueSchema,
-    title: localizedTextSchema,
-    description: localizedTextSchema,
-    body: localizedBodySchema,
-    publishedAt: z.string({ error: "发布时间不能为空" }).trim().min(1, "发布时间不能为空"),
-  }),
+  body: newsArticleSchema,
 });
 
 const patchNewsBodySchema = z

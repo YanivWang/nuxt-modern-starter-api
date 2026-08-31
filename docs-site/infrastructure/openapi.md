@@ -8,6 +8,12 @@
 src/openapi.ts
   生成 OpenAPI 3.1 spec 和 YAML 字符串
 
+src/shared/http/api-envelope.ts
+  { code, message, data } 成功信封的 schema 构造器
+
+src/modules/<domain>/<domain>.contract.ts
+  各模块的响应契约：DTO 类型与 OpenAPI 响应 schema 的唯一来源
+
 src/swagger.ts
   挂载 /api-docs 和 /openapi.yaml
 
@@ -18,7 +24,10 @@ docs/openapi.yaml
   生成物，供外部工具或文档平台读取
 
 tests/unit/openapi.test.ts
-  验证 OpenAPI schema 复用 Zod，并检查 docs/openapi.yaml 是否同步
+  验证 OpenAPI schema 复用 Zod、每个业务响应都描述了 payload，并检查 docs/openapi.yaml 是否同步
+
+tests/integration/response-contract.integration.test.ts
+  用同一份响应 schema 校验真实 HTTP 响应体
 ```
 
 注意：测试文件现在统一在顶层 `tests/`，OpenAPI 相关测试不再放在 `src/` 下；`src/` 只保留运行时代码和生成逻辑。
@@ -35,13 +44,13 @@ tests/unit/openapi.test.ts
 
 ## Zod 到 OpenAPI
 
-`src/openapi.ts` 使用：
+请求侧用 `io: "input"`：
 
 ```ts
 z.toJSONSchema(schema, { io: "input" });
 ```
 
-将 Zod schema 转成 JSON Schema。随后移除 `$schema` 这类 OpenAPI 不需要的元信息。
+将 Zod schema 转成 JSON Schema。随后移除 `$schema` / `$id` 这类 OpenAPI 不需要的元信息。
 
 例如注册接口：
 
@@ -59,15 +68,43 @@ largeUploadInitSchema.shape.body
   -> OpenAPI requestBody
 ```
 
+响应侧用 `io: "output"`，并且走的是 Zod 注册表模式，这样共用的实体只在 components 里出现一次：
+
+```ts
+z.toJSONSchema(responseRegistry, {
+  io: "output",
+  uri: (id) => `#/components/schemas/${id}`,
+});
+```
+
+```text
+projectDtoSchema (workspace.contract.ts)
+  -> z.infer 推导出 ProjectDto，toProjectDto 的返回类型就是它
+  -> 注册进 responseRegistry
+  -> components.schemas.ProjectDto
+  -> ProjectListBody / ProjectBody / ProjectCreatedBody 用 $ref 引用它
+```
+
+关键在于中间那一步：文档里的 `ProjectDto` 和 mapper 返回的 `ProjectDto` 是同一个对象推导出来的。
+mapper 少写、改名或改类型某个字段都会直接编译失败，不存在「文档写得很完整、实际返回却不是那样」的空间。
+
 ## 统一响应 schema
 
-OpenAPI components 中声明：
+业务接口的成功响应使用 `{ code, message, data }`，业务字段放在 `data` 内。
+components 里对应两层：
 
-- `SuccessBody`
+- 信封层，以 `Body` 结尾，例如 `ProjectListBody`、`DocumentBody`、`NullDataBody`。它们由 `apiEnvelope(dataSchema)` 生成，`code` 是字面量 `200`。
+- 数据层，不带后缀，例如 `ProjectDto`、`DocumentDto`、`Pagination`、`LocalizedPricingPage`。被多个信封共用的实体只声明一次，其余位置用 `$ref` 引用。
+
+另外还有不走信封的：
+
 - `ErrorBody`
 - `HealthBody` / `ReadyBody` / `ReadyChecks`
 
-业务接口的成功响应使用 `{ code, message, data }`，业务字段放在 `data` 内。
+历史上所有 200 响应统一引用一个 `data: {}` 的 `SuccessBody`，也就是「请求描述得很完整、响应完全没描述」。
+空对象在 JSON Schema 里等价于「任意值」，于是契约只能挡住路径与方法漂移，挡不住字段漂移——
+把项目列表从 `{ projects }` 改成 `{ projects, pagination }` 时，两侧都没有任何自动化报警。
+`tests/unit/openapi.test.ts` 现在有一条回归守卫，任何业务响应的 `data` 退回空 schema 都会失败。
 
 `/health` 与 `/ready` 是例外：它们不走这个信封，直接返回 `{ status }` 和 `{ status, checks, message? }`，所以在 components 里单独声明，`/ready` 还额外声明了 `503`。
 
@@ -126,12 +163,14 @@ pnpm openapi:check
 
 以新增 `GET /api/orders` 为例：
 
-1. 创建或补充 Zod schema。
-2. 在对应路由中挂 `validate(schema)`。
-3. 在 controller 中通过 `getValidated<T>(req)` 读取 `req.validated`。
-4. 在 `src/openapi.ts` 的 `paths` 中补充 OpenAPI operation。
-5. 运行 `pnpm openapi:generate` 和 `pnpm format`。
-6. 运行 `pnpm run check`。
+1. 创建或补充入参 Zod schema。
+2. 在对应模块的 `<domain>.contract.ts` 里补响应 schema，并用 `z.infer` 推导 DTO 类型；mapper / service 显式标注这个返回类型。
+3. 在对应路由中挂 `validate(schema)`。
+4. 在 controller 中通过 `getValidated<T>(req)` 读取 `req.validated`。
+5. 在 `src/openapi.ts` 的 `RESPONSE_COMPONENTS` 中登记新 schema，并在 `paths` 中补充 OpenAPI operation（`ok()` 的第三个参数是成功状态码，创建类接口传 `"201"`）。
+6. 在 `tests/integration/response-contract.integration.test.ts` 中对新端点的真实响应跑一次契约断言。
+7. 运行 `pnpm openapi:generate` 和 `pnpm format`。
+8. 运行 `pnpm run check`。
 
 不要只改路由不改 OpenAPI，否则 CI 会在 `openapi:check` 或测试阶段暴露问题。
 
@@ -169,10 +208,20 @@ OpenAPI 讲接口契约：
 
 ## 测试保障
 
-`tests/unit/openapi.test.ts` 覆盖两件事：
+`tests/unit/openapi.test.ts` 覆盖：
 
 1. 请求 schema 是否来自 Zod 校验规则。
-2. `docs/openapi.yaml` 是否与运行时生成结果一致。
+2. 每个业务响应的 `data` 是否真的描述了形状（回归守卫，防止退回 `data: {}`）。
+3. 成功信封的 `code` 是否钉在字面量 200，创建类接口是否用 201 而不是 200。
+4. `docs/openapi.yaml` 是否与运行时生成结果一致。
+
+`tests/integration/response-contract.integration.test.ts` 覆盖类型系统够不到的那一段：
+它对真实 HTTP 响应体跑一遍同一份响应 schema。少字段或类型不符由 `parse` 抛出；
+多字段由「`parse` 后与原始 body 相等」兜住——`z.object` 会静默剥掉未声明的键，
+不比对的话 components 里的 `additionalProperties: false` 等于没写。
+
+编译期挡不住的典型场景是 controller 拼信封那一步：把 `{ project }` 写成 `{ projects }`、
+或者顺手多塞一个字段，`tsc` 一概不报错，因为 `success()` 的 `data` 参数是 `unknown`。
 
 这让接口文档成为质量门禁的一部分，而不是上线前人工补文档。
 

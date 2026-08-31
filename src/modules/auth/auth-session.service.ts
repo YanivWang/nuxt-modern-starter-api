@@ -15,6 +15,7 @@ import { ACCESS_TOKEN_TTL_SECONDS, JWT_SECRET, REFRESH_TOKEN_TTL_SECONDS } from 
 import { unauthorized } from "../../shared/errors/app-error.js";
 import { logger } from "../../utils/logger.js";
 
+import type { AuthTokenPair } from "./auth.contract.js";
 import type { RefreshTokenRevokedReason } from "./user-refresh-token.model.js";
 import type { AppDatabase } from "../../db/index.js";
 import type { User } from "../user/user.model.js";
@@ -23,13 +24,6 @@ import type { Transaction } from "sequelize";
 type TokenContext = {
   userAgent?: string;
   ipAddress?: string;
-};
-
-export type AuthTokenPair = {
-  accessToken: string;
-  refreshToken: string;
-  accessTokenExpiresIn: number;
-  refreshTokenExpiresIn: number;
 };
 
 const tokenHash = (token: string) => createHash("sha256").update(token).digest("hex");
