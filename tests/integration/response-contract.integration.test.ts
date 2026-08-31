@@ -9,6 +9,10 @@
  * 断言同时挡两个方向：
  * 少字段/类型不符由 parse 抛出；多字段由「parse 后与原始 body 相等」兜住——
  * z.object 会静默剥掉未声明的键，不比对的话 OpenAPI 里的 additionalProperties: false 等于没写。
+ *
+ * 错误响应同样要校验，而且要多校验一件事：这个状态码在契约里声明过没有。
+ * 此前所有端点统一只声明 400/429/500，而 401/403/404/409 早就实实在在地返回着——
+ * 照着契约写客户端的人会以为 GET /projects/{projectId} 永远不会 404。
  */
 import { createHash, randomBytes } from "node:crypto";
 import fs from "node:fs/promises";
@@ -18,10 +22,11 @@ import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createTestRuntime, resetRedisState } from "./support/test-runtime.js";
+import { generateOpenApiSpec } from "../../src/openapi.js";
 import { projectRoot } from "../../src/utils/projectRoot.js";
 import { authTokenPairEnvelopeSchema } from "../../src/modules/auth/auth.contract.js";
 import { documentEnvelopeSchema } from "../../src/modules/document/document.contract.js";
-import { nullDataEnvelopeSchema } from "../../src/shared/http/api-envelope.js";
+import { errorEnvelopeSchema, nullDataEnvelopeSchema } from "../../src/shared/http/api-envelope.js";
 import {
   newsArticleEnvelopeSchema,
   newsListEnvelopeSchema,
@@ -71,6 +76,18 @@ async function cleanDatabase() {
   await User.destroy({ where: {} });
 }
 
+const openApiSpec = generateOpenApiSpec();
+
+/** 该端点在契约里声明过的状态码集合。 */
+function declaredStatuses(endpoint: string): string[] {
+  const [method, path] = endpoint.split(" ") as [string, string];
+  const operation = openApiSpec.paths[path]?.[method.toLowerCase()];
+
+  expect(operation, `契约里没有 ${endpoint}`).toBeDefined();
+
+  return Object.keys(operation.responses);
+}
+
 function expectMatchesContract(schema: z.ZodType, body: unknown, endpoint: string) {
   const result = schema.safeParse(body);
 
@@ -94,6 +111,17 @@ async function registerAndLogin() {
     refreshToken: loginRes.body.data.refreshToken as string,
   };
 }
+
+/**
+ * 错误路径用例：每条都断言「真实状态码 == 期望」「响应体符合 ErrorBody」
+ * 「这个状态码在契约里声明过」。第三条才是关键——它让契约里的错误列表由真实行为反证，
+ * 而不是一份写完就没人再看的清单。
+ */
+type ErrorCase = {
+  endpoint: string;
+  status: number;
+  run: (auth: { accessToken: string }) => Promise<{ status: number; body: unknown }>;
+};
 
 describe("API response contract", () => {
   beforeAll(async () => {
@@ -240,6 +268,123 @@ describe("API response contract", () => {
     for (const url of res.body.data.urls as string[]) {
       createdFiles.push(path.join(projectRoot, "uploads", url.replace(/^\/uploads\//, "")));
     }
+  });
+
+  it("returns declared error statuses with the declared error body", async () => {
+    const { accessToken } = await registerAndLogin();
+    const auth = { Authorization: `Bearer ${accessToken}` };
+    const unknownId = "00000000-0000-4000-8000-000000000000";
+
+    // 先造一个真实存在的项目与新闻，供「重复创建」类冲突用例使用
+    const takenUser = uniqueUsername();
+    await request(app).post("/api/v1/register").send({ username: takenUser, password: "password123" }).expect(200);
+    const takenSlug = `conflict-${Date.now()}`;
+    await request(app)
+      .post("/api/v1/content/news")
+      .set(auth)
+      .send({
+        slug: takenSlug,
+        title: { "zh-CN": "冲突", "en-US": "Conflict" },
+        description: { "zh-CN": "冲突", "en-US": "Conflict" },
+        body: { "zh-CN": ["段落"], "en-US": ["Paragraph"] },
+        publishedAt: "2026-08-31",
+      })
+      .expect(201);
+
+    const cases: ErrorCase[] = [
+      {
+        endpoint: "GET /api/v1/me",
+        status: 401,
+        run: () => request(app).get("/api/v1/me"),
+      },
+      {
+        endpoint: "POST /api/v1/register",
+        status: 409,
+        run: () => request(app).post("/api/v1/register").send({ username: takenUser, password: "password123" }),
+      },
+      {
+        endpoint: "PATCH /api/v1/me/profile",
+        status: 400,
+        // 后端 body schema 是 strict 的：未知字段返回 400 而不是被忽略。
+        // 前端 UpdateProfilePayload 收敛到可写字段正是因为这条。
+        run: () => request(app).patch("/api/v1/me/profile").set(auth).send({ notAProfileField: 1 }),
+      },
+      {
+        endpoint: "GET /api/v1/projects/{projectId}",
+        status: 404,
+        run: () => request(app).get(`/api/v1/projects/${unknownId}`).set(auth),
+      },
+      {
+        endpoint: "GET /api/v1/documents/{documentId}",
+        status: 404,
+        run: () => request(app).get(`/api/v1/documents/${unknownId}`).set(auth),
+      },
+      {
+        endpoint: "GET /api/v1/content/news/{slug}",
+        status: 404,
+        run: () => request(app).get("/api/v1/content/news/no-such-article"),
+      },
+      {
+        endpoint: "POST /api/v1/content/news",
+        status: 409,
+        run: () =>
+          request(app)
+            .post("/api/v1/content/news")
+            .set(auth)
+            .send({
+              slug: takenSlug,
+              title: { "zh-CN": "冲突", "en-US": "Conflict" },
+              description: { "zh-CN": "冲突", "en-US": "Conflict" },
+              body: { "zh-CN": ["段落"], "en-US": ["Paragraph"] },
+              publishedAt: "2026-08-31",
+            }),
+      },
+      {
+        endpoint: "GET /api/v1/uploads/large/{uploadId}/status",
+        status: 404,
+        run: () => request(app).get(`/api/v1/uploads/large/${unknownId}/status`).set(auth),
+      },
+    ];
+
+    for (const item of cases) {
+      const response = await item.run({ accessToken });
+      const label = `${item.endpoint} → ${item.status}`;
+
+      expect(response.status, `${label}：真实状态码与预期不符`).toBe(item.status);
+      expectMatchesContract(errorEnvelopeSchema, response.body, label);
+      expect(declaredStatuses(item.endpoint), `${label}：契约里没有声明这个状态码`).toContain(String(item.status));
+    }
+  });
+
+  it("keeps aborting an unknown upload idempotent instead of erroring", async () => {
+    const { accessToken } = await registerAndLogin();
+
+    // 取消是幂等的：任务不存在或已清理时仍返回成功。契约因此刻意不声明 404，
+    // 这条用例把「不 404」本身钉住 —— 否则以后有人给它加个 404，两边都不会有人发现。
+    const response = await request(app)
+      .delete("/api/v1/uploads/large/00000000-0000-4000-8000-000000000000")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .expect(200);
+
+    expectMatchesContract(emptyDataEnvelopeSchema, response.body, "DELETE /uploads/large/{uploadId}（幂等取消）");
+    expect(declaredStatuses("DELETE /api/v1/uploads/large/{uploadId}"), "取消是幂等的，契约不该声明 404").not.toContain(
+      "404",
+    );
+  });
+
+  it("returns 403 when a cookie-borne refresh token comes without a CSRF header", async () => {
+    const username = uniqueUsername();
+    const password = "password123";
+    await request(app).post("/api/v1/register").send({ username, password }).expect(200);
+    const login = await request(app).post("/api/v1/login").send({ username, password }).expect(200);
+
+    // 走 cookie 而不是 body：这条分支才会触发 CSRF 校验
+    const cookies = login.headers["set-cookie"] as unknown as string[];
+    const response = await request(app).post("/api/v1/refresh").set("Cookie", cookies).send({});
+
+    expect(response.status, "cookie 来源的 refresh 缺少 CSRF 头应当是 403").toBe(403);
+    expectMatchesContract(errorEnvelopeSchema, response.body, "POST /refresh → 403");
+    expect(declaredStatuses("POST /api/v1/refresh"), "契约里没有声明 403").toContain("403");
   });
 
   it("matches the large upload contracts across init, chunk, status, merge and abort", async () => {

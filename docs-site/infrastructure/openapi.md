@@ -96,10 +96,26 @@ components 里对应两层：
 - 信封层，以 `Body` 结尾，例如 `ProjectListBody`、`DocumentBody`、`NullDataBody`。它们由 `apiEnvelope(dataSchema)` 生成，`code` 是字面量 `200`。
 - 数据层，不带后缀，例如 `ProjectDto`、`DocumentDto`、`Pagination`、`LocalizedPricingPage`。被多个信封共用的实体只声明一次，其余位置用 `$ref` 引用。
 
-另外还有不走信封的：
+错误响应用 `ErrorBody`（同样由 Zod 生成），`code` 是 HTTP 状态码而不是恒定的 200。
 
-- `ErrorBody`
-- `HealthBody` / `ReadyBody` / `ReadyChecks`
+另外还有不走信封的探针：`HealthBody` / `ReadyBody` / `ReadyChecks`。
+
+## 错误状态码
+
+每个端点声明的是它**真实会返回**的状态码，而不是统一的 400/429/500。
+少声明一个状态码和把响应 `data` 写成空对象是同一类问题：契约看着完整，其实没描述真实行为——
+照着契约写客户端的人会以为 `GET /api/v1/projects/{projectId}` 永远不会 404。
+
+反向的「多声明一个到不了的状态码」同样有害，所以两头都要夹住：
+
+- `tests/unit/openapi.test.ts` 校验机械可推的部分：挂了鉴权中间件的端点必须声明 401，
+  带路径参数的端点必须声明 404（例外要写进 `NO_NOT_FOUND` 并说明理由）。
+- `tests/integration/response-contract.integration.test.ts` 逐条provoke真实错误，
+  校验响应体符合 `ErrorBody`，并断言该状态码在契约里声明过。403、409 这类端点特有的状态码
+  只能靠这一层。
+
+这一层立刻抓到过一个真实错误：`DELETE /api/v1/uploads/large/{uploadId}` 被按「带路径参数」
+的惯例声明了 404，而 `abortLargeUpload` 其实是幂等的——任务不存在时同样返回成功。
 
 历史上所有 200 响应统一引用一个 `data: {}` 的 `SuccessBody`，也就是「请求描述得很完整、响应完全没描述」。
 空对象在 JSON Schema 里等价于「任意值」，于是契约只能挡住路径与方法漂移，挡不住字段漂移——

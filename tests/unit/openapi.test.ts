@@ -28,6 +28,12 @@ function expectJsonRequestSchema(operation: {
   return operation.requestBody?.content["application/json"].schema as TestOpenApiSchema;
 }
 
+/**
+ * 带路径参数但不会 404 的端点。
+ * 取消上传任务是幂等的：任务不存在或已被清理时同样返回成功，客户端重复取消不该收到错误。
+ */
+const NO_NOT_FOUND = new Set(["DELETE /api/v1/uploads/large/{uploadId}"]);
+
 describe("openapi generation", () => {
   it("builds request schemas from zod validation schemas", async () => {
     const { generateOpenApiSpec } = await import("../../src/openapi.js");
@@ -103,6 +109,40 @@ describe("openapi generation", () => {
     expect(spec.components.schemas.ProjectListBody.properties?.code).toMatchObject({ const: 200 });
     expect(spec.paths["/api/v1/projects"].post.responses["201"]).toBeDefined();
     expect(spec.paths["/api/v1/projects"].post.responses["200"]).toBeUndefined();
+  });
+
+  it("declares the error statuses that each endpoint can actually return", async () => {
+    const { generateOpenApiSpec } = await import("../../src/openapi.js");
+
+    const spec = generateOpenApiSpec();
+    const missing: string[] = [];
+
+    for (const [routePath, operations] of Object.entries(spec.paths)) {
+      if (!routePath.startsWith("/api/")) continue;
+
+      for (const [method, operation] of Object.entries(operations)) {
+        const endpoint = `${method.toUpperCase()} ${routePath}`;
+        const declared = new Set(Object.keys(operation.responses));
+
+        // 挂了 authMiddleware 的端点一定会 401；这条是机械可推的，不该靠人记得写
+        if (operation.security && !declared.has("401")) {
+          missing.push(`${endpoint} 需要鉴权却没声明 401`);
+        }
+
+        // 带路径参数的端点都要按 id 取资源，取不到（或不属于当前用户）一律 404。
+        // 例外必须写明理由：这条规则是启发式的，而契约只有在逐条对得上真实行为时才有意义。
+        if (routePath.includes("{") && !declared.has("404") && !NO_NOT_FOUND.has(endpoint)) {
+          missing.push(`${endpoint} 带路径参数却没声明 404`);
+        }
+
+        // 通用三件套：校验中间件、限流、兜底
+        for (const status of ["400", "429", "500"]) {
+          if (!declared.has(status)) missing.push(`${endpoint} 没声明 ${status}`);
+        }
+      }
+    }
+
+    expect(missing, "这些端点的错误响应声明与真实行为不符").toEqual([]);
   });
 
   it("keeps docs/openapi.yaml in sync with the generated spec", async () => {

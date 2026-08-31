@@ -15,7 +15,7 @@ import {
   paginationQuerySchema,
   paginationSchema,
 } from "./shared/http/pagination.js";
-import { nullDataEnvelopeSchema } from "./shared/http/api-envelope.js";
+import { errorEnvelopeSchema, nullDataEnvelopeSchema } from "./shared/http/api-envelope.js";
 import {
   MAX_LARGE_UPLOAD_CHUNKS,
   largeUploadIdParamsSchema,
@@ -142,6 +142,7 @@ const RESPONSE_COMPONENTS = {
   ChunkAccepted: chunkAcceptedSchema,
   EmptyData: emptyDataSchema,
 
+  ErrorBody: errorEnvelopeSchema,
   NullDataBody: nullDataEnvelopeSchema,
   AuthTokenPairBody: authTokenPairEnvelopeSchema,
   MeBody: meEnvelopeSchema,
@@ -250,17 +251,45 @@ function schemaRef(name: string): OpenApiSchema {
   return { $ref: `#/components/schemas/${name}` };
 }
 
+/** 端点在通用错误之外还会返回的状态码，与 middlewares/error.middleware.ts 的映射一一对应。 */
+type ExtraErrorStatus = "401" | "403" | "404" | "409" | "410";
+
+const ERROR_DESCRIPTIONS: Record<string, string> = {
+  "400": "请求参数错误",
+  "401": "未登录、登录已过期或凭证无效",
+  "403": "CSRF 校验失败，或访问了不属于自己的资源",
+  "404": "资源不存在；也用于「存在但不属于当前用户」，不区分两者以免暴露他人资源是否存在",
+  "409": "与现有资源状态冲突",
+  "410": "上传任务已过期",
+  "429": "触发限流或账号锁定",
+  "500": "服务器内部错误",
+};
+
 /**
- * 成功响应 + 三个通用错误响应。
+ * 成功响应 + 该端点真实会返回的错误响应。
  *
  * 成功状态码必须显式传：创建类接口回的是 201，写成 200 会让消费方按错的状态码分支。
+ *
+ * errors 也必须逐个端点写准。此前所有端点统一只声明 400/429/500，而集成测试里
+ * 401/403/404/409 早就实实在在地出现过 —— 照着契约写客户端的人会以为
+ * GET /projects/{projectId} 永远不会 404。少声明一个状态码，和把响应 data 写成空对象
+ * 是同一类问题：契约看着完整，其实没描述真实行为。
+ *
+ * 反向的「多声明一个到不了的状态码」同样有害，所以这里的取值逐个对着抛错点核过，
+ * 并由 tests/unit/openapi.test.ts 的机械不变量与集成测试的实测状态码两头夹住。
  */
-function ok(description: string, body: ResponseBodyComponent, successStatus: "200" | "201" = "200") {
+function ok(
+  description: string,
+  body: ResponseBodyComponent,
+  options: { created?: boolean; errors?: ExtraErrorStatus[] } = {},
+) {
+  const statuses = ["400", ...(options.errors ?? []), "429", "500"].sort();
+
   return {
-    [successStatus]: jsonResponse(description, schemaRef(body)),
-    "400": jsonResponse("请求参数错误", schemaRef("ErrorBody")),
-    "429": jsonResponse("触发限流或账号锁定", schemaRef("ErrorBody")),
-    "500": jsonResponse("服务器内部错误", schemaRef("ErrorBody")),
+    [options.created ? "201" : "200"]: jsonResponse(description, schemaRef(body)),
+    ...Object.fromEntries(
+      statuses.map((status) => [status, jsonResponse(ERROR_DESCRIPTIONS[status], schemaRef("ErrorBody"))]),
+    ),
   };
 }
 
@@ -332,16 +361,6 @@ export function generateOpenApiSpec(): OpenApiSpec {
       },
       schemas: {
         ...responseComponentSchemas(),
-        ErrorBody: {
-          type: "object",
-          properties: {
-            code: { type: "integer" },
-            message: { type: "string" },
-            data: { type: "null" },
-          },
-          required: ["code", "message", "data"],
-          additionalProperties: false,
-        },
         // 探针不使用 { code, message, data } 信封，单独声明真实结构。
         HealthBody: {
           type: "object",
@@ -397,7 +416,7 @@ export function generateOpenApiSpec(): OpenApiSpec {
           tags: ["认证"],
           summary: "注册用户",
           requestBody: jsonRequestBody(registerSchema.shape.body),
-          responses: ok("注册成功；不自动登录，data 为 null", "NullDataBody"),
+          responses: ok("注册成功；不自动登录，data 为 null", "NullDataBody", { errors: ["409"] }),
         },
       },
       "/api/v1/login": {
@@ -405,7 +424,9 @@ export function generateOpenApiSpec(): OpenApiSpec {
           tags: ["认证"],
           summary: "用户登录",
           requestBody: jsonRequestBody(loginSchema.shape.body),
-          responses: ok("登录成功，返回 accessToken、refreshToken，并写入 httpOnly cookie", "AuthTokenPairBody"),
+          responses: ok("登录成功，返回 accessToken、refreshToken，并写入 httpOnly cookie", "AuthTokenPairBody", {
+            errors: ["401"],
+          }),
         },
       },
       "/api/v1/refresh": {
@@ -413,7 +434,10 @@ export function generateOpenApiSpec(): OpenApiSpec {
           tags: ["认证"],
           summary: "刷新 access token 并轮换 refresh token",
           requestBody: jsonRequestBody(refreshSchema.shape.body),
-          responses: ok("刷新成功，返回新的 accessToken、refreshToken，并写入 httpOnly cookie", "AuthTokenPairBody"),
+          responses: ok("刷新成功，返回新的 accessToken、refreshToken，并写入 httpOnly cookie", "AuthTokenPairBody", {
+            // 403：refresh token 来自 cookie 时缺少或不匹配 X-CSRF-Token
+            errors: ["401", "403"],
+          }),
         },
       },
       "/api/v1/logout": {
@@ -422,7 +446,7 @@ export function generateOpenApiSpec(): OpenApiSpec {
           summary: "退出登录",
           security: bearerAuth(),
           requestBody: jsonRequestBody(logoutSchema.shape.body),
-          responses: ok("退出登录成功，data 为 null", "NullDataBody"),
+          responses: ok("退出登录成功，data 为 null", "NullDataBody", { errors: ["401"] }),
         },
       },
       "/api/v1/me": {
@@ -430,7 +454,7 @@ export function generateOpenApiSpec(): OpenApiSpec {
           tags: ["当前用户"],
           summary: "获取当前用户",
           security: bearerAuth(),
-          responses: ok("当前用户基础资料", "MeBody"),
+          responses: ok("当前用户基础资料", "MeBody", { errors: ["401"] }),
         },
       },
       "/api/v1/me/profile": {
@@ -438,14 +462,14 @@ export function generateOpenApiSpec(): OpenApiSpec {
           tags: ["当前用户"],
           summary: "获取当前用户扩展资料",
           security: bearerAuth(),
-          responses: ok("当前用户扩展资料；从未填写过时 profile 为 null", "ProfileBody"),
+          responses: ok("当前用户扩展资料；从未填写过时 profile 为 null", "ProfileBody", { errors: ["401"] }),
         },
         patch: {
           tags: ["当前用户"],
           summary: "更新当前用户扩展资料",
           security: bearerAuth(),
           requestBody: jsonRequestBody(patchMyProfileSchema.shape.body),
-          responses: ok("更新后的当前用户扩展资料", "UpdatedProfileBody"),
+          responses: ok("更新后的当前用户扩展资料", "UpdatedProfileBody", { errors: ["401"] }),
         },
       },
       "/api/v1/content/news": {
@@ -467,7 +491,10 @@ export function generateOpenApiSpec(): OpenApiSpec {
           summary: "创建新闻",
           security: bearerAuth(),
           requestBody: jsonRequestBody(createNewsSchema.shape.body),
-          responses: ok("创建新闻成功，回显未折叠的双语原文", "NewsSourceBody", "201"),
+          responses: ok("创建新闻成功，回显未折叠的双语原文", "NewsSourceBody", {
+            created: true,
+            errors: ["401", "409"],
+          }),
         },
       },
       "/api/v1/content/pricing": {
@@ -503,7 +530,7 @@ export function generateOpenApiSpec(): OpenApiSpec {
               schema: zodInputSchema(newsSlugSchema.shape.query.shape.locale),
             },
           ],
-          responses: ok("本地化新闻详情（含正文段落）", "NewsArticleBody"),
+          responses: ok("本地化新闻详情（含正文段落）", "NewsArticleBody", { errors: ["404"] }),
         },
         patch: {
           tags: ["公开内容"],
@@ -518,7 +545,7 @@ export function generateOpenApiSpec(): OpenApiSpec {
             },
           ],
           requestBody: jsonRequestBody(patchNewsSchema.shape.body),
-          responses: ok("更新新闻成功，回显未折叠的双语原文", "NewsSourceBody"),
+          responses: ok("更新新闻成功，回显未折叠的双语原文", "NewsSourceBody", { errors: ["401", "404"] }),
         },
         delete: {
           tags: ["公开内容"],
@@ -532,7 +559,7 @@ export function generateOpenApiSpec(): OpenApiSpec {
               schema: zodInputSchema(newsSlugSchema.shape.params.shape.slug),
             },
           ],
-          responses: ok("删除新闻成功，data 为 null", "NullDataBody"),
+          responses: ok("删除新闻成功，data 为 null", "NullDataBody", { errors: ["401", "404"] }),
         },
       },
       "/api/v1/projects": {
@@ -541,14 +568,19 @@ export function generateOpenApiSpec(): OpenApiSpec {
           summary: "获取当前用户项目列表（分页）",
           security: bearerAuth(),
           parameters: paginationParams(),
-          responses: ok("当前用户项目列表，data 含 projects 与 pagination", "ProjectListBody"),
+          responses: ok("当前用户项目列表，data 含 projects 与 pagination", "ProjectListBody", {
+            errors: ["401"],
+          }),
         },
         post: {
           tags: ["项目"],
           summary: "创建项目并初始化文档",
           security: bearerAuth(),
           requestBody: jsonRequestBody(createProjectSchema.shape.body),
-          responses: ok("创建项目成功，同时返回同事务里初始化出的文档", "ProjectCreatedBody", "201"),
+          responses: ok("创建项目成功，同时返回同事务里初始化出的文档", "ProjectCreatedBody", {
+            created: true,
+            errors: ["401"],
+          }),
         },
       },
       "/api/v1/projects/{projectId}": {
@@ -564,7 +596,7 @@ export function generateOpenApiSpec(): OpenApiSpec {
               schema: zodInputSchema(projectIdParamsSchema.shape.params.shape.projectId),
             },
           ],
-          responses: ok("项目详情", "ProjectBody"),
+          responses: ok("项目详情", "ProjectBody", { errors: ["401", "404"] }),
         },
         patch: {
           tags: ["项目"],
@@ -579,7 +611,7 @@ export function generateOpenApiSpec(): OpenApiSpec {
             },
           ],
           requestBody: jsonRequestBody(patchProjectSchema.shape.body),
-          responses: ok("更新项目成功", "ProjectBody"),
+          responses: ok("更新项目成功", "ProjectBody", { errors: ["401", "404"] }),
         },
         delete: {
           tags: ["项目"],
@@ -593,7 +625,7 @@ export function generateOpenApiSpec(): OpenApiSpec {
               schema: zodInputSchema(projectIdParamsSchema.shape.params.shape.projectId),
             },
           ],
-          responses: ok("删除项目成功，data 为 null", "NullDataBody"),
+          responses: ok("删除项目成功，data 为 null", "NullDataBody", { errors: ["401", "404"] }),
         },
       },
       "/api/v1/documents/{documentId}": {
@@ -609,7 +641,7 @@ export function generateOpenApiSpec(): OpenApiSpec {
               schema: zodInputSchema(documentIdParamsSchema.shape.params.shape.documentId),
             },
           ],
-          responses: ok("文档详情", "DocumentBody"),
+          responses: ok("文档详情", "DocumentBody", { errors: ["401", "404"] }),
         },
         patch: {
           tags: ["文档"],
@@ -624,7 +656,7 @@ export function generateOpenApiSpec(): OpenApiSpec {
             },
           ],
           requestBody: jsonRequestBody(patchDocumentSchema.shape.body),
-          responses: ok("保存文档成功", "DocumentBody"),
+          responses: ok("保存文档成功", "DocumentBody", { errors: ["401", "404"] }),
         },
       },
       "/api/v1/uploads": {
@@ -633,7 +665,9 @@ export function generateOpenApiSpec(): OpenApiSpec {
           summary: "上传通用图片",
           security: bearerAuth(),
           requestBody: multipartRequestBody("files", true),
-          responses: ok("上传通用图片，返回 /uploads/common/... 相对 URL", "ImageUploadBody"),
+          responses: ok("上传通用图片，返回 /uploads/common/... 相对 URL", "ImageUploadBody", {
+            errors: ["401"],
+          }),
         },
       },
       "/api/v1/uploads/profiles": {
@@ -642,7 +676,9 @@ export function generateOpenApiSpec(): OpenApiSpec {
           summary: "上传用户头像/资料图",
           security: bearerAuth(),
           requestBody: multipartRequestBody("files", true),
-          responses: ok("上传用户头像/资料图，返回 /uploads/profiles/... 相对 URL", "ImageUploadBody"),
+          responses: ok("上传用户头像/资料图，返回 /uploads/profiles/... 相对 URL", "ImageUploadBody", {
+            errors: ["401"],
+          }),
         },
       },
       "/api/v1/uploads/large/init": {
@@ -651,7 +687,10 @@ export function generateOpenApiSpec(): OpenApiSpec {
           summary: "创建大文件分片上传任务",
           security: bearerAuth(),
           requestBody: jsonRequestBody(largeUploadInitSchema.shape.body),
-          responses: ok("创建上传任务；MD5 命中时 instant 为 true 并直接返回 publicUrl", "LargeUploadInitResultBody"),
+          responses: ok("创建上传任务；MD5 命中时 instant 为 true 并直接返回 publicUrl", "LargeUploadInitResultBody", {
+            // init 自身不做归属或状态校验，因此没有 403/404/409/410
+            errors: ["401"],
+          }),
         },
       },
       "/api/v1/uploads/large/{uploadId}/status": {
@@ -660,7 +699,9 @@ export function generateOpenApiSpec(): OpenApiSpec {
           summary: "查询大文件上传状态",
           security: bearerAuth(),
           parameters: [uploadIdParam()],
-          responses: ok("查询上传状态；receivedIndices 用于断点续传", "LargeUploadStatusBody"),
+          responses: ok("查询上传状态；receivedIndices 用于断点续传", "LargeUploadStatusBody", {
+            errors: ["401", "403", "404", "410"],
+          }),
         },
       },
       "/api/v1/uploads/large/{uploadId}/chunks/{chunkIndex}": {
@@ -679,7 +720,9 @@ export function generateOpenApiSpec(): OpenApiSpec {
             },
           ],
           requestBody: multipartRequestBody("chunk", false),
-          responses: ok("分片已接收，回显 chunkIndex", "ChunkAcceptedBody"),
+          responses: ok("分片已接收，回显 chunkIndex", "ChunkAcceptedBody", {
+            errors: ["401", "403", "404", "409", "410"],
+          }),
         },
       },
       "/api/v1/uploads/large/{uploadId}/merge": {
@@ -688,7 +731,9 @@ export function generateOpenApiSpec(): OpenApiSpec {
           summary: "合并大文件分片",
           security: bearerAuth(),
           parameters: [uploadIdParam()],
-          responses: ok("合并完成；merged 为 false 表示此前已合并过的幂等重放", "LargeUploadMergeBody"),
+          responses: ok("合并完成；merged 为 false 表示此前已合并过的幂等重放", "LargeUploadMergeBody", {
+            errors: ["401", "403", "404", "409", "410"],
+          }),
         },
       },
       "/api/v1/uploads/large/{uploadId}": {
@@ -697,7 +742,10 @@ export function generateOpenApiSpec(): OpenApiSpec {
           summary: "取消大文件上传任务",
           security: bearerAuth(),
           parameters: [uploadIdParam()],
-          responses: ok("已取消；data 为空对象而非 null", "EmptyDataBody"),
+          responses: ok("已取消；data 为空对象而非 null", "EmptyDataBody", {
+            // 没有 404：取消是幂等的，任务不存在或已清理时同样返回成功（见 abortLargeUpload）
+            errors: ["401", "403"],
+          }),
         },
       },
     },

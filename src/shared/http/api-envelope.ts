@@ -20,3 +20,17 @@ export function apiEnvelope<T extends z.ZodType>(data: T) {
 
 /** data 为 null 的成功响应：注册、登出与各类删除接口。 */
 export const nullDataEnvelopeSchema = apiEnvelope(z.null());
+
+/**
+ * 错误响应信封。
+ *
+ * 与成功信封的区别只有两处：code 是 HTTP 状态码而非恒定的 200（见 utils/response.ts 的 fail），
+ * data 恒为 null。写成 schema 而不是在 openapi.ts 里手写一份 JSON，
+ * 是为了让集成测试能拿同一份定义去校验真实的错误响应体 —— 否则「文档里的错误形状」
+ * 和「服务端真正返回的错误形状」之间同样没有任何东西在把关。
+ */
+export const errorEnvelopeSchema = z.object({
+  code: z.number().int(),
+  message: z.string(),
+  data: z.null(),
+});

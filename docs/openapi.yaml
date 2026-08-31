@@ -529,6 +529,22 @@ components:
       type: object
       properties: {}
       additionalProperties: false
+    ErrorBody:
+      type: object
+      properties:
+        code:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        message:
+          type: string
+        data:
+          type: "null"
+      required:
+        - code
+        - message
+        - data
+      additionalProperties: false
     NullDataBody:
       type: object
       properties:
@@ -892,20 +908,6 @@ components:
         - message
         - data
       additionalProperties: false
-    ErrorBody:
-      type: object
-      properties:
-        code:
-          type: integer
-        message:
-          type: string
-        data:
-          type: "null"
-      required:
-        - code
-        - message
-        - data
-      additionalProperties: false
     HealthBody:
       type: object
       properties:
@@ -1015,6 +1017,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorBody"
+        "409":
+          description: 与现有资源状态冲突
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
         "429":
           description: 触发限流或账号锁定
           content:
@@ -1062,6 +1070,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorBody"
+        "401":
+          description: 未登录、登录已过期或凭证无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
         "429":
           description: 触发限流或账号锁定
           content:
@@ -1098,6 +1112,18 @@ paths:
                 $ref: "#/components/schemas/AuthTokenPairBody"
         "400":
           description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "401":
+          description: 未登录、登录已过期或凭证无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "403":
+          description: CSRF 校验失败，或访问了不属于自己的资源
           content:
             application/json:
               schema:
@@ -1144,6 +1170,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorBody"
+        "401":
+          description: 未登录、登录已过期或凭证无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
         "429":
           description: 触发限流或账号锁定
           content:
@@ -1176,6 +1208,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorBody"
+        "401":
+          description: 未登录、登录已过期或凭证无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
         "429":
           description: 触发限流或账号锁定
           content:
@@ -1204,6 +1242,12 @@ paths:
                 $ref: "#/components/schemas/ProfileBody"
         "400":
           description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "401":
+          description: 未登录、登录已过期或凭证无效
           content:
             application/json:
               schema:
@@ -1305,6 +1349,12 @@ paths:
                 $ref: "#/components/schemas/UpdatedProfileBody"
         "400":
           description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "401":
+          description: 未登录、登录已过期或凭证无效
           content:
             application/json:
               schema:
@@ -1441,6 +1491,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorBody"
+        "401":
+          description: 未登录、登录已过期或凭证无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "409":
+          description: 与现有资源状态冲突
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
         "429":
           description: 触发限流或账号锁定
           content:
@@ -1522,6 +1584,12 @@ paths:
                 $ref: "#/components/schemas/NewsArticleBody"
         "400":
           description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "404":
+          description: 资源不存在；也用于「存在但不属于当前用户」，不区分两者以免暴露他人资源是否存在
           content:
             application/json:
               schema:
@@ -1617,6 +1685,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorBody"
+        "401":
+          description: 未登录、登录已过期或凭证无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "404":
+          description: 资源不存在；也用于「存在但不属于当前用户」，不区分两者以免暴露他人资源是否存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
         "429":
           description: 触发限流或账号锁定
           content:
@@ -1652,6 +1732,18 @@ paths:
                 $ref: "#/components/schemas/NullDataBody"
         "400":
           description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "401":
+          description: 未登录、登录已过期或凭证无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "404":
+          description: 资源不存在；也用于「存在但不属于当前用户」，不区分两者以免暴露他人资源是否存在
           content:
             application/json:
               schema:
@@ -1707,6 +1799,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorBody"
+        "401":
+          description: 未登录、登录已过期或凭证无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
         "429":
           description: 触发限流或账号锁定
           content:
@@ -1754,6 +1852,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorBody"
+        "401":
+          description: 未登录、登录已过期或凭证无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
         "429":
           description: 触发限流或账号锁定
           content:
@@ -1791,6 +1895,18 @@ paths:
                 $ref: "#/components/schemas/ProjectBody"
         "400":
           description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "401":
+          description: 未登录、登录已过期或凭证无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "404":
+          description: 资源不存在；也用于「存在但不属于当前用户」，不区分两者以免暴露他人资源是否存在
           content:
             application/json:
               schema:
@@ -1849,6 +1965,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorBody"
+        "401":
+          description: 未登录、登录已过期或凭证无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "404":
+          description: 资源不存在；也用于「存在但不属于当前用户」，不区分两者以免暴露他人资源是否存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
         "429":
           description: 触发限流或账号锁定
           content:
@@ -1885,6 +2013,18 @@ paths:
                 $ref: "#/components/schemas/NullDataBody"
         "400":
           description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "401":
+          description: 未登录、登录已过期或凭证无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "404":
+          description: 资源不存在；也用于「存在但不属于当前用户」，不区分两者以免暴露他人资源是否存在
           content:
             application/json:
               schema:
@@ -1926,6 +2066,18 @@ paths:
                 $ref: "#/components/schemas/DocumentBody"
         "400":
           description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "401":
+          description: 未登录、登录已过期或凭证无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "404":
+          description: 资源不存在；也用于「存在但不属于当前用户」，不区分两者以免暴露他人资源是否存在
           content:
             application/json:
               schema:
@@ -1984,6 +2136,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorBody"
+        "401":
+          description: 未登录、登录已过期或凭证无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "404":
+          description: 资源不存在；也用于「存在但不属于当前用户」，不区分两者以免暴露他人资源是否存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
         "429":
           description: 触发限流或账号锁定
           content:
@@ -2030,6 +2194,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorBody"
+        "401":
+          description: 未登录、登录已过期或凭证无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
         "429":
           description: 触发限流或账号锁定
           content:
@@ -2072,6 +2242,12 @@ paths:
                 $ref: "#/components/schemas/ImageUploadBody"
         "400":
           description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "401":
+          description: 未登录、登录已过期或凭证无效
           content:
             application/json:
               schema:
@@ -2140,6 +2316,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorBody"
+        "401":
+          description: 未登录、登录已过期或凭证无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
         "429":
           description: 触发限流或账号锁定
           content:
@@ -2177,6 +2359,30 @@ paths:
                 $ref: "#/components/schemas/LargeUploadStatusBody"
         "400":
           description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "401":
+          description: 未登录、登录已过期或凭证无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "403":
+          description: CSRF 校验失败，或访问了不属于自己的资源
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "404":
+          description: 资源不存在；也用于「存在但不属于当前用户」，不区分两者以免暴露他人资源是否存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "410":
+          description: 上传任务已过期
           content:
             application/json:
               schema:
@@ -2249,6 +2455,36 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorBody"
+        "401":
+          description: 未登录、登录已过期或凭证无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "403":
+          description: CSRF 校验失败，或访问了不属于自己的资源
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "404":
+          description: 资源不存在；也用于「存在但不属于当前用户」，不区分两者以免暴露他人资源是否存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "409":
+          description: 与现有资源状态冲突
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "410":
+          description: 上传任务已过期
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
         "429":
           description: 触发限流或账号锁定
           content:
@@ -2290,6 +2526,36 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorBody"
+        "401":
+          description: 未登录、登录已过期或凭证无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "403":
+          description: CSRF 校验失败，或访问了不属于自己的资源
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "404":
+          description: 资源不存在；也用于「存在但不属于当前用户」，不区分两者以免暴露他人资源是否存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "409":
+          description: 与现有资源状态冲突
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "410":
+          description: 上传任务已过期
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
         "429":
           description: 触发限流或账号锁定
           content:
@@ -2327,6 +2593,18 @@ paths:
                 $ref: "#/components/schemas/EmptyDataBody"
         "400":
           description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "401":
+          description: 未登录、登录已过期或凭证无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "403":
+          description: CSRF 校验失败，或访问了不属于自己的资源
           content:
             application/json:
               schema:
