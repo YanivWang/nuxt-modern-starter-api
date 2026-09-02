@@ -10,7 +10,12 @@ import type { InitLargeUploadResult, LargeUploadMergeResult, LargeUploadStatus }
 export type { InitLargeUploadResult, LargeUploadMergeResult, LargeUploadStatus } from "../upload.contract.js";
 
 export interface LargeUploadStorage {
-  resolveChunkDir(uploadId: string): string;
+  /**
+   * 解析分片落盘目录，并在返回之前完成归属校验。
+   * 校验必须发生在这里而不是 controller：调用方（multer 的同步 destination 回调）
+   * 一拿到路径就开始写盘，之后再拒绝已经来不及。
+   */
+  resolveChunkDir(uploadId: string, userId: number): string;
   partFileName(chunkIndex: number): string;
   init(body: LargeUploadInitBody, userId: number): Promise<InitLargeUploadResult>;
   getStatus(uploadId: string, userId: number): Promise<LargeUploadStatus>;

@@ -8,6 +8,7 @@
 pnpm dev
 pnpm dev:debug
 pnpm architecture:check
+pnpm env:check
 pnpm typecheck
 pnpm lint
 pnpm format
@@ -33,10 +34,12 @@ pnpm check
 
 ```text
 architecture:check
+  -> env:check
   -> typecheck
   -> lint
   -> format:check
   -> openapi:check
+  -> contract:check-consumer
   -> test
   -> build
 ```
@@ -44,10 +47,12 @@ architecture:check
 这保证：
 
 - 模块、HTTP 层与 infrastructure 之间的导入边界没有被破坏。
+- `.env.production.example` 里的每个应用变量都真的传进了生产 api 容器。
 - TypeScript 类型正确。
 - ESLint 规则通过。
 - Prettier 格式一致。
 - OpenAPI 生成物与源码同步。
+- 前端引入的契约副本没有落后于本仓库。
 - 单元测试和集成测试通过。
 - 生产 TypeScript 构建成功。
 

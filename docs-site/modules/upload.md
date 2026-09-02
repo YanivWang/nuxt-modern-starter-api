@@ -282,6 +282,10 @@ uploads/profiles/<年>/<月>/
   large-upload-done/
     <uploadId>.json
       合并完成后的幂等 marker
+
+  large-upload-chunks/
+    <fileMd5>/<uploadId>/
+      分片暂存目录与 meta.json
 ```
 
 为什么 session 文件只保存 `uploadId -> fileMd5`？
@@ -293,13 +297,17 @@ uploads/profiles/<年>/<月>/
 分片临时目录：
 
 ```text
-uploads/chunks-temp/<fileMd5>/<uploadId>/
+.data/large-upload-chunks/<fileMd5>/<uploadId>/
 ```
 
 其中：
 
 - `fileMd5` 用于按内容聚合。
 - `uploadId` 区分同一个文件的不同上传任务。
+
+它放在 `.data/` 而不是 `uploads/`：`uploads/` 整个目录由 `express.static` 无鉴权挂在 `/uploads` 下，
+暂存目录一旦落在里面，未合并的分片和含 `userId`、原始文件名的 `meta.json` 都能被匿名下载。
+分片是服务端私有状态，和 session、done marker、秒传索引放在一起。
 
 分片文件名：
 
@@ -331,16 +339,24 @@ chunk
 X-Chunk-Md5: <当前分片的 md5>
 ```
 
-multer 先把分片写入磁盘，然后 `finalizeChunkWrite()` 校验：
+multer 的 `destination` 回调在写入任何字节之前先解析目录，并在同一步完成归属与状态校验：
 
-- 当前用户是否拥有该上传任务。
-- 任务是否过期。
-- 任务是否正在合并或已完成。
+- 会话不存在 → 404
+- 任务不属于当前用户 → 403
+- 任务已过期 → 410
+- 任务已完成或正在合并 → 409
+
+这几项必须在这里判定。`destination` 返回后 multer 立刻建流写盘，等 controller 再检查时
+字节已经落进别人的目录，403 只是一次事后通知——受害者的分片那时已经被覆写了。
+
+落盘之后 `finalizeChunkWrite()` 复核同一组条件，并额外校验：
+
 - 分片下标是否越界。
 - 分片大小是否符合预期。
 - 分片 MD5 是否与 header 一致。
 
-如果大小或 MD5 校验失败，会主动删除已经落盘的坏分片，避免后续 status 或 merge 误用。
+任何一条校验不通过都会删掉已经落盘的分片，避免它被后续 status/merge 当成有效分片读到，
+也避免被拒绝的请求在磁盘上留下无人回收的垃圾。
 
 ## status 阶段
 
@@ -385,7 +401,8 @@ POST /api/uploads/large/:uploadId/merge
 3. 校验任务归属。
 4. 若 meta 中已是 `done` 且有 `publicUrl`，同样幂等返回。
 5. 校验任务未过期。
-6. 如果状态是 `merging`，返回 409。
+6. 如果状态是 `merging` 且这把锁还在有效期内（30 分钟），返回 409；
+   超时未完成说明上一个持锁进程已经崩溃，允许本次重新合并，否则一次崩溃就会让该任务永远卡在 409。
 7. 检查所有分片是否存在且大小正确。
 8. 将状态写为 `merging`。
 9. 按分片顺序写入临时文件 `<最终文件名>.part`。
@@ -419,7 +436,10 @@ DELETE /api/uploads/large/:uploadId
 
 ## 任务有效期
 
-上传任务的存活时间是 24 小时，`init` 返回的 `expiresAt` 就是这个截止时间。
+上传任务的存活时间由 `UPLOAD_TEMP_RETENTION_HOURS`（默认 24 小时）决定，`init` 返回的 `expiresAt` 就是这个截止时间。
+
+它和清理任务共用同一个配置项，而不是各写一个常量：两个数字描述同一段寿命时，
+运维只调其中一个就会出现「任务还没过期但分片已被清走」或者「分片还在但任务已判过期」的错位。
 
 `status`、`chunk`、`merge` 都会用 `meta.createdAt` 检查是否超时；超时后返回 `410 上传任务已过期，请重新发起`，客户端需要重新 `init`。
 
@@ -428,6 +448,10 @@ DELETE /api/uploads/large/:uploadId
 ## merging 状态的作用
 
 当前实现没有分布式锁。`merging` 状态用于阻止同一个 uploadId 在单实例内并发合并。
+
+这把锁带 30 分钟超时（`mergingStartedAt`）。持锁进程可能在合并中途被杀掉，
+没有超时的话这把文件锁永远不会释放，该任务此后每次 merge/chunk 都只能拿到 409 ——
+即「进程崩过一次，这个上传就废了」。超时后允许重新合并。
 
 这不是分布式锁。如果未来部署多实例，需要把会话、状态和锁迁移到共享基础设施，比如：
 

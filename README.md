@@ -46,6 +46,7 @@ pnpm docs:dev
 pnpm db:migrate
 pnpm db:migrate:pending
 pnpm db:drop-create
+pnpm db:grant-admin
 pnpm docker:dev
 pnpm docker:prod
 ```
@@ -251,7 +252,7 @@ pnpm contract:check-consumer # 校验同机前端仓库引入的副本是否已�
 
 改了契约就会让 `contract:check-consumer` 红，直到在前端仓库跑一次 `pnpm contract:sync`。这是有意的：谁改的契约，谁的门禁先红，而不是等前端某次 CI 才发现。
 
-`pnpm run check` 已包含 `architecture:check` 与 `openapi:check`。新增或修改接口时，请同步更新 `src/openapi.ts`，再运行 `pnpm openapi:generate` 和 `pnpm format`。
+`pnpm run check` 已包含 `architecture:check`、`env:check` 与 `openapi:check`。新增或修改接口时，请同步更新 `src/openapi.ts`，再运行 `pnpm openapi:generate` 和 `pnpm format`。
 
 当前 OpenAPI security 只声明 Bearer JWT；Cookie + CSRF 的 Web App 接入细节以本 README 的“Web App 授权约定”为准。
 
@@ -266,6 +267,21 @@ pnpm db:migrate:executed # 查看已执行迁移
 pnpm db:migrate:undo     # 回滚最后一个迁移
 pnpm db:drop-create      # 仅开发使用：删除所有表后重新执行迁移
 ```
+
+## 管理员账号
+
+公开内容的写接口（`POST/PATCH/DELETE /api/v1/content/news`）要求 `admin` 角色。
+`Users.role` 默认是 `user`，因此全新部署里没有任何管理员，写接口对所有人关闭 ——
+默认开放再逐个收回，会在升级的那一瞬间把全站权限敞开。
+
+```bash
+pnpm db:grant-admin <username>            # 授予 admin
+pnpm db:grant-admin <username> --revoke   # 收回为 user
+pnpm db:grant-admin --list                # 列出当前所有 admin
+```
+
+角色由授权中间件每次请求现查数据库，不从 JWT 读取，因此授予和收回都立刻生效，
+不需要等对方的 access token 过期。
 
 开发和测试环境启动时会自动执行 pending migrations；生产环境只验证数据库连接，部署前请显式运行迁移。生产镜像构建完成后也可以执行：
 

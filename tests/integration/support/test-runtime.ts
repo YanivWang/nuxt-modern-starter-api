@@ -61,6 +61,18 @@ export function startTestServer(runtime: AppRuntime): Server {
   return runtime.app.listen(0);
 }
 
+/**
+ * 把账号提升为 admin。
+ *
+ * 内容写接口要求 admin，而 register 出来的账号默认是 user —— 这正是重点：
+ * 用例必须显式提权才能走通写流程，写接口对普通账号关闭这件事因此在测试里是可见的，
+ * 而不是靠「大家都记得」。角色每次请求现查，所以提权对已签发的 token 立刻生效。
+ */
+export async function promoteToAdmin(runtime: AppRuntime, username: string): Promise<void> {
+  const [affected] = await runtime.database.models.User.update({ role: "admin" }, { where: { username } });
+  if (affected !== 1) throw new Error(`提升 admin 失败：找不到用户 ${username}`);
+}
+
 /** 关闭常驻 server；必须在断开数据库/Redis 之前调用，避免在途请求打到已关闭的连接池。 */
 export function stopTestServer(server: Server): Promise<void> {
   return new Promise((resolve) => {

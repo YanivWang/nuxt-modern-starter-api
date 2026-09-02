@@ -43,16 +43,28 @@ src/infrastructure/revalidation/nuxt-content-revalidator.ts
 
 ## 对外接口
 
-| 方法     | 路径                      | 鉴权 | 说明                 |
-| -------- | ------------------------- | ---- | -------------------- |
-| `GET`    | `/api/content/news`       | 否   | 本地化新闻列表       |
-| `GET`    | `/api/content/news/:slug` | 否   | 本地化新闻详情       |
-| `GET`    | `/api/content/pricing`    | 否   | 本地化定价页内容     |
-| `POST`   | `/api/content/news`       | 是   | 创建新闻（内存写入） |
-| `PATCH`  | `/api/content/news/:slug` | 是   | 更新新闻（内存写入） |
-| `DELETE` | `/api/content/news/:slug` | 是   | 删除新闻（内存删除） |
+| 方法     | 路径                      | 鉴权  | 说明                 |
+| -------- | ------------------------- | ----- | -------------------- |
+| `GET`    | `/api/content/news`       | 否    | 本地化新闻列表       |
+| `GET`    | `/api/content/news/:slug` | 否    | 本地化新闻详情       |
+| `GET`    | `/api/content/pricing`    | 否    | 本地化定价页内容     |
+| `POST`   | `/api/content/news`       | admin | 创建新闻（内存写入） |
+| `PATCH`  | `/api/content/news/:slug` | admin | 更新新闻（内存写入） |
+| `DELETE` | `/api/content/news/:slug` | admin | 删除新闻（内存删除） |
 
-写接口（`POST` / `PATCH` / `DELETE`）挂 `authMiddleware`；读接口公开访问。
+读接口公开访问；写接口（`POST` / `PATCH` / `DELETE`）挂 `authMiddleware` + `requireAdmin` 两层。
+
+只校验「已登录」是不够的：这些接口改的是所有匿名访客都会看到的公开内容，不是调用者自己的资源，
+只挂认证等于任何人注册一个账号就能删掉全站新闻。普通登录账号访问写接口会拿到 `403 需要管理员权限`。
+
+角色存在 `Users.role`（`user` / `admin`，默认 `user`），由授权中间件**每次请求现查**——
+从 JWT 读的话，撤销管理员之后他手上的 access token 还能当管理员用到过期为止。
+
+全新部署里没有任何管理员，写接口对所有人关闭。授予方式：
+
+```bash
+pnpm db:grant-admin <username>
+```
 
 ## 本地化规则
 

@@ -1123,7 +1123,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorBody"
         "403":
-          description: CSRF 校验失败，或访问了不属于自己的资源
+          description: CSRF 校验失败、访问了不属于自己的资源，或角色权限不足（内容写接口要求管理员）
           content:
             application/json:
               schema:
@@ -1497,6 +1497,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorBody"
+        "403":
+          description: CSRF 校验失败、访问了不属于自己的资源，或角色权限不足（内容写接口要求管理员）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
         "409":
           description: 与现有资源状态冲突
           content:
@@ -1691,6 +1697,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorBody"
+        "403":
+          description: CSRF 校验失败、访问了不属于自己的资源，或角色权限不足（内容写接口要求管理员）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
         "404":
           description: 资源不存在；也用于「存在但不属于当前用户」，不区分两者以免暴露他人资源是否存在
           content:
@@ -1738,6 +1750,12 @@ paths:
                 $ref: "#/components/schemas/ErrorBody"
         "401":
           description: 未登录、登录已过期或凭证无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "403":
+          description: CSRF 校验失败、访问了不属于自己的资源，或角色权限不足（内容写接口要求管理员）
           content:
             application/json:
               schema:
@@ -2370,7 +2388,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorBody"
         "403":
-          description: CSRF 校验失败，或访问了不属于自己的资源
+          description: CSRF 校验失败、访问了不属于自己的资源，或角色权限不足（内容写接口要求管理员）
           content:
             application/json:
               schema:
@@ -2462,7 +2480,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorBody"
         "403":
-          description: CSRF 校验失败，或访问了不属于自己的资源
+          description: CSRF 校验失败、访问了不属于自己的资源，或角色权限不足（内容写接口要求管理员）
           content:
             application/json:
               schema:
@@ -2533,7 +2551,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorBody"
         "403":
-          description: CSRF 校验失败，或访问了不属于自己的资源
+          description: CSRF 校验失败、访问了不属于自己的资源，或角色权限不足（内容写接口要求管理员）
           content:
             application/json:
               schema:
@@ -2604,7 +2622,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorBody"
         "403":
-          description: CSRF 校验失败，或访问了不属于自己的资源
+          description: CSRF 校验失败、访问了不属于自己的资源，或角色权限不足（内容写接口要求管理员）
           content:
             application/json:
               schema:

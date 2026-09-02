@@ -21,9 +21,16 @@ import path from "node:path";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { createTestRuntime, resetRedisState, startTestServer, stopTestServer } from "./support/test-runtime.js";
+import {
+  createTestRuntime,
+  promoteToAdmin,
+  resetRedisState,
+  startTestServer,
+  stopTestServer,
+} from "./support/test-runtime.js";
 import { generateOpenApiSpec } from "../../src/openapi.js";
 import { projectRoot } from "../../src/utils/projectRoot.js";
+import { LARGE_UPLOAD_CHUNKS_ROOT } from "../../src/infrastructure/storage/local-large-upload.adapter.js";
 import { authTokenPairEnvelopeSchema } from "../../src/modules/auth/auth.contract.js";
 import { documentEnvelopeSchema } from "../../src/modules/document/document.contract.js";
 import { errorEnvelopeSchema, nullDataEnvelopeSchema } from "../../src/shared/http/api-envelope.js";
@@ -107,6 +114,7 @@ async function registerAndLogin() {
   expectMatchesContract(authTokenPairEnvelopeSchema, loginRes.body, "POST /login");
 
   return {
+    username,
     accessToken: loginRes.body.data.accessToken as string,
     refreshToken: loginRes.body.data.refreshToken as string,
   };
@@ -124,7 +132,7 @@ describe("API response contract", () => {
 
   afterAll(async () => {
     await cleanDatabase().catch(() => {});
-    // recursive：createdFiles 里既有落盘文件，也有 chunks-temp 下的目录
+    // recursive：createdFiles 里既有落盘文件，也有分片暂存根目录下的目录
     for (const target of createdFiles) {
       await fs.rm(target, { recursive: true, force: true }).catch(() => {});
     }
@@ -214,7 +222,9 @@ describe("API response contract", () => {
     expectMatchesContract(pricingEnvelopeSchema, pricingRes.body, "GET /content/pricing");
 
     // 写接口回显的是未折叠的双语原文，与读接口的 article 不是同一形状
-    const { accessToken } = await registerAndLogin();
+    const { username, accessToken } = await registerAndLogin();
+    // 内容写接口要求 admin；注册出来的账号默认是 user
+    await promoteToAdmin(runtime, username);
     const auth = { Authorization: `Bearer ${accessToken}` };
     const created = {
       slug: `contract-${Date.now()}`,
@@ -335,9 +345,9 @@ describe("API response contract", () => {
       path.join(projectRoot, "uploads", publicUrl.replace(/^\/uploads\//, "")),
       path.join(projectRoot, ".data", "large-upload-done", `${uploadId}.json`),
       path.join(projectRoot, ".data", "large-upload-hash-index", `${fileMd5}.json`),
-      // merge 与 abort 只删到 chunks-temp/<md5>/<uploadId> 这一层，<md5>/ 空壳会留下。
+      // merge 与 abort 只删到 <chunksRoot>/<md5>/<uploadId> 这一层，<md5>/ 空壳会留下。
       // 生产环境由 purgeStaleLargeUploads 的 rmdir 回收，但测试不能指望那个周期任务。
-      path.join(projectRoot, "uploads", "chunks-temp", fileMd5),
+      path.join(LARGE_UPLOAD_CHUNKS_ROOT, fileMd5),
     );
 
     // 合并完成后临时目录已删，status 走的是 done marker 分支——字段与上面那次并不相同
@@ -357,7 +367,7 @@ describe("API response contract", () => {
     // 取消一个全新的任务：它返回空对象而不是 null，这条也在契约里
     const otherContent = randomBytes(chunkSize);
     const otherMd5 = createHash("md5").update(otherContent).digest("hex");
-    createdFiles.push(path.join(projectRoot, "uploads", "chunks-temp", otherMd5));
+    createdFiles.push(path.join(LARGE_UPLOAD_CHUNKS_ROOT, otherMd5));
     const otherInit = await request(server)
       .post("/api/v1/uploads/large/init")
       .set(auth)

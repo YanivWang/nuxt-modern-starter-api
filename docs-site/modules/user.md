@@ -57,6 +57,7 @@ src/modules/user/
 - `id`
 - `username`
 - `password`
+- `role`
 - `avatar`
 - `createdAt`
 - `updatedAt`
@@ -64,6 +65,11 @@ src/modules/user/
 `password` 保存 bcrypt 哈希，不保存明文。
 
 `avatar` 是 `/api/me` 返回的头像字段。
+
+`role` 取 `user` / `admin`，默认 `user`，是公开内容写接口的授权判据。
+授权中间件每次请求现查这一列，而不是从 JWT 读 —— token 里的角色在签发那一刻就固化了，
+撤销管理员之后他手上的 access token 还能当管理员用到过期为止。
+授予：`pnpm db:grant-admin <username>`。
 
 ### UserProfiles
 
@@ -227,6 +233,10 @@ controller 返回用户信息时只返回安全字段：
 - `nickname`
 
 这是避免敏感字段泄露的基本边界。
+
+`role` 同样不下发。它不是敏感数据，但把它交给浏览器只会诱导前端拿它做权限判断，
+而客户端的判断从来不是授权——授权在服务端按每次请求完成。前端需要「显不显示管理入口」
+这类界面开关时，应该由一个明确表达该意图的接口提供，而不是复用授权字段。
 
 ## 测试现状
 

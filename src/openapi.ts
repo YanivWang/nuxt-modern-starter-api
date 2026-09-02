@@ -257,7 +257,7 @@ type ExtraErrorStatus = "401" | "403" | "404" | "409" | "410";
 const ERROR_DESCRIPTIONS: Record<string, string> = {
   "400": "请求参数错误",
   "401": "未登录、登录已过期或凭证无效",
-  "403": "CSRF 校验失败，或访问了不属于自己的资源",
+  "403": "CSRF 校验失败、访问了不属于自己的资源，或角色权限不足（内容写接口要求管理员）",
   "404": "资源不存在；也用于「存在但不属于当前用户」，不区分两者以免暴露他人资源是否存在",
   "409": "与现有资源状态冲突",
   "410": "上传任务已过期",
@@ -493,7 +493,7 @@ export function generateOpenApiSpec(): OpenApiSpec {
           requestBody: jsonRequestBody(createNewsSchema.shape.body),
           responses: ok("创建新闻成功，回显未折叠的双语原文", "NewsSourceBody", {
             created: true,
-            errors: ["401", "409"],
+            errors: ["401", "403", "409"],
           }),
         },
       },
@@ -545,7 +545,7 @@ export function generateOpenApiSpec(): OpenApiSpec {
             },
           ],
           requestBody: jsonRequestBody(patchNewsSchema.shape.body),
-          responses: ok("更新新闻成功，回显未折叠的双语原文", "NewsSourceBody", { errors: ["401", "404"] }),
+          responses: ok("更新新闻成功，回显未折叠的双语原文", "NewsSourceBody", { errors: ["401", "403", "404"] }),
         },
         delete: {
           tags: ["公开内容"],
@@ -559,7 +559,7 @@ export function generateOpenApiSpec(): OpenApiSpec {
               schema: zodInputSchema(newsSlugSchema.shape.params.shape.slug),
             },
           ],
-          responses: ok("删除新闻成功，data 为 null", "NullDataBody", { errors: ["401", "404"] }),
+          responses: ok("删除新闻成功，data 为 null", "NullDataBody", { errors: ["401", "403", "404"] }),
         },
       },
       "/api/v1/projects": {

@@ -1,6 +1,7 @@
 /**
  * 文件职责：当前用户与扩展资料用例单元测试。
  * 重点是对外资料绝不包含 password，以及 avatar 只从 Users 读取、profile 缺失时按需创建。
+ * 角色查询单独覆盖：它是公开内容写接口的授权判据，判错就是权限敞开或管理员被挡。
  */
 import { describe, expect, it, vi } from "vitest";
 
@@ -44,6 +45,33 @@ describe("user service", () => {
 
     expect(profile).toEqual({ id: 7, username: "demo", avatar: "/uploads/profiles/a.png", nickname: "小明" });
     expect(JSON.stringify(profile)).not.toContain("$2b$");
+  });
+
+  it("reads the role for authorization and never leaks it into the public profile", async () => {
+    const findByPk = vi.fn().mockResolvedValue({ role: "admin" });
+    const database = { models: { User: { findByPk }, UserProfile: {} } } as unknown as AppDatabase;
+
+    expect(await createUserService(database).findRoleById(7)).toBe("admin");
+    // 只取 role 一列，别把整行用户数据（含 password 哈希）读进内存
+    expect(findByPk).toHaveBeenCalledWith(7, { attributes: ["role"] });
+  });
+
+  it("normalises an unknown role value down to the least privileged one", async () => {
+    // 人工改库、旧数据或将来新增的角色名都可能落在集合之外；
+    // 归一化必须往权限低的方向倒，否则一个手滑的值就是一个管理员。
+    const findByPk = vi.fn().mockResolvedValue({ role: "superuser" });
+    const database = { models: { User: { findByPk }, UserProfile: {} } } as unknown as AppDatabase;
+
+    expect(await createUserService(database).findRoleById(7)).toBe("user");
+  });
+
+  it("reports a deleted account as having no role at all", async () => {
+    // 返回 null 而不是 "user"：调用方据此把「token 有效但账号没了」判成 401 重新登录，
+    // 而不是当成一个权限不足的普通用户。
+    const findByPk = vi.fn().mockResolvedValue(null);
+    const database = { models: { User: { findByPk }, UserProfile: {} } } as unknown as AppDatabase;
+
+    expect(await createUserService(database).findRoleById(7)).toBeNull();
   });
 
   it("falls back to null nickname when no profile row exists", async () => {

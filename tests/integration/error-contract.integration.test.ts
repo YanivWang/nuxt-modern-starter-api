@@ -21,12 +21,17 @@ import path from "node:path";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { createTestRuntime, resetRedisState, startTestServer, stopTestServer } from "./support/test-runtime.js";
+import {
+  createTestRuntime,
+  promoteToAdmin,
+  resetRedisState,
+  startTestServer,
+  stopTestServer,
+} from "./support/test-runtime.js";
 import { generateOpenApiSpec } from "../../src/openapi.js";
 import { projectRoot } from "../../src/utils/projectRoot.js";
 import { errorEnvelopeSchema } from "../../src/shared/http/api-envelope.js";
-import { localFileStorage } from "../../src/infrastructure/storage/local-file-storage.adapter.js";
-import { LARGE_CHUNKS_TEMP_SEGMENT } from "../../src/infrastructure/storage/local-large-upload.adapter.js";
+import { LARGE_UPLOAD_CHUNKS_ROOT } from "../../src/infrastructure/storage/local-large-upload.adapter.js";
 
 import type { AppRuntime } from "../../src/runtime.js";
 import type { Server } from "node:http";
@@ -45,7 +50,7 @@ const provoked = new Set<string>();
 /**
  * 大文件用例留下的落盘产物，afterAll 逐个删除。
  *
- * 一次 init 会写两处：uploads/chunks-temp 下的分片目录，和 .data 下的会话文件。
+ * 一次 init 会写两处：.data/large-upload-chunks 下的分片目录，和 .data 下的会话文件。
  * 这里的用例大多故意停在错误分支上，走不到 merge/abort（那两个才会自己清理），
  * 所以两处都必须显式登记 —— 只删目录的话，.data 会随着每轮测试单调增长。
  */
@@ -101,7 +106,7 @@ async function registerAndLogin() {
 }
 
 function metaPath(fileMd5: string, uploadId: string) {
-  return path.join(localFileStorage.root, LARGE_CHUNKS_TEMP_SEGMENT, fileMd5, uploadId, "meta.json");
+  return path.join(LARGE_UPLOAD_CHUNKS_ROOT, fileMd5, uploadId, "meta.json");
 }
 
 async function patchMeta(fileMd5: string, uploadId: string, patch: Record<string, unknown>) {
@@ -127,7 +132,7 @@ async function initUpload(accessToken: string, chunkTotal = 1) {
 
   const uploadId = response.body.data.uploadId as string;
   createdPaths.push(
-    path.join(localFileStorage.root, LARGE_CHUNKS_TEMP_SEGMENT, fileMd5),
+    path.join(LARGE_UPLOAD_CHUNKS_ROOT, fileMd5),
     path.join(projectRoot, ".data", "large-upload-sessions", `${uploadId}.json`),
     // 后两处只有走到 merge 才会产生；一并登记，免得将来补了 merge 用例又漏掉
     path.join(projectRoot, ".data", "large-upload-done", `${uploadId}.json`),
@@ -209,9 +214,45 @@ describe("API error contract", () => {
     );
   });
 
+  it("returns 403 when a logged-in account without the admin role writes public content", async () => {
+    // 这三条改的是所有匿名访客都会看到的公开内容，不是调用者自己的资源。
+    // 只校验「已登录」的话，任何人注册一个账号就能删掉全站新闻。
+    const outsider = await registerAndLogin();
+    const auth = { Authorization: `Bearer ${outsider.accessToken}` };
+    const article = {
+      slug: `forbidden-${Date.now()}`,
+      title: { "zh-CN": "越权", "en-US": "Forbidden" },
+      description: { "zh-CN": "越权", "en-US": "Forbidden" },
+      body: { "zh-CN": ["段落"], "en-US": ["Paragraph"] },
+      publishedAt: "2026-09-01",
+    };
+
+    expectDeclaredError(
+      "POST /api/v1/content/news",
+      403,
+      await request(server).post("/api/v1/content/news").set(auth).send(article),
+    );
+    expectDeclaredError(
+      "PATCH /api/v1/content/news/{slug}",
+      403,
+      await request(server).patch(`/api/v1/content/news/${article.slug}`).set(auth).send({ publishedAt: "2026-09-02" }),
+    );
+    expectDeclaredError(
+      "DELETE /api/v1/content/news/{slug}",
+      403,
+      await request(server).delete(`/api/v1/content/news/${article.slug}`).set(auth),
+    );
+
+    // 403 不能只是拦住了响应：被拒绝的写入不能在内容仓库里留下任何痕迹
+    await request(server).get(`/api/v1/content/news/${article.slug}`).expect(404);
+  });
+
   it("returns 404 for resources that do not exist or belong to someone else", async () => {
     const owner = await registerAndLogin();
     const auth = { Authorization: `Bearer ${owner.accessToken}` };
+    // 内容写接口的授权排在业务查找之前，普通账号只会拿到 403；
+    // 要证明它们真的会 404，调用者必须先是管理员。
+    await promoteToAdmin(runtime, owner.username);
 
     expectDeclaredError(
       "GET /api/v1/content/news/{slug}",
@@ -295,6 +336,7 @@ describe("API error contract", () => {
   it("returns 409 on duplicate resources and on an upload that is mid-merge", async () => {
     const user = await registerAndLogin();
     const auth = { Authorization: `Bearer ${user.accessToken}` };
+    await promoteToAdmin(runtime, user.username);
 
     expectDeclaredError(
       "POST /api/v1/register",

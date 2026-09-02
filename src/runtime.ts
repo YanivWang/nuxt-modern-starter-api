@@ -11,7 +11,12 @@ import { createRedisRateLimitStore } from "./infrastructure/rate-limit/redis-rat
 import { createNuxtContentRevalidator } from "./infrastructure/revalidation/nuxt-content-revalidator.js";
 import { localFileStorage } from "./infrastructure/storage/local-file-storage.adapter.js";
 import { localLargeUploadStorage } from "./infrastructure/storage/local-large-upload.adapter.js";
-import { createAuthRateLimitMiddleware, createGlobalRateLimitMiddleware } from "./middlewares/rateLimit.middleware.js";
+import {
+  createAuthRateLimitMiddleware,
+  createGlobalRateLimitMiddleware,
+  createStaticRateLimitMiddleware,
+} from "./middlewares/rateLimit.middleware.js";
+import { createRequireRole } from "./middlewares/requireRole.middleware.js";
 import { createAuthModule } from "./modules/auth/index.js";
 import { createContentModule } from "./modules/content/index.js";
 import { createDocumentModule } from "./modules/document/index.js";
@@ -27,15 +32,20 @@ export function createRuntime() {
   // 限流计数走 Redis：内存 store 在多实例下会让实际阈值变成配置值 × 实例数。
   const globalRateLimit = createGlobalRateLimitMiddleware(createRedisRateLimitStore(redisConnection, "global"));
   const authRateLimit = createAuthRateLimitMiddleware(createRedisRateLimitStore(redisConnection, "auth"));
+  const staticRateLimit = createStaticRateLimitMiddleware(createRedisRateLimitStore(redisConnection, "static"));
   const metrics = createMetrics();
 
   const auth = createAuthModule(database, blacklist, loginAttempts, authRateLimit);
+  const user = createUserModule(database, auth.authMiddleware);
+  // 角色的权威来源是 Users 表，由用户模块提供查询；授权中间件在组合根装配，
+  // 内容模块只拿到一个已经装好的守卫，不需要知道角色存在哪里。
+  const requireAdmin = createRequireRole(user.findRole)("admin");
   const content = createContentModule(
     createInMemoryContentRepository(),
     createNuxtContentRevalidator({ url: NUXT_REVALIDATE_URL, secret: REVALIDATE_SECRET }),
     auth.authMiddleware,
+    requireAdmin,
   );
-  const user = createUserModule(database, auth.authMiddleware);
   const workspace = createWorkspaceModule(database, auth.authMiddleware);
   const document = createDocumentModule(database, auth.authMiddleware);
   const uploadRoutes = createUploadRoutes(auth.authMiddleware, localFileStorage, localLargeUploadStorage);
@@ -51,6 +61,7 @@ export function createRuntime() {
     apiRoutes: [auth.routes, content.routes, user.routes, workspace.routes, document.routes, uploadRoutes],
     fileStorage: localFileStorage,
     globalRateLimit,
+    staticRateLimit,
     metricsMiddleware: metrics.middleware,
   });
 

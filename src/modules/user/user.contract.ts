@@ -8,6 +8,19 @@ import { z } from "zod";
 
 import { apiEnvelope } from "../../shared/http/api-envelope.js";
 
+/**
+ * 账号角色。
+ *
+ * 只有 admin 能写公开内容（新闻）。它刻意不出现在 publicUserSchema 里：
+ * /me 是给前端渲染用户信息的，把角色下发给浏览器只会诱导前端拿它做权限判断，
+ * 而客户端的判断从来不是授权 —— 授权在服务端按每次请求查库完成。
+ */
+export const USER_ROLES = ["user", "admin"] as const;
+export type UserRole = (typeof USER_ROLES)[number];
+
+/** 库里存的是自由文本，人工改库可能落在集合之外；出库时按最小权限归一化。 */
+export const toUserRole = (value: string): UserRole => (value === "admin" ? "admin" : "user");
+
 /** 对外展示的用户基础资料：一定不含 password。 */
 export const publicUserSchema = z.object({
   id: z.number().int(),

@@ -34,10 +34,12 @@ export function createRedisLoginAttemptTracker(connection: RedisConnection): Log
     },
     async recordFailure(username) {
       const key = counterKey(username);
-      const count = await client.incr(key);
+      // INCR 与 EXPIRE 必须在同一个 MULTI 里提交。拆成两条命令时，只要进程在这两条之间被杀掉
+      // （部署滚动、OOM、崩溃都会），这个计数 key 就永远不会带上 TTL——该用户名从此被
+      // 永久锁死，且没有任何东西会把它解开。那是一条零成本的账号级拒绝服务。
       // 每次失败都重置 TTL：持续攻击会持续延长锁定，而不是攻击者熬过固定窗口就重新开始。
-      await client.expire(key, LOGIN_LOCKOUT_SECONDS);
-      return count;
+      const replies = await client.multi().incr(key).expire(key, LOGIN_LOCKOUT_SECONDS).exec();
+      return Number(replies[0]);
     },
     async reset(username) {
       await client.del(counterKey(username));

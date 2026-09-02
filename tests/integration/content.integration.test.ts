@@ -4,7 +4,13 @@
 import request from "supertest";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { createTestRuntime, resetRedisState, startTestServer, stopTestServer } from "./support/test-runtime.js";
+import {
+  createTestRuntime,
+  promoteToAdmin,
+  resetRedisState,
+  startTestServer,
+  stopTestServer,
+} from "./support/test-runtime.js";
 
 import type { AppRuntime } from "../../src/runtime.js";
 import type { Server } from "node:http";
@@ -34,6 +40,7 @@ async function registerAndLogin() {
   const loginRes = await request(server).post("/api/v1/login").send({ username, password }).expect(200);
 
   return {
+    username,
     accessToken: loginRes.body.data.accessToken as string,
   };
 }
@@ -136,7 +143,8 @@ describe("public content API", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const { accessToken } = await registerAndLogin();
+    const { username, accessToken } = await registerAndLogin();
+    await promoteToAdmin(runtime, username);
 
     const createPayload = {
       slug,
@@ -205,5 +213,36 @@ describe("public content API", () => {
         publishedAt: "2026-07-08",
       })
       .expect(401);
+  });
+
+  it("rejects news mutations from a logged-in account that is not an admin", async () => {
+    // 这几条改的是所有匿名访客都会看到的公开内容。只要「登录」就能改的话，
+    // 任何人注册一个账号就能删掉全站新闻——所以必须是 403 而不是放行。
+    const { accessToken } = await registerAndLogin();
+    const auth = { Authorization: `Bearer ${accessToken}` };
+    const slug = uniqueSlug();
+
+    const createRes = await request(server)
+      .post("/api/v1/content/news")
+      .set(auth)
+      .send({
+        slug,
+        title: { "zh-CN": "x", "en-US": "x" },
+        description: { "zh-CN": "x", "en-US": "x" },
+        body: { "zh-CN": ["x"], "en-US": ["x"] },
+        publishedAt: "2026-07-08",
+      })
+      .expect(403);
+    expect(createRes.body.message).toBe("需要管理员权限");
+
+    await request(server)
+      .patch(`/api/v1/content/news/${slug}`)
+      .set(auth)
+      .send({ publishedAt: "2026-07-09" })
+      .expect(403);
+    await request(server).delete(`/api/v1/content/news/${slug}`).set(auth).expect(403);
+
+    // 403 不能只是「拦住了响应」——被拒绝的写入不能留下任何痕迹
+    await request(server).get(`/api/v1/content/news/${slug}`).expect(404);
   });
 });

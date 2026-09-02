@@ -148,6 +148,19 @@ export const RATE_LIMIT_WINDOW_MS = optionalPositiveInt("RATE_LIMIT_WINDOW_MS", 
 export const RATE_LIMIT_MAX = optionalPositiveInt("RATE_LIMIT_MAX", appEnv === "production" ? 1000 : 10000);
 export const AUTH_RATE_LIMIT_WINDOW_MS = optionalPositiveInt("AUTH_RATE_LIMIT_WINDOW_MS", 60 * 1000);
 export const AUTH_RATE_LIMIT_MAX = optionalPositiveInt("AUTH_RATE_LIMIT_MAX", 60);
+/**
+ * /uploads 静态资源的独立限流预算。
+ *
+ * 它必须和业务接口分账：一个图片多的页面一次就要几十个资源请求，
+ * 塞进 API 预算里会让正常浏览把接口配额烧光，反过来 429 掉整个应用。
+ * 但完全不限也不行——那是一条无需登录、可以无限反复拉大文件的出口。
+ * 因此单独给一个宽松得多的额度。
+ */
+export const STATIC_RATE_LIMIT_WINDOW_MS = optionalPositiveInt("STATIC_RATE_LIMIT_WINDOW_MS", 15 * 60 * 1000);
+export const STATIC_RATE_LIMIT_MAX = optionalPositiveInt(
+  "STATIC_RATE_LIMIT_MAX",
+  appEnv === "production" ? 3000 : 30000,
+);
 export const ACCESS_TOKEN_TTL_SECONDS = optionalPositiveInt("ACCESS_TOKEN_TTL_SECONDS", 15 * 60);
 export const REFRESH_TOKEN_TTL_SECONDS = optionalPositiveInt("REFRESH_TOKEN_TTL_SECONDS", 30 * 24 * 60 * 60);
 export const AUTH_COOKIE_SECURE = optionalBoolean("AUTH_COOKIE_SECURE", appEnv === "production");

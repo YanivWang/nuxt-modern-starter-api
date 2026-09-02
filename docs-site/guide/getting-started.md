@@ -109,6 +109,7 @@ pnpm docs:preview
 
 ```bash
 pnpm architecture:check
+pnpm env:check
 pnpm typecheck
 pnpm lint
 pnpm format:check
@@ -118,7 +119,10 @@ pnpm build
 pnpm check
 ```
 
-`pnpm check` 是完整质量门禁，会依次运行架构边界检查、类型检查、lint、格式检查、OpenAPI 同步检查、测试和构建。CI 中执行的是等价的 `pnpm run check`。
+`pnpm check` 是完整质量门禁，会依次运行架构边界检查、生产环境变量落位检查、类型检查、lint、格式检查、OpenAPI 同步检查、测试和构建。
+
+`env:check` 比对 `.env.production.example` 与生产 Compose 的 `api.environment`：两份清单都是手工维护的，
+漏一个不会报错，表现是「运维照文档改了配置但毫无效果」。CI 中执行的是等价的 `pnpm run check`。
 
 测试文件不放在 `src/` 下：`tests/unit/` 承载不依赖外部服务的单元测试，`tests/integration/` 承载依赖 MySQL/Redis 的 API 集成测试。
 
@@ -130,6 +134,7 @@ pnpm db:migrate:pending
 pnpm db:migrate:executed
 pnpm db:migrate:undo
 pnpm db:drop-create
+pnpm db:grant-admin <username>
 ```
 
 开发和测试环境启动时会自动执行 pending migrations。生产环境不会自动改表，需要部署时显式执行：
@@ -140,3 +145,6 @@ pnpm db:migrate:prod
 ```
 
 `db:drop-create` 会删除当前库表再重建，只能用于开发或测试。
+
+`db:grant-admin` 授予公开内容写接口所需的 `admin` 角色。新库里没有任何管理员，
+`POST/PATCH/DELETE /api/v1/content/news` 对所有人关闭，直到显式授予。

@@ -18,6 +18,7 @@ export class User extends Model<InferAttributes<User>, InferCreationAttributes<U
   declare id: CreationOptional<number>;
   declare username: string;
   declare password: string;
+  declare role: CreationOptional<string>;
   declare avatar: CreationOptional<string | null>;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
@@ -44,6 +45,12 @@ export function defineUserModel(sequelize: Sequelize) {
         type: DataTypes.STRING,
         allowNull: false,
         comment: "密码",
+      },
+      role: {
+        type: DataTypes.STRING(20),
+        allowNull: false,
+        defaultValue: "user",
+        comment: "账号角色：user / admin。admin 才能写公开内容",
       },
       avatar: {
         type: DataTypes.STRING,

@@ -29,6 +29,7 @@ export type AppDependencies = {
   apiRoutes: Router[];
   fileStorage: FileStorage;
   globalRateLimit: RequestHandler;
+  staticRateLimit: RequestHandler;
   metricsMiddleware: RequestHandler;
 };
 
@@ -38,6 +39,7 @@ export function createApp({
   apiRoutes,
   fileStorage,
   globalRateLimit,
+  staticRateLimit,
   metricsMiddleware,
 }: AppDependencies) {
   const app = express();
@@ -59,7 +61,12 @@ export function createApp({
   app.use(requestIdMiddleware);
   app.use(metricsMiddleware);
   app.use(httpRequestLogMiddleware);
-  app.use("/uploads", express.static(fileStorage.root));
+  // /uploads 是无鉴权的公开静态出口，走独立的限流预算：
+  // 记在业务接口账上会让图片多的页面把 API 配额烧光，完全不限则是一条
+  // 无需登录、可以无限反复拉大文件的出口。生产环境仍应由 Nginx/CDN 直接提供
+  // 并在那一层限带宽，这一档是没有 CDN 时的底线。
+  // 前提是这个目录里不能有私有内容——分片、会话、秒传索引一律放 .data/。
+  app.use("/uploads", staticRateLimit, express.static(fileStorage.root));
   app.use(healthRoutes);
   // /metrics 不参与限流，也不应经公网网关暴露：由集群内 Prometheus 直接抓取。
   app.use(metricsRoutes);
