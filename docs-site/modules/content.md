@@ -18,8 +18,8 @@ src/modules/content/
   content.service.ts
     locale 解析、本地化映射，并在写操作成功后触发 ContentRevalidator
 
-  content.data.ts
-    新闻文章 hardcoded 数据源
+  news-article.model.ts
+    NewsArticles 模型：双语字段以 JSON 列整体存放
 
   pricing.data.ts
     定价页 hardcoded 数据源
@@ -34,12 +34,12 @@ src/modules/content/
 src/modules/content/ports/
   content-repository.port.ts
   content-revalidator.port.ts
-src/infrastructure/content/in-memory-content.repository.ts
+src/infrastructure/content/sequelize-content.repository.ts
 src/infrastructure/revalidation/nuxt-content-revalidator.ts
   新闻变更后通知 Nuxt 清除 SWR 页面缓存
 ```
 
-公开内容模块当前不包含 `*.model.ts`，也不会在 `src/db/models.ts` 中注册数据库模型。它是进程内数据源示例，适合前端联调和脚手架演示；接入 CMS 或 MySQL 时，实现一个新的 `ContentRepository` Adapter 并在 `src/runtime.ts` 替换即可，`content.service.ts` 和 HTTP 契约都不需要改。
+新闻是 MySQL 表（`NewsArticles`，在 `src/db/models.ts` 注册）；定价仍是随构建发布的静态常量，它没有写接口。接入 CMS 时，实现一个新的 `ContentRepository` Adapter 并在 `src/runtime.ts` 替换即可，`content.service.ts` 和 HTTP 契约都不需要改。
 
 ## 对外接口
 
@@ -92,15 +92,25 @@ locale 解析顺序（`resolveLocale()`）：
 
 ## 数据存储边界
 
-当前 starter 阶段使用**进程内内存常量**，不是 MySQL 表：
+新闻和定价的存储方式不同，因为它们是两类东西：
 
-- 新闻：`content.data.ts` 的 `newsArticles`
-- 定价：`pricing.data.ts` 的 `pricingPageContent`
+- 新闻：MySQL 表 `NewsArticles`。它有 `POST`/`PATCH`/`DELETE` 写接口、管理员鉴权和缓存失效回调，
+  是运营数据，必须跨重启、跨实例一致。初始四篇由迁移 `20260903100000-create-news-articles` 写入。
+- 定价：`pricing.data.ts` 的 `pricingPageContent` 静态常量。它没有写接口，
+  是随构建一起发布的站点配置；建表只会多出一份需要同步的副本。
 
-含义：
+新闻的双语字段（`title` / `description` / `body`）以 JSON 列整体存放，
+而不是「一行一语言」：契约要求写接口回显完整双语原文，拆行会让每次读写都要做聚合。
 
-- 进程重启后，运行时创建/更新/删除的新闻会丢失，回到源码中的初始数据。
-- 适合前端联调与脚手架演示；生产 CMS 或数据库接入时，应替换 `ContentRepository` Adapter，尽量保持路由契约不变。
+`publishedAt` 存字符串而不是 `DATEONLY`。契约把它定义为不透明字符串，
+换成日期类型会在读回时被驱动重新格式化，响应体与 OpenAPI 对不上。
+
+列表排序为 `publishedAt DESC, createdAt DESC`：同一天发布的多篇，后入库的排在前面。
+
+`GET /content/news` 最多返回最新 100 条。行数不再是源码里写死的四条之后，
+一个没有分页参数的列表端点如果不设上限，响应体就是「表能长多大，它就能多大」。
+新闻量真的越过这个数量级时，应该给这个端点加分页（`GET /projects` 已经是这么做的），
+而不是把 `sequelize-content.repository.ts` 里的 `LIST_LIMIT` 调大。
 
 ## 读接口示例
 
@@ -253,10 +263,11 @@ REVALIDATE_SECRET=dev_revalidate_secret_replace_with_random_string
 建议：
 
 1. 保留现有路由与响应 envelope。
-2. 新增一个实现 `ContentRepository` 的 Adapter（数据库或 CMS），替换 `createInMemoryContentRepository()`。
+2. 新增一个实现 `ContentRepository` 的 Adapter（CMS 或其他数据源），替换 `createSequelizeContentRepository()`。
 3. 在 `src/runtime.ts` 注入新 Adapter；`revalidateNews` 的触发逻辑留在 service，不需要改。
 4. 同步 OpenAPI 与集成测试。
 
 ### 增加更多公开页内容
 
-可按同样模式增加例如 FAQ、帮助中心等只读接口：hardcoded 起步，再替换数据源。
+可按同样模式增加例如 FAQ、帮助中心等只读接口。判据是有没有写接口：
+只读的站点文案放静态常量即可，一旦要在运行时被改写，就该建表。

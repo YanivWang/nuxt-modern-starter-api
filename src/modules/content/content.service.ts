@@ -30,15 +30,15 @@ export function createContentService(repository: ContentRepository, revalidator:
     publishedAt: article.publishedAt,
   });
 
-  const listNews = (locale: SupportedLocale): LocalizedNewsSummary[] =>
-    repository.listNews().map((article) => localizeSummary(article, locale));
-  const findNews = (slug: string, locale: SupportedLocale): LocalizedNewsArticle | null => {
-    const article = repository.findNews(slug);
+  const listNews = async (locale: SupportedLocale): Promise<LocalizedNewsSummary[]> =>
+    (await repository.listNews()).map((article) => localizeSummary(article, locale));
+  const findNews = async (slug: string, locale: SupportedLocale): Promise<LocalizedNewsArticle | null> => {
+    const article = await repository.findNews(slug);
     return article ? { ...localizeSummary(article, locale), body: article.body[locale] } : null;
   };
 
-  const pricing = (locale: SupportedLocale): LocalizedPricingPage => {
-    const source = repository.getPricing();
+  const pricing = async (locale: SupportedLocale): Promise<LocalizedPricingPage> => {
+    const source = await repository.getPricing();
     return {
       eyebrow: source.eyebrow[locale],
       title: source.title[locale],
@@ -64,21 +64,21 @@ export function createContentService(repository: ContentRepository, revalidator:
     };
   };
 
-  const createNews = (article: NewsArticle) => {
-    const created = repository.createNews(article);
+  const createNews = async (article: NewsArticle) => {
+    const created = await repository.createNews(article);
     if (created) revalidator.revalidateNews(created.slug);
     return created;
   };
-  const updateNews = (
+  const updateNews = async (
     slug: string,
     patch: Partial<Pick<NewsArticle, "title" | "description" | "body" | "publishedAt">>,
   ) => {
-    const updated = repository.updateNews(slug, patch);
+    const updated = await repository.updateNews(slug, patch);
     if (updated) revalidator.revalidateNews(slug);
     return updated;
   };
-  const deleteNews = (slug: string) => {
-    const deleted = repository.deleteNews(slug);
+  const deleteNews = async (slug: string) => {
+    const deleted = await repository.deleteNews(slug);
     if (deleted) revalidator.revalidateNews(slug);
     return deleted;
   };

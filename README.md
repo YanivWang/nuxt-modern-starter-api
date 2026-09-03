@@ -348,7 +348,7 @@ pnpm test:unit
 
 ### 用户与资料模型
 
-默认有六张核心业务表：`Users`、`UserProfiles`、`UserRefreshTokens`、`Workspaces`、`Projects`、`Documents`。`Users` 与 `UserProfiles` 是一对一关系；每个用户有一个默认 personal Workspace；每个 Project 对应一个 Document；头像仅存 `Users.avatar`，`/api/v1/me` 与 `/api/v1/me/profile` 读取时均来自该字段。
+默认有七张核心业务表：`Users`、`UserProfiles`、`UserRefreshTokens`、`Workspaces`、`Projects`、`Documents`、`NewsArticles`。`NewsArticles` 承载公开新闻内容，不属于任何用户，与其余六张表没有外键关联。`Users` 与 `UserProfiles` 是一对一关系；每个用户有一个默认 personal Workspace；每个 Project 对应一个 Document；头像仅存 `Users.avatar`，`/api/v1/me` 与 `/api/v1/me/profile` 读取时均来自该字段。
 
 ### 大文件分片上传
 

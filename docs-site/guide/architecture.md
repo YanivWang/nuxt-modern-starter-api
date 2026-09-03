@@ -103,7 +103,7 @@ modules/<domain>/
 | Port                 | 当前 Adapter            | 替换场景                 |
 | -------------------- | ----------------------- | ------------------------ |
 | `TokenBlacklist`     | Redis                   | 关闭黑名单或更换共享存储 |
-| `ContentRepository`  | 进程内内容              | MySQL、CMS               |
+| `ContentRepository`  | MySQL + 静态定价常量    | CMS、外部内容服务        |
 | `ContentRevalidator` | Nuxt HTTP revalidate    | 其他前端或消息队列       |
 | `FileStorage`        | 本地磁盘                | OSS、S3、MinIO           |
 | `LargeUploadStorage` | 本地分片和 `.data` 会话 | 对象存储 multipart       |
@@ -177,7 +177,7 @@ tests/integration/   通过 createTestRuntime 使用真实 HTTP、MySQL、Redis
 | `TokenBlacklist`      | `redis-token-blacklist`         | 登出后使 access token 立即失效   |
 | `LoginAttemptTracker` | `redis-login-attempt-tracker`   | 账号级登录失败锁定               |
 | 限流计数存储          | `redis-rate-limit.store`        | 多实例共享限流阈值               |
-| `ContentRepository`   | `in-memory-content.repository`  | 公开新闻/定价数据源              |
+| `ContentRepository`   | `sequelize-content.repository`  | 公开新闻/定价数据源              |
 | `ContentRevalidator`  | `nuxt-content-revalidator`      | 内容变更后刷新前端缓存           |
 | `FileStorage`         | `local-file-storage`            | 图片上传落盘与公开 URL           |
 | `LargeUploadStorage`  | `local-large-upload`            | 分片上传、合并、秒传、清理       |

@@ -1,12 +1,30 @@
 /**
- * 文件职责：公开新闻内容的 hardcoded 数据源。
- * starter 阶段先用本地常量，后续可替换为 CMS 或数据库而不改路由契约。
+ * 文件职责：建 NewsArticles 表，并把此前硬编码在 content.data.ts 里的四篇新闻写进去。
+ *
+ * 之前公开内容由进程内数组承载：POST/PUT/DELETE 改的是模块级变量，
+ * 重启即丢、多实例各看各的、缓存失效 webhook 通知的是别人不知道的变更。
+ * 它有写接口、有管理员鉴权、有 revalidate 回调，行为却不是持久化的。
+ *
+ * 种子数据在这里内联而不是 import content.data.ts：迁移是某一时刻的结构快照，
+ * 引用会随重构变化的应用代码，会让「重放同一条迁移得到同一结果」不再成立。
+ *
+ * createdAt 按数组次序递减：原实现 createNews 用 unshift，数组首位是最近添加的一篇。
+ * 列表排序 publishedAt DESC, createdAt DESC 要复现这一点，首位就得有最大的 createdAt。
  */
-import type { NewsArticle } from "./content.contract.js";
+import { DataTypes } from "sequelize";
 
-export type { NewsArticle, SupportedLocale } from "./content.contract.js";
+import type { QueryInterface } from "sequelize";
+import type { MigrationFn } from "umzug";
 
-export const newsArticles: NewsArticle[] = [
+interface SeedArticle {
+  slug: string;
+  title: Record<string, string>;
+  description: Record<string, string>;
+  body: Record<string, string[]>;
+  publishedAt: string;
+}
+
+const SEED_ARTICLES: SeedArticle[] = [
   {
     slug: "starter-release",
     title: {
@@ -112,3 +130,74 @@ export const newsArticles: NewsArticle[] = [
     publishedAt: "2026-07-02",
   },
 ];
+
+/** 种子行之间拉开 1 秒，保证 createdAt DESC 的次序是确定的。 */
+const SEED_BASE_TIME = new Date("2026-07-04T12:00:00Z").getTime();
+const SEED_STEP_MS = 1000;
+
+export const up: MigrationFn<QueryInterface> = async ({ context }) => {
+  await context.createTable("NewsArticles", {
+    id: {
+      type: DataTypes.INTEGER,
+      autoIncrement: true,
+      primaryKey: true,
+    },
+    slug: {
+      type: DataTypes.STRING(120),
+      allowNull: false,
+      comment: "对外的文章标识，路由与缓存失效路径都用它",
+    },
+    title: {
+      type: DataTypes.JSON,
+      allowNull: false,
+      comment: '按 locale 存的标题，形如 { "zh-CN": ..., "en-US": ... }',
+    },
+    description: {
+      type: DataTypes.JSON,
+      allowNull: false,
+    },
+    body: {
+      type: DataTypes.JSON,
+      allowNull: false,
+      comment: "按 locale 存的正文段落数组",
+    },
+    // 存字符串而不是 DATEONLY：契约把 publishedAt 定义为不透明字符串，
+    // 换成日期类型会在读回时被驱动重新格式化，响应体与 OpenAPI 对不上。
+    publishedAt: {
+      type: DataTypes.STRING(32),
+      allowNull: false,
+    },
+    createdAt: {
+      type: DataTypes.DATE,
+      allowNull: false,
+    },
+    updatedAt: {
+      type: DataTypes.DATE,
+      allowNull: false,
+    },
+  });
+
+  await context.addIndex("NewsArticles", ["slug"], { name: "news_articles_slug_unique", unique: true });
+  await context.addIndex("NewsArticles", ["publishedAt", "createdAt"], { name: "news_articles_published_idx" });
+
+  await context.bulkInsert(
+    "NewsArticles",
+    SEED_ARTICLES.map((article, index) => {
+      const timestamp = new Date(SEED_BASE_TIME - index * SEED_STEP_MS);
+      return {
+        slug: article.slug,
+        // JSON 列在迁移里没有模型的类型信息，必须显式序列化，否则驱动会写进 "[object Object]"。
+        title: JSON.stringify(article.title),
+        description: JSON.stringify(article.description),
+        body: JSON.stringify(article.body),
+        publishedAt: article.publishedAt,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      };
+    }),
+  );
+};
+
+export const down: MigrationFn<QueryInterface> = async ({ context }) => {
+  await context.dropTable("NewsArticles");
+};

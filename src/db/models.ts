@@ -3,6 +3,7 @@
  * 统一在这里建立模型定义和关联，db/index.ts 只负责连接与导出模型实例。
  */
 import { defineUserRefreshTokenModel } from "../modules/auth/user-refresh-token.model.js";
+import { defineNewsArticleModel } from "../modules/content/news-article.model.js";
 import { defineDocumentModel } from "../modules/document/document.model.js";
 import { defineUserModel } from "../modules/user/user.model.js";
 import { defineUserProfileModel } from "../modules/user/user-profile.model.js";
@@ -19,6 +20,8 @@ export function initModels(sequelize: Sequelize) {
   const Workspace = defineWorkspaceModel(sequelize, User);
   const Project = defineProjectModel(sequelize, User, Workspace);
   const Document = defineDocumentModel(sequelize, User, Project);
+  // 公开内容不挂在任何用户下，与 User 无关联，放在最后单独初始化。
+  const NewsArticle = defineNewsArticleModel(sequelize);
 
-  return { User, UserProfile, UserRefreshToken, Workspace, Project, Document };
+  return { User, UserProfile, UserRefreshToken, Workspace, Project, Document, NewsArticle };
 }

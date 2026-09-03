@@ -274,7 +274,7 @@ pnpm db:grant-admin --list
 ## 公开内容与 revalidate
 
 新闻/定价读接口公开；新闻写接口要求 `admin` 角色（见上一节的 `pnpm db:grant-admin`）。
-数据当前在进程内存中，**不是** MySQL 表。
+新闻数据在 MySQL 表 `NewsArticles` 中；定价是随构建发布的静态常量，没有写接口。
 
 若配置了：
 

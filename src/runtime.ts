@@ -4,7 +4,7 @@ import { database } from "./db/index.js";
 import { NUXT_REVALIDATE_URL, REVALIDATE_SECRET } from "./env.js";
 import { createRedisLoginAttemptTracker } from "./infrastructure/auth/redis-login-attempt-tracker.js";
 import { createRedisTokenBlacklist } from "./infrastructure/auth/redis-token-blacklist.js";
-import { createInMemoryContentRepository } from "./infrastructure/content/in-memory-content.repository.js";
+import { createSequelizeContentRepository } from "./infrastructure/content/sequelize-content.repository.js";
 import { createCleanupScheduler } from "./infrastructure/maintenance/cleanup.scheduler.js";
 import { createMetrics } from "./infrastructure/observability/metrics.js";
 import { createRedisRateLimitStore } from "./infrastructure/rate-limit/redis-rate-limit.store.js";
@@ -41,7 +41,7 @@ export function createRuntime() {
   // 内容模块只拿到一个已经装好的守卫，不需要知道角色存在哪里。
   const requireAdmin = createRequireRole(user.findRole)("admin");
   const content = createContentModule(
-    createInMemoryContentRepository(),
+    createSequelizeContentRepository(database.models.NewsArticle),
     createNuxtContentRevalidator({ url: NUXT_REVALIDATE_URL, secret: REVALIDATE_SECRET }),
     auth.authMiddleware,
     requireAdmin,

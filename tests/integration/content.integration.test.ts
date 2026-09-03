@@ -1,6 +1,7 @@
 /**
  * 文件职责：公开内容 API 集成测试。
  */
+import { Op } from "sequelize";
 import request from "supertest";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
@@ -18,8 +19,11 @@ import type { Server } from "node:http";
 let server: Server;
 let runtime: AppRuntime;
 
+/** 前缀是清理用的判据：afterAll 只删本套用例造出来的行，迁移种子的四篇必须留着。 */
+const TEST_SLUG_PREFIX = "news-";
+
 function uniqueSlug() {
-  return `news-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  return `${TEST_SLUG_PREFIX}${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
 function uniqueUsername() {
@@ -30,6 +34,10 @@ async function cleanDatabase() {
   await runtime.database.models.UserRefreshToken.destroy({ where: {} });
   await runtime.database.models.UserProfile.destroy({ where: {} });
   await runtime.database.models.User.destroy({ where: {} });
+  // 新闻现在是持久化的：用例中途失败会把行留在本地测试库里，一轮轮攒下去。
+  await runtime.database.models.NewsArticle.destroy({
+    where: { slug: { [Op.like]: `${TEST_SLUG_PREFIX}%` } },
+  });
 }
 
 async function registerAndLogin() {
@@ -170,6 +178,11 @@ describe("public content API", () => {
       .expect(201);
 
     expect(createRes.body.data.article.slug).toBe(slug);
+    // 绕过 HTTP 直接查库：证明写落到了 MySQL，而不是某个进程内数组。
+    // 这条断言是这套改动的判据 —— 换回内存实现它必然红。
+    const persisted = await runtime.database.models.NewsArticle.findOne({ where: { slug } });
+    expect(persisted?.title["zh-CN"]).toBe("测试新闻标题");
+    expect(persisted?.body["en-US"]).toEqual(["First English paragraph"]);
     expect(fetchMock).toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({
@@ -200,6 +213,7 @@ describe("public content API", () => {
 
     const missingRes = await request(server).get(`/api/v1/content/news/${slug}`).expect(404);
     expect(missingRes.body.message).toBe("新闻不存在");
+    await expect(runtime.database.models.NewsArticle.count({ where: { slug } })).resolves.toBe(0);
   });
 
   it("rejects news mutations without auth", async () => {
