@@ -29,6 +29,7 @@ export function createCleanupScheduler({ purgeExpiredSessions, largeUploads }: C
         removedRefreshTokens: removedSessions,
         removedUploadDirs: uploads.removedUploads,
         removedUploadSessions: uploads.removedSessions,
+        removedUploadMarkers: uploads.removedMarkers,
       });
     } catch (error) {
       // 清理失败不能影响在线服务，记录后等待下一轮。

@@ -32,5 +32,7 @@ export interface LargeUploadStorage {
    * 清理超过保留期的临时分片与会话文件。
    * 客户端中途掉线不会触发 abort，这些分片若无人清理会永久占用磁盘。
    */
-  purgeStale(retentionHours: number): Promise<{ removedUploads: number; removedSessions: number }>;
+  purgeStale(
+    retentionHours: number,
+  ): Promise<{ removedUploads: number; removedSessions: number; removedMarkers: number }>;
 }

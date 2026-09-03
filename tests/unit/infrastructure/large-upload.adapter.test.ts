@@ -20,6 +20,7 @@ import {
   initLargeUpload,
   mergeLargeUpload,
   partFileName,
+  purgeStaleLargeUploads,
   syncResolveLargeUploadChunkDir,
 } from "../../../src/infrastructure/storage/local-large-upload.adapter.js";
 import { projectRoot } from "../../../src/utils/projectRoot.js";
@@ -192,6 +193,45 @@ describe("local large upload adapter", () => {
 
     expect(() => syncResolveLargeUploadChunkDir(uploadId, OWNER)).toThrowError(/已过期/);
     expect(await codeOf(() => mergeLargeUpload(uploadId, OWNER))).toBe("GONE");
+  });
+
+  it("purges the done markers it writes, not only chunks and sessions", async () => {
+    // 每完成一次大文件上传就写一个 done marker，此前只写不删 —— 一个随使用时间
+    // 无限增长的目录。单个文件很小，但目录条目数没有上限。
+    const { uploadId, fileMd5, content } = await newUpload();
+    await putChunk(uploadId, 0, OWNER, content);
+    const merged = await mergeLargeUpload(uploadId, OWNER);
+    created.push(path.join(localFileStorage.root, ...merged.url.split("/uploads/")[1].split("/")));
+
+    const marker = path.join(projectRoot, ".data", "large-upload-done", `${uploadId}.json`);
+    await expect(exists(marker)).resolves.toBe(true);
+
+    // 把标记的 mtime 推回保留期之前，模拟一次早已完成的上传
+    const stale = new Date(Date.now() - 48 * 60 * 60 * 1000);
+    await fs.utimes(marker, stale, stale);
+
+    const result = await purgeStaleLargeUploads(24);
+
+    expect(result.removedMarkers).toBeGreaterThanOrEqual(1);
+    await expect(exists(marker)).resolves.toBe(false);
+
+    // 秒传索引不受保留期约束（它指向的是已发布的文件），这里顺带确认没被误删
+    await expect(exists(path.join(projectRoot, ".data", "large-upload-hash-index", `${fileMd5}.json`))).resolves.toBe(
+      true,
+    );
+  });
+
+  it("keeps a done marker that is still inside the retention window", async () => {
+    const { uploadId, content, fileMd5 } = await newUpload();
+    await putChunk(uploadId, 0, OWNER, content);
+    const merged = await mergeLargeUpload(uploadId, OWNER);
+    created.push(path.join(localFileStorage.root, ...merged.url.split("/uploads/")[1].split("/")));
+    void fileMd5;
+
+    await purgeStaleLargeUploads(24);
+
+    const marker = path.join(projectRoot, ".data", "large-upload-done", `${uploadId}.json`);
+    await expect(exists(marker)).resolves.toBe(true);
   });
 
   it("cleans up chunks and the session when a task is aborted", async () => {

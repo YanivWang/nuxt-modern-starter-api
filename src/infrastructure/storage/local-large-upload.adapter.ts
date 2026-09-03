@@ -74,9 +74,14 @@ const MERGE_LOCK_TTL_MS = 30 * 60 * 1000;
 
 const FILE_MD5_RE = /^[a-f0-9]{32}$/;
 
+/** done marker 目录；写入与清理共用同一个来源，避免两处各拼一次路径。 */
+function doneMarkersDir(): string {
+  return path.join(projectRoot, ".data", "large-upload-done");
+}
+
 // done marker 独立于分片目录：合并完成并清理临时目录后，重复查询/合并仍能返回已完成结果。
 function doneMarkerPath(uploadId: string): string {
-  return path.join(projectRoot, ".data", "large-upload-done", `${uploadId}.json`);
+  return path.join(doneMarkersDir(), `${uploadId}.json`);
 }
 
 // session 只保存 uploadId → fileMd5 映射，供 multer 的同步 destination 回调定位分片目录。
@@ -576,7 +581,7 @@ export async function mergeLargeUpload(uploadId: string, userId: number): Promis
   meta.status = "done";
   delete meta.mergingStartedAt;
   meta.publicUrl = publicUrl;
-  await fs.mkdir(path.join(projectRoot, ".data", "large-upload-done"), { recursive: true });
+  await fs.mkdir(doneMarkersDir(), { recursive: true });
   // 临时目录随后会被清理，因此把完成状态写入 marker，支持客户端重试 merge/status 的幂等返回。
   await fs.writeFile(markerFile, JSON.stringify({ userId, url: publicUrl, chunkTotal: meta.chunkTotal }), "utf8");
 
@@ -652,16 +657,46 @@ async function purgeStaleChunkRoot(tempRoot: string, cutoff: number): Promise<nu
   return removed;
 }
 
+/** 删除某个目录下 mtime 早于 cutoff 的文件，返回删除数量。 */
+async function purgeStaleFiles(dir: string, cutoff: number): Promise<number> {
+  let names: string[];
+  try {
+    names = await fs.readdir(dir);
+  } catch {
+    return 0;
+  }
+
+  let removed = 0;
+  for (const name of names) {
+    const filePath = path.join(dir, name);
+    try {
+      const st = await fs.stat(filePath);
+      if (st.mtimeMs >= cutoff) continue;
+      await fs.unlink(filePath);
+      removed += 1;
+    } catch {
+      /* 并发清理或权限问题时跳过，下一轮再试 */
+    }
+  }
+
+  return removed;
+}
+
 /**
  * 清理超过保留期的临时分片目录、上传会话和完成标记。
  * 客户端上传到一半掉线时不会调用 abort，若无人清理这些分片会永久占用磁盘。
+ *
+ * 完成标记同样必须清：它每完成一次大文件上传就写一个 JSON，此前只写不删，
+ * 是一个会随使用时间无限增长的目录 —— 单个文件很小，但目录条目数没有上限，
+ * 文件系统在几十万条之后会明显变慢。标记的用途是让 status/merge 在临时目录
+ * 被清掉之后仍然幂等，而任务本身在 UPLOAD_TTL_MS 之后就已过期，
+ * 因此标记与分片共用同一段保留期，不再另立一个数字。
  */
 export async function purgeStaleLargeUploads(
   retentionHours: number,
-): Promise<{ removedUploads: number; removedSessions: number }> {
+): Promise<{ removedUploads: number; removedSessions: number; removedMarkers: number }> {
   const cutoff = Date.now() - retentionHours * 60 * 60 * 1000;
   let removedUploads = 0;
-  let removedSessions = 0;
 
   // LEGACY_CHUNKS_ROOT 一并扫：分片暂存目录搬到 .data 之后，升级前留在 uploads/ 下的
   // 分片不会再被任何请求路径碰到，没人清就会永久占着磁盘。
@@ -670,25 +705,10 @@ export async function purgeStaleLargeUploads(
   }
 
   // 会话文件可能因为进程中断而与分片目录失联，单独按时间兜底清理。
-  let sessionFiles: string[];
-  try {
-    sessionFiles = await fs.readdir(sessionsDir());
-  } catch {
-    sessionFiles = [];
-  }
-  for (const name of sessionFiles) {
-    const filePath = path.join(sessionsDir(), name);
-    try {
-      const st = await fs.stat(filePath);
-      if (st.mtimeMs >= cutoff) continue;
-      await fs.unlink(filePath);
-      removedSessions += 1;
-    } catch {
-      /* 忽略 */
-    }
-  }
+  const removedSessions = await purgeStaleFiles(sessionsDir(), cutoff);
+  const removedMarkers = await purgeStaleFiles(doneMarkersDir(), cutoff);
 
-  return { removedUploads, removedSessions };
+  return { removedUploads, removedSessions, removedMarkers };
 }
 
 export const localLargeUploadStorage: LargeUploadStorage = {
