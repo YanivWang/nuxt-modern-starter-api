@@ -475,7 +475,7 @@ export function generateOpenApiSpec(): OpenApiSpec {
       "/api/v1/content/news": {
         get: {
           tags: ["公开内容"],
-          summary: "获取新闻列表",
+          summary: "获取新闻列表（分页）",
           parameters: [
             {
               name: "locale",
@@ -483,8 +483,9 @@ export function generateOpenApiSpec(): OpenApiSpec {
               required: false,
               schema: zodInputSchema(listNewsSchema.shape.query.shape.locale),
             },
+            ...paginationParams(),
           ],
-          responses: ok("本地化新闻列表（摘要，不含正文）", "NewsListBody"),
+          responses: ok("本地化新闻列表（摘要，不含正文），data 含 articles 与 pagination", "NewsListBody"),
         },
         post: {
           tags: ["公开内容"],

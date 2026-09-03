@@ -12,9 +12,12 @@ import {
   slugValueSchema,
   supportedLocaleSchema as localeSchema,
 } from "./content.contract.js";
+import { paginationQuerySchema } from "../../shared/http/pagination.js";
 
+// 分页参数复用全站统一的 limit/offset 约定，不在内容模块另立一套：
+// 各模块各写一份的话，limit 上限这类保护迟早会有某个端点漏掉。
 export const listNewsSchema = z.object({
-  query: z.object({
+  query: paginationQuerySchema.extend({
     locale: localeSchema.optional(),
   }),
 });

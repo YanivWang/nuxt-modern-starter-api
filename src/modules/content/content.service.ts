@@ -7,10 +7,12 @@ import type {
   LocalizedNewsSummary,
   LocalizedPricingPage,
   NewsArticle,
+  NewsListResult,
   SupportedLocale,
 } from "./content.contract.js";
 import type { ContentRepository } from "./ports/content-repository.port.js";
 import type { ContentRevalidator } from "./ports/content-revalidator.port.js";
+import type { PaginationQuery } from "../../shared/http/pagination.js";
 
 const SUPPORTED_LOCALES: SupportedLocale[] = ["zh-CN", "en-US"];
 
@@ -30,8 +32,19 @@ export function createContentService(repository: ContentRepository, revalidator:
     publishedAt: article.publishedAt,
   });
 
-  const listNews = async (locale: SupportedLocale): Promise<LocalizedNewsSummary[]> =>
-    (await repository.listNews()).map((article) => localizeSummary(article, locale));
+  const listNews = async (locale: SupportedLocale, pagination: PaginationQuery): Promise<NewsListResult> => {
+    const { articles, total } = await repository.listNews(pagination);
+    return {
+      articles: articles.map((article) => localizeSummary(article, locale)),
+      pagination: {
+        total,
+        limit: pagination.limit,
+        offset: pagination.offset,
+        // 用本页实际条数而不是 limit：最后一页不足一页时，按 limit 算会多报一页。
+        hasMore: pagination.offset + articles.length < total,
+      },
+    };
+  };
   const findNews = async (slug: string, locale: SupportedLocale): Promise<LocalizedNewsArticle | null> => {
     const article = await repository.findNews(slug);
     return article ? { ...localizeSummary(article, locale), body: article.body[locale] } : null;

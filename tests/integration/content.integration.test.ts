@@ -81,6 +81,12 @@ describe("public content API", () => {
       message: "获取新闻列表成功",
       data: {
         articles: expect.any(Array),
+        pagination: {
+          total: expect.any(Number),
+          limit: 20,
+          offset: 0,
+          hasMore: expect.any(Boolean),
+        },
       },
     });
     expect(zhRes.body.data.articles.length).toBeGreaterThan(0);
@@ -93,6 +99,28 @@ describe("public content API", () => {
       }),
     );
     expect(zhRes.body.data.articles[0].title).not.toBe(enRes.body.data.articles[0].title);
+  });
+
+  it("pages through the news list without repeating or dropping an article", async () => {
+    const firstRes = await request(server).get("/api/v1/content/news?limit=1&offset=0").expect(200);
+    const secondRes = await request(server).get("/api/v1/content/news?limit=1&offset=1").expect(200);
+
+    const total = firstRes.body.data.pagination.total as number;
+    expect(total).toBeGreaterThan(1);
+    expect(firstRes.body.data.articles).toHaveLength(1);
+    expect(secondRes.body.data.articles).toHaveLength(1);
+    // 两页拿到的不是同一篇 —— 排序不稳定的话翻页会漏掉文章，而每页各自看都是「对的」。
+    expect(secondRes.body.data.articles[0].slug).not.toBe(firstRes.body.data.articles[0].slug);
+    expect(firstRes.body.data.pagination).toMatchObject({ limit: 1, offset: 0, hasMore: true });
+
+    const lastRes = await request(server).get(`/api/v1/content/news?limit=${total}&offset=0`).expect(200);
+    expect(lastRes.body.data.articles).toHaveLength(total);
+    expect(lastRes.body.data.pagination.hasMore).toBe(false);
+  });
+
+  it("rejects a limit above the shared maximum instead of scanning the whole table", async () => {
+    const res = await request(server).get("/api/v1/content/news?limit=100000").expect(400);
+    expect(res.body.code).toBe(400);
   });
 
   it("returns localized news detail and 404 for unknown slug", async () => {

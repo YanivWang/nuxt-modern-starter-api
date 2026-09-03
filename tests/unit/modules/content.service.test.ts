@@ -21,7 +21,7 @@ const article: NewsArticle = {
 /** Port 全异步，假实现也必须返回 Promise，否则测试会放过漏掉的 await。 */
 function fakeRepository(overrides: Partial<ContentRepository> = {}): ContentRepository {
   return {
-    listNews: vi.fn(() => Promise.resolve([article])),
+    listNews: vi.fn(() => Promise.resolve({ articles: [article], total: 1 })),
     findNews: vi.fn(() => Promise.resolve(article)),
     createNews: vi.fn(() => Promise.resolve(article)),
     updateNews: vi.fn(() => Promise.resolve(article)),
@@ -39,6 +39,29 @@ describe("content service ports", () => {
     await expect(service.findNews("demo", "en-US")).resolves.toMatchObject({ title: "Demo", body: ["Body"] });
     await expect(service.createNews(article)).resolves.toBe(article);
     expect(revalidateNews).toHaveBeenCalledWith("demo");
+  });
+
+  it("computes hasMore from the rows actually returned, not from the requested limit", async () => {
+    const service = createContentService(
+      // 最后一页：offset 20，本页只有 1 条，总数 21 —— 已经到底了。
+      fakeRepository({ listNews: vi.fn(() => Promise.resolve({ articles: [article], total: 21 })) }),
+      { revalidateNews: vi.fn() },
+    );
+
+    await expect(service.listNews("zh-CN", { limit: 20, offset: 20 })).resolves.toMatchObject({
+      pagination: { total: 21, limit: 20, offset: 20, hasMore: false },
+    });
+  });
+
+  it("reports hasMore while rows remain beyond the current page", async () => {
+    const service = createContentService(
+      fakeRepository({ listNews: vi.fn(() => Promise.resolve({ articles: [article], total: 21 })) }),
+      { revalidateNews: vi.fn() },
+    );
+
+    await expect(service.listNews("zh-CN", { limit: 1, offset: 0 })).resolves.toMatchObject({
+      pagination: { hasMore: true },
+    });
   });
 
   it("skips revalidation when the write did not hit an existing article", async () => {

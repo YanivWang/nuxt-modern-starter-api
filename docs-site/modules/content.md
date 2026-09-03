@@ -107,10 +107,20 @@ locale 解析顺序（`resolveLocale()`）：
 
 列表排序为 `publishedAt DESC, createdAt DESC`：同一天发布的多篇，后入库的排在前面。
 
-`GET /content/news` 最多返回最新 100 条。行数不再是源码里写死的四条之后，
-一个没有分页参数的列表端点如果不设上限，响应体就是「表能长多大，它就能多大」。
-新闻量真的越过这个数量级时，应该给这个端点加分页（`GET /projects` 已经是这么做的），
-而不是把 `sequelize-content.repository.ts` 里的 `LIST_LIMIT` 调大。
+`GET /content/news` 分页返回，`limit` 默认 20、上限 100，`offset` 默认 0，
+响应 `data` 含 `articles` 与 `pagination`（`total` / `limit` / `offset` / `hasMore`）。
+参数与 `GET /projects` 共用 `shared/http/pagination.ts` 的同一份约定，内容模块不另立一套。
+
+`hasMore` 由服务端按「offset + 本页实际条数 < total」算好下发。用本页实际条数而不是 `limit`：
+最后一页不足一页时，按 `limit` 算会多报一页，消费方会白发一次请求。
+
+`total` 与本页数据来自同一次 `findAndCountAll`。先 `count` 再 `findAll` 的话，
+两次查询之间的写入会让 `total` 和本页内容对不上。
+
+**翻页要求排序稳定。** 排序键是 `publishedAt DESC, createdAt DESC`，
+`createdAt` 在同一发布日内充当去歧义的次键 —— 只按 `publishedAt` 排的话，
+同日多篇在两次查询间的相对次序由数据库自行决定，翻页会重复或漏掉文章，
+而每一页单独看都是「对的」。集成测试里有一条用例专门盯这个。
 
 ## 读接口示例
 

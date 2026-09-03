@@ -8,9 +8,16 @@
  */
 import type { NewsArticle } from "../content.contract.js";
 import type { PricingPageContent } from "../pricing.data.js";
+import type { PaginationQuery } from "../../../shared/http/pagination.js";
+
+/** 列表结果带上满足条件的总数：hasMore 由服务端算，消费方不该自己推断。 */
+export interface NewsPage {
+  articles: NewsArticle[];
+  total: number;
+}
 
 export interface ContentRepository {
-  listNews(): Promise<NewsArticle[]>;
+  listNews(pagination: PaginationQuery): Promise<NewsPage>;
   findNews(slug: string): Promise<NewsArticle | null>;
   /** slug 已存在时返回 null，由调用方翻译成 409。 */
   createNews(article: NewsArticle): Promise<NewsArticle | null>;

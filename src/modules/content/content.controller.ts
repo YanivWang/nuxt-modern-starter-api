@@ -24,7 +24,7 @@ export function createContentController(service: ContentService) {
     listNews: async (req: Request, res: Response) => {
       const { query } = getValidated<ValidatedListNewsSchema>(req);
       const locale = service.resolveLocale(acceptLanguage(req), query.locale);
-      return success(res, "获取新闻列表成功", { articles: await service.listNews(locale) });
+      return success(res, "获取新闻列表成功", await service.listNews(locale, query));
     },
     getNews: async (req: Request, res: Response) => {
       const { params, query } = getValidated<ValidatedNewsSlugSchema>(req);

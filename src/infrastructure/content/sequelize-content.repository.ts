@@ -20,17 +20,6 @@ const LIST_ORDER = [
   ["createdAt", "DESC"],
 ] as const;
 
-/**
- * 列表最多返回的条数。
- *
- * 换成数据库表之后行数不再是源码里写死的四条，而 `GET /content/news` 的响应体
- * 没有分页参数 —— 不设上限就是「表能长多大，响应就能多大」。
- * 取最新 N 条是内容站列表的常规做法，且不改动现有响应形状。
- * 新闻量真的越过这个数量级时，应该给这个端点加分页（`GET /projects` 已经是这么做的），
- * 而不是把这里调大。
- */
-const LIST_LIMIT = 100;
-
 function toArticle(row: NewsArticleModel): NewsArticle {
   return {
     slug: row.slug,
@@ -47,12 +36,15 @@ function isUniqueConstraintError(error: unknown): error is UniqueConstraintError
 
 export function createSequelizeContentRepository(NewsArticle: NewsArticleStatic): ContentRepository {
   return {
-    async listNews() {
-      const rows = await NewsArticle.findAll({
+    async listNews({ limit, offset }) {
+      // findAndCountAll 而不是先 count 再 findAll：两次独立查询之间表可能被写，
+      // 会算出与本页内容对不上的 total，进而让 hasMore 在最后一页出错。
+      const { rows, count } = await NewsArticle.findAndCountAll({
         order: LIST_ORDER.map((entry) => [...entry]),
-        limit: LIST_LIMIT,
+        limit,
+        offset,
       });
-      return rows.map(toArticle);
+      return { articles: rows.map(toArticle), total: count };
     },
 
     async findNews(slug) {

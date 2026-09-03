@@ -23,7 +23,7 @@ const article: NewsArticle = {
 /** 只实现 Adapter 真正用到的几个静态方法；其余交给类型断言。 */
 function fakeModel(overrides: Record<string, unknown> = {}) {
   return {
-    findAll: vi.fn(() => Promise.resolve([])),
+    findAndCountAll: vi.fn(() => Promise.resolve({ rows: [], count: 0 })),
     findOne: vi.fn(() => Promise.resolve(null)),
     create: vi.fn(() => Promise.resolve({ ...article })),
     destroy: vi.fn(() => Promise.resolve(0)),
@@ -32,18 +32,30 @@ function fakeModel(overrides: Record<string, unknown> = {}) {
 }
 
 describe("sequelize content repository", () => {
-  it("lists newest first and never returns an unbounded result set", async () => {
-    // 单独持有 mock 引用：直接断言 model.findAll 会触发 unbound-method 规则。
-    const findAll = vi.fn(() => Promise.resolve([]));
-    await createSequelizeContentRepository(fakeModel({ findAll })).listNews();
+  it("lists newest first and passes the requested page straight to the query", async () => {
+    // 单独持有 mock 引用：直接断言 model.findAndCountAll 会触发 unbound-method 规则。
+    const findAndCountAll = vi.fn(() => Promise.resolve({ rows: [], count: 0 }));
+    await createSequelizeContentRepository(fakeModel({ findAndCountAll })).listNews({ limit: 20, offset: 40 });
 
-    expect(findAll).toHaveBeenCalledWith({
+    expect(findAndCountAll).toHaveBeenCalledWith({
       order: [
         ["publishedAt", "DESC"],
         ["createdAt", "DESC"],
       ],
-      limit: 100,
+      limit: 20,
+      offset: 40,
     });
+  });
+
+  it("returns the matching total alongside the page", async () => {
+    // total 必须来自同一次查询：先 count 再 findAll 会在两次查询之间被写入影响。
+    const findAndCountAll = vi.fn(() => Promise.resolve({ rows: [], count: 7 }));
+    const page = await createSequelizeContentRepository(fakeModel({ findAndCountAll })).listNews({
+      limit: 20,
+      offset: 0,
+    });
+
+    expect(page).toEqual({ articles: [], total: 7 });
   });
 
   it("maps a unique constraint violation to a null create instead of throwing", async () => {

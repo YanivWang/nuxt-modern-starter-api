@@ -11,6 +11,7 @@
 import { z } from "zod";
 
 import { apiEnvelope } from "../../shared/http/api-envelope.js";
+import { paginationSchema } from "../../shared/http/pagination.js";
 
 export const supportedLocaleSchema = z.enum(["zh-CN", "en-US"]);
 
@@ -32,7 +33,7 @@ export const slugValueSchema = z
   .min(1, "slug 不能为空")
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "slug 只能包含小写字母、数字和连字符");
 
-/** 新闻双语原文：内存数据源、写接口入参与写接口响应共用同一形状。 */
+/** 新闻双语原文：持久化实体、写接口入参与写接口响应共用同一形状。 */
 export const newsArticleSchema = z.object({
   slug: slugValueSchema,
   title: localizedTextSchema,
@@ -94,7 +95,14 @@ export type LocalizedNewsSummary = z.infer<typeof localizedNewsSummarySchema>;
 export type LocalizedNewsArticle = z.infer<typeof localizedNewsArticleSchema>;
 export type LocalizedPricingPage = z.infer<typeof localizedPricingPageSchema>;
 
-export const newsListEnvelopeSchema = apiEnvelope(z.object({ articles: z.array(localizedNewsSummarySchema) }));
+export const newsListSchema = z.object({
+  articles: z.array(localizedNewsSummarySchema),
+  pagination: paginationSchema,
+});
+
+export type NewsListResult = z.infer<typeof newsListSchema>;
+
+export const newsListEnvelopeSchema = apiEnvelope(newsListSchema);
 
 export const newsArticleEnvelopeSchema = apiEnvelope(z.object({ article: localizedNewsArticleSchema }));
 

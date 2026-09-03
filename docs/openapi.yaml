@@ -655,8 +655,11 @@ components:
               type: array
               items:
                 $ref: "#/components/schemas/LocalizedNewsSummary"
+            pagination:
+              $ref: "#/components/schemas/Pagination"
           required:
             - articles
+            - pagination
           additionalProperties: false
       required:
         - code
@@ -1375,7 +1378,7 @@ paths:
     get:
       tags:
         - 公开内容
-      summary: 获取新闻列表
+      summary: 获取新闻列表（分页）
       parameters:
         - name: locale
           in: query
@@ -1385,9 +1388,27 @@ paths:
             enum:
               - zh-CN
               - en-US
+        - name: limit
+          in: query
+          required: false
+          description: 单页条数，默认 20，最大 100
+          schema:
+            default: 20
+            type: integer
+            minimum: 1
+            maximum: 100
+        - name: offset
+          in: query
+          required: false
+          description: 起始偏移量，默认 0
+          schema:
+            default: 0
+            type: integer
+            minimum: 0
+            maximum: 9007199254740991
       responses:
         "200":
-          description: 本地化新闻列表（摘要，不含正文）
+          description: 本地化新闻列表（摘要，不含正文），data 含 articles 与 pagination
           content:
             application/json:
               schema:
