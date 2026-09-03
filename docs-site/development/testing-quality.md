@@ -222,12 +222,12 @@ cross-env APP_ENV=test NODE_ENV=test vitest run --config vitest.integration.conf
 - 注册用户。
 - 重复用户名返回 409。
 - 登录返回 `accessToken`、`refreshToken` 及对应 TTL 字段（**无** `token` 别名）。
-- Bearer access token 可访问 `/api/me`。
-- httpOnly Cookie access token 可访问 `/api/me`。
+- Bearer access token 可访问 `/api/v1/me`。
+- httpOnly Cookie access token 可访问 `/api/v1/me`。
 - Cookie 写操作要求 CSRF。
 - refresh token 会轮换。
 - 旧 refresh token 重放失败。
-- 未登录访问 `/api/me` 返回 401。
+- 未登录访问 `/api/v1/me` 返回 401。
 - 登出后 access token 被黑名单拒绝。
 - 登出后 refresh token 被撤销。
 
@@ -249,7 +249,7 @@ cross-env APP_ENV=test NODE_ENV=test vitest run --config vitest.integration.conf
 
 ### 当前未覆盖（集成测试 gap）
 
-- `/api/me/profile` GET/PATCH（含 avatar 写入 `Users.avatar`）
+- `/api/v1/me/profile` GET/PATCH（含 avatar 写入 `Users.avatar`）
 - 上传模块（普通 / 大文件 / 秒传）
 - Cookie 认证下 PATCH 文档/项目的 CSRF 行为
 - 限流 429、`/ready` 探针

@@ -7,7 +7,7 @@
 ```text
 src/modules/content/
   content.routes.ts
-    注册 /api/content/news、/api/content/pricing 路由
+    注册 /api/v1/content/news、/api/v1/content/pricing 路由
 
   content.schema.ts
     列表/详情/定价 query、slug、创建与更新 body 的 Zod 校验
@@ -43,14 +43,14 @@ src/infrastructure/revalidation/nuxt-content-revalidator.ts
 
 ## 对外接口
 
-| 方法     | 路径                      | 鉴权  | 说明                 |
-| -------- | ------------------------- | ----- | -------------------- |
-| `GET`    | `/api/content/news`       | 否    | 本地化新闻列表       |
-| `GET`    | `/api/content/news/:slug` | 否    | 本地化新闻详情       |
-| `GET`    | `/api/content/pricing`    | 否    | 本地化定价页内容     |
-| `POST`   | `/api/content/news`       | admin | 创建新闻（内存写入） |
-| `PATCH`  | `/api/content/news/:slug` | admin | 更新新闻（内存写入） |
-| `DELETE` | `/api/content/news/:slug` | admin | 删除新闻（内存删除） |
+| 方法     | 路径                         | 鉴权  | 说明                 |
+| -------- | ---------------------------- | ----- | -------------------- |
+| `GET`    | `/api/v1/content/news`       | 否    | 本地化新闻列表       |
+| `GET`    | `/api/v1/content/news/:slug` | 否    | 本地化新闻详情       |
+| `GET`    | `/api/v1/content/pricing`    | 否    | 本地化定价页内容     |
+| `POST`   | `/api/v1/content/news`       | admin | 创建新闻（内存写入） |
+| `PATCH`  | `/api/v1/content/news/:slug` | admin | 更新新闻（内存写入） |
+| `DELETE` | `/api/v1/content/news/:slug` | admin | 删除新闻（内存删除） |
 
 读接口公开访问；写接口（`POST` / `PATCH` / `DELETE`）挂 `authMiddleware` + `requireAdmin` 两层。
 
@@ -107,7 +107,7 @@ locale 解析顺序（`resolveLocale()`）：
 ### 新闻列表
 
 ```text
-GET /api/content/news?locale=zh-CN
+GET /api/v1/content/news?locale=zh-CN
 ```
 
 成功响应：
@@ -132,7 +132,7 @@ GET /api/content/news?locale=zh-CN
 ### 新闻详情
 
 ```text
-GET /api/content/news/starter-release
+GET /api/v1/content/news/starter-release
 ```
 
 未知 slug 返回 `404 新闻不存在`。
@@ -140,7 +140,7 @@ GET /api/content/news/starter-release
 ### 定价页
 
 ```text
-GET /api/content/pricing
+GET /api/v1/content/pricing
 ```
 
 成功响应 `data.pricing` 包含：
@@ -154,7 +154,7 @@ GET /api/content/pricing
 ### 创建新闻
 
 ```text
-POST /api/content/news
+POST /api/v1/content/news
 Authorization: Bearer <accessToken>
 ```
 
@@ -187,7 +187,7 @@ slug 已存在时返回 `409 新闻 slug 已存在`。
 ### 更新新闻
 
 ```text
-PATCH /api/content/news/:slug
+PATCH /api/v1/content/news/:slug
 ```
 
 body 至少提供一个字段：`title`、`description`、`body`、`publishedAt`。
@@ -199,7 +199,7 @@ body 至少提供一个字段：`title`、`description`、`body`、`publishedAt`
 ### 删除新闻
 
 ```text
-DELETE /api/content/news/:slug
+DELETE /api/v1/content/news/:slug
 ```
 
 成功返回 `data: null`；不存在返回 `404`。

@@ -86,7 +86,7 @@ docker compose --env-file .env.development \
 
 联调验证路径：
 
-- 公开站：新闻列表/详情、定价页（`/api/content/*`）
+- 公开站：新闻列表/详情、定价页（`/api/v1/content/*`）
 - 登录 → `/app/workspace` 列表/创建/删除 → `/app/workspace/:projectId/edit` 保存文档 → `/app/workspace/:projectId/preview` HTML 预览
 
 ## 文档站命令

@@ -46,10 +46,10 @@ src/modules/auth/
 
 默认接口：
 
-- `POST /api/register`
-- `POST /api/login`
-- `POST /api/refresh`
-- `POST /api/logout`
+- `POST /api/v1/register`
+- `POST /api/v1/login`
+- `POST /api/v1/refresh`
+- `POST /api/v1/logout`
 
 注册、登录、刷新都挂了认证限流中间件，用于降低暴力破解和刷 token 风险。该中间件由组合根注入，计数存储走 Redis，因此阈值在多实例部署下仍然准确。
 
@@ -60,7 +60,7 @@ src/modules/auth/
 ## 注册流程
 
 ```text
-POST /api/register
+POST /api/v1/register
   -> authRateLimitMiddleware
   -> validate(registerSchema)
   -> register controller
@@ -70,14 +70,14 @@ POST /api/register
   -> success("注册成功")
 ```
 
-注册只创建用户，不自动登录。用户注册后需要再调用 `/api/login` 获取 token。
+注册只创建用户，不自动登录。用户注册后需要再调用 `/api/v1/login` 获取 token。
 
 用户名唯一性由数据库唯一约束保证。如果重复注册，Sequelize 会抛出 `UniqueConstraintError`，`auth.service.ts` 捕获后转成 `CONFLICT` 业务错误，最终返回 `409 用户名已存在`。（未被业务捕获的唯一键冲突会走 `errorMiddleware` 的兜底分支，返回通用的 `409 资源已存在`。）
 
 ## 登录流程
 
 ```text
-POST /api/login
+POST /api/v1/login
   -> authRateLimitMiddleware
   -> validate(loginSchema)
   -> login controller
@@ -166,7 +166,7 @@ refresh token 是长期凭证，默认有效期 30 天。
 流程：
 
 ```text
-POST /api/refresh
+POST /api/v1/refresh
   -> validate(refreshSchema)
   -> 从 body 或 Cookie 读取 refreshToken
   -> 如果 refreshToken 来自 Cookie，校验 CSRF
@@ -197,7 +197,7 @@ POST /api/refresh
 
 ## refresh token 重放检测
 
-一次登录派生出的所有轮换 token 共享一个 `familyId`（`UserRefreshTokens.familyId`）。`/api/refresh` 按摘要取会话时**不过滤 `revokedAt`**，因为需要区分两种情况：
+一次登录派生出的所有轮换 token 共享一个 `familyId`（`UserRefreshTokens.familyId`）。`/api/v1/refresh` 按摘要取会话时**不过滤 `revokedAt`**，因为需要区分两种情况：
 
 - 查不到记录 → token 不存在，直接 401。
 - 查到但已撤销 → 该 token 曾被正常使用过，现在又被提交了一次，说明它已经泄露。
@@ -249,7 +249,7 @@ Bearer 认证不需要 CSRF，因为浏览器不会自动把 Authorization heade
 ## 登出流程
 
 ```text
-POST /api/logout
+POST /api/v1/logout
   -> authMiddleware（allowExpired: true）
   -> validate(logoutSchema)
   -> 从 req.user 读取 jti 和 exp

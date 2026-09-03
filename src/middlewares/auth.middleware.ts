@@ -8,7 +8,7 @@ import { csrfTokensMatch, readAccessTokenCookie } from "../modules/auth/authCook
 
 import { asyncMiddleware } from "./asyncHandler.js";
 
-import { forbidden, unauthorized } from "../shared/errors/app-error.js";
+import { AppError, forbidden, unauthorized } from "../shared/errors/app-error.js";
 
 import type { NextFunction, Request, Response } from "express";
 import type { JwtVerifier } from "../modules/auth/jwt-verify.service.js";
@@ -45,6 +45,13 @@ export function createAuthMiddleware(verifier: JwtVerifier, options: AuthMiddlew
       req.user = options.allowExpired ? await verifier.requireAllowExpired(token) : await verifier.require(token);
       next();
     } catch (error) {
+      // AppError 是校验流程自己给出的明确结论（如黑名单存储不可用 → 500），原样放行。
+      // 一律改写成 401 会把服务端故障说成「你的凭证无效」：客户端据此清掉本地会话，
+      // 一次 Redis 抖动就变成全体用户被登出，而日志里只剩一片 401 看不出真因。
+      if (error instanceof AppError) {
+        next(error);
+        return;
+      }
       if (error instanceof jwt.TokenExpiredError) {
         next(unauthorized("登录已过期, 请重新登录"));
         return;

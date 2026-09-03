@@ -1,6 +1,7 @@
 /**
  * 文件职责：access token 校验单元测试。
  * 覆盖签名、jti 缺失、黑名单命中，以及登出专用的「允许过期但仍校验签名」路径。
+ * 另外覆盖黑名单存储不可用时的分工：强制登录抛 500，可选登录降级为匿名 —— 两者都不能是 401。
  */
 import jwt from "jsonwebtoken";
 import { describe, expect, it, vi } from "vitest";
@@ -14,6 +15,14 @@ function blacklistWith(blocked: string[] = []): TokenBlacklist {
   return {
     add: vi.fn().mockResolvedValue(undefined),
     has: vi.fn((jti: string) => Promise.resolve(blocked.includes(jti))),
+  };
+}
+
+/** 黑名单存储不可用（Redis 断连时 node-redis 就是这样 reject 的） */
+function brokenBlacklist(): TokenBlacklist {
+  return {
+    add: vi.fn().mockResolvedValue(undefined),
+    has: vi.fn(() => Promise.reject(new Error("Connection is closed."))),
   };
 }
 
@@ -73,5 +82,28 @@ describe("jwt verifier resolve", () => {
     expect(await verifier.resolve("not-a-token")).toBeNull();
     expect(await verifier.resolve(sign({ expiresIn: -10 }))).toBeNull();
     expect(await verifier.resolve(sign({ jwtid: "jti-blocked" }))).toBeNull();
+  });
+});
+
+describe("token blacklist unavailable", () => {
+  it("reports an internal failure instead of pretending the credential is invalid", async () => {
+    // 说成 401 的后果不是「多一条日志」：客户端据此清掉本地会话，
+    // 一次 Redis 抖动就会把全体在线用户登出，而日志里只剩一片「无效登录凭证」。
+    await expect(createJwtVerifier(brokenBlacklist()).require(sign())).rejects.toMatchObject({
+      name: "AppError",
+      code: "INTERNAL",
+    });
+  });
+
+  it("never silently accepts a token it could not check", async () => {
+    // 反过来当成「未吊销」同样错：那等于在依赖故障期间让已登出的 token 重新可用
+    await expect(createJwtVerifier(brokenBlacklist()).require(sign())).rejects.toThrow();
+    await expect(createJwtVerifier(brokenBlacklist()).requireAllowExpired(sign())).rejects.toThrow();
+  });
+
+  it("degrades optional auth to anonymous rather than failing the request", async () => {
+    // resolve 的调用方本来就允许匿名，降级只会减少权限；
+    // 在这里抛错会让一次 Redis 抖动把允许匿名的公开页也一并打挂。
+    await expect(createJwtVerifier(brokenBlacklist()).resolve(sign())).resolves.toBeNull();
   });
 });

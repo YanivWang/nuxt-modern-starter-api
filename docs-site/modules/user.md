@@ -7,10 +7,10 @@
 ```text
 src/modules/user/
   user.routes.ts
-    注册 /api/me 与 /api/me/profile 路由
+    注册 /api/v1/me 与 /api/v1/me/profile 路由
 
   user.schema.ts
-    /api/me 的 Zod schema
+    /api/v1/me 的 Zod schema
 
   user.controller.ts
     当前用户 HTTP 控制器
@@ -40,9 +40,9 @@ src/modules/user/
 
 当前用户模块提供：
 
-- `GET /api/me`
-- `GET /api/me/profile`
-- `PATCH /api/me/profile`
+- `GET /api/v1/me`
+- `GET /api/v1/me/profile`
+- `PATCH /api/v1/me/profile`
 
 所有接口都必须登录，因此都会先经过 `authMiddleware`。
 
@@ -64,7 +64,7 @@ src/modules/user/
 
 `password` 保存 bcrypt 哈希，不保存明文。
 
-`avatar` 是 `/api/me` 返回的头像字段。
+`avatar` 是 `/api/v1/me` 返回的头像字段。
 
 `role` 取 `user` / `admin`，默认 `user`，是公开内容写接口的授权判据。
 授权中间件每次请求现查这一列，而不是从 JWT 读 —— token 里的角色在签发那一刻就固化了，
@@ -109,9 +109,9 @@ UserProfiles.userId
 
 删除用户时，对应资料会级联删除。
 
-## /api/me
+## /api/v1/me
 
-`GET /api/me` 用于获取当前登录用户的基础信息。
+`GET /api/v1/me` 用于获取当前登录用户的基础信息。
 
 返回字段：
 
@@ -125,7 +125,7 @@ UserProfiles.userId
 查询流程：
 
 ```text
-GET /api/me
+GET /api/v1/me
   -> authMiddleware
   -> validate(getMeSchema)
   -> getMe controller
@@ -136,9 +136,9 @@ GET /api/me
 
 如果 JWT 仍有效，但数据库中的用户已经不存在，会返回 `401 用户不存在或登录已失效，请重新登录`。
 
-## /api/me/profile
+## /api/v1/me/profile
 
-`GET /api/me/profile` 用于读取当前用户扩展资料。
+`GET /api/v1/me/profile` 用于读取当前用户扩展资料。
 
 如果用户还没有资料记录，返回：
 
@@ -156,7 +156,7 @@ GET /api/me
 
 ## 更新资料
 
-`PATCH /api/me/profile` 支持局部更新。
+`PATCH /api/v1/me/profile` 支持局部更新。
 
 请求体只允许白名单字段，并且至少提供一个字段。schema 使用 `.strict()`，多传字段会被拒绝。
 
@@ -217,9 +217,9 @@ sequelize.transaction
 
 头像仅存 `Users.avatar`：
 
-- `/api/me` 直接读取 `Users.avatar`。
-- `/api/me/profile` 通过 `UserProfile` 关联 `User` 合并返回 `avatar`。
-- `PATCH /api/me/profile` 的 `avatar` 字段写入 `Users.avatar`。
+- `/api/v1/me` 直接读取 `Users.avatar`。
+- `/api/v1/me/profile` 通过 `UserProfile` 关联 `User` 合并返回 `avatar`。
+- `PATCH /api/v1/me/profile` 的 `avatar` 字段写入 `Users.avatar`。
 
 ## 对外展示不返回 password
 
@@ -240,7 +240,7 @@ controller 返回用户信息时只返回安全字段：
 
 ## 测试现状
 
-当前用户基础能力主要由 `tests/integration/auth.integration.test.ts` 间接覆盖：注册、登录后访问 `/api/me`、Bearer 与 Cookie 登录态都会验证不会返回 `password`。`/api/me/profile` 的 GET/PATCH 仍属于当前集成测试 gap，开发用户资料字段时应补充对应测试。
+当前用户基础能力主要由 `tests/integration/auth.integration.test.ts` 间接覆盖：注册、登录后访问 `/api/v1/me`、Bearer 与 Cookie 登录态都会验证不会返回 `password`。`/api/v1/me/profile` 的 GET/PATCH 仍属于当前集成测试 gap，开发用户资料字段时应补充对应测试。
 
 ## 常见扩展方式
 

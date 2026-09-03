@@ -93,7 +93,7 @@ server.ts
 | `src/shared/errors/`               | 与 HTTP 解耦的应用错误；状态码只在错误中间件映射                               |
 | `src/middlewares/`                 | 统一错误、认证、限流、请求 ID、日志、Zod 校验等横切能力                        |
 | `src/modules/auth/`                | 注册、登录、access/refresh token、Cookie/CSRF、登出黑名单                      |
-| `src/modules/user/`                | `/api/me`、用户资料（头像仅存 `Users.avatar`）                                 |
+| `src/modules/user/`                | `/api/v1/me`、用户资料（头像仅存 `Users.avatar`）                              |
 | `src/modules/content/`             | 公开新闻/定价内容（内存数据源）；写操作可触发 Nuxt revalidate                  |
 | `src/modules/upload/`              | 普通图片上传、头像上传、大文件分片上传和秒传索引                               |
 | `src/modules/workspace/`           | 默认个人空间、项目 CRUD（列表/创建/详情/更新/删除）                            |
@@ -118,7 +118,7 @@ src/
   infrastructure/           # TokenBlacklist/ContentRepository/Revalidator/FileStorage Adapter
   modules/
     auth/                   # 注册、登录、refresh、logout、JWT/Cookie/CSRF
-    user/                   # /api/me 与用户扩展资料
+    user/                   # /api/v1/me 与用户扩展资料
     content/                # 新闻/定价公开内容与 revalidate
     workspace/              # 默认个人空间与项目 CRUD
     document/               # 编辑器文档读取与保存
@@ -318,13 +318,13 @@ pnpm test:unit
 
 这个脚手架面向纯 Web App API，不默认引入后台管理系统常见的 RBAC、菜单权限或权限点模型。默认约定是：
 
-- `/api/login` 返回短期 `accessToken` 和长期 `refreshToken`（含 `accessTokenExpiresIn`、`refreshTokenExpiresIn`），同时写入 `httpOnly` cookie，并写入非 `httpOnly` 的 `csrf_token`。响应体**不含** `token` 字段别名。
-- `/api/register` 只创建用户，不自动登录；注册成功后需要再调用 `/api/login` 获取 token。
-- `/api/refresh` 使用 `refreshToken` 换取新的 `accessToken` 和 `refreshToken`，旧 refresh token 会立即失效。若 refresh token 来自 cookie，需带 `X-CSRF-Token` 请求头，值与 `csrf_token` cookie 一致。
+- `/api/v1/login` 返回短期 `accessToken` 和长期 `refreshToken`（含 `accessTokenExpiresIn`、`refreshTokenExpiresIn`），同时写入 `httpOnly` cookie，并写入非 `httpOnly` 的 `csrf_token`。响应体**不含** `token` 字段别名。
+- `/api/v1/register` 只创建用户，不自动登录；注册成功后需要再调用 `/api/v1/login` 获取 token。
+- `/api/v1/refresh` 使用 `refreshToken` 换取新的 `accessToken` 和 `refreshToken`，旧 refresh token 会立即失效。若 refresh token 来自 cookie，需带 `X-CSRF-Token` 请求头，值与 `csrf_token` cookie 一致。
 - **refresh token 重放检测**：一次登录派生出的所有轮换 token 共享一个 `familyId`。已撤销的 refresh token 再次被使用时，整条家族链会被立即撤销，攻击者先前换取的 token 同时失效，用户需重新登录。这是 OAuth 2.0 Security BCP 对 refresh token 泄露的标准应对。
-- **登出允许过期凭证**：`/api/logout` 接受已过期但签名有效的 access token。登录态过期后用户依然必须能主动撤销会话，否则最需要登出的场景反而登不出去。
+- **登出允许过期凭证**：`/api/v1/logout` 接受已过期但签名有效的 access token。登录态过期后用户依然必须能主动撤销会话，否则最需要登出的场景反而登不出去。
 - **账号级失败锁定**：连续登录失败达到 `LOGIN_MAX_FAILED_ATTEMPTS` 后临时锁定该账号（依赖 Redis）。仅按 IP 限流挡不住分布式撞库。
-- `authMiddleware` 优先读取 `Authorization: Bearer <accessToken>`，也支持浏览器请求携带的 `access_token` cookie，适合 `/api/me`、项目、文档、上传、新闻写操作等必须登录的接口。
+- `authMiddleware` 优先读取 `Authorization: Bearer <accessToken>`，也支持浏览器请求携带的 `access_token` cookie，适合 `/api/v1/me`、项目、文档、上传、新闻写操作等必须登录的接口。
 - 使用 cookie 认证访问 POST/PATCH/PUT/DELETE 等非安全方法时，需带 `X-CSRF-Token` 请求头；Bearer 认证不受 CSRF 规则影响。
 - `optionalAuthMiddleware` 适合“登录用户和匿名用户都能访问，但返回内容略有差异”的接口，支持 Bearer 和 `access_token` cookie；当前脚手架提供中间件但未默认挂载示例路由。公开内容读接口（新闻/定价）本身无需登录，也不走该中间件。
 - 资源归属校验放在 service 层，例如只能修改自己的资料、只能删除自己的上传任务、只能访问自己的项目与文档。
@@ -332,7 +332,7 @@ pnpm test:unit
 
 ### Bearer 与 Cookie 怎么选
 
-- 前端显式管理 token、移动端、小程序或第三方客户端：使用 `Authorization: Bearer <accessToken>`，并在 access token 过期后调用 `/api/refresh`。
+- 前端显式管理 token、移动端、小程序或第三方客户端：使用 `Authorization: Bearer <accessToken>`，并在 access token 过期后调用 `/api/v1/refresh`。
 - 同站点或同主域 Web App：可以使用服务端写入的 `httpOnly` cookie，降低 XSS 直接读取 token 的风险；前端需要读取 `csrf_token` cookie 并在非安全请求中放入 `X-CSRF-Token`。
 - 生产环境 cookie 默认 `AUTH_COOKIE_SECURE=true`，本地开发默认 `false`。服务端 CORS 已启用 `credentials: true`，跨站 cookie 场景还需要前端请求设置 `credentials: "include"`，并按真实域名补充 SameSite 和 HTTPS 策略。
 
@@ -341,24 +341,24 @@ pnpm test:unit
 | 层级         | 模块                                                                            | 建议                                                           |
 | ------------ | ------------------------------------------------------------------------------- | -------------------------------------------------------------- |
 | 核心必留     | health/ready、env 校验、统一错误、requestId、日志、Zod 校验、OpenAPI、migration | 普通 Web App API 的基础设施，不建议删除                        |
-| Web App 基础 | auth、access/refresh token、`/api/me`、用户资料、工作台项目、编辑器文档         | 与 `nuxt-modern-starter` 前端默认联调的主路径                  |
-| 公开内容     | `/api/content/news`、`/api/content/pricing`、可选 Nuxt revalidate               | 营销站新闻/定价页；当前为内存数据源，可按业务换成 CMS/数据库   |
+| Web App 基础 | auth、access/refresh token、`/api/v1/me`、用户资料、工作台项目、编辑器文档      | 与 `nuxt-modern-starter` 前端默认联调的主路径                  |
+| 公开内容     | `/api/v1/content/news`、`/api/v1/content/pricing`、可选 Nuxt revalidate         | 营销站新闻/定价页；当前为内存数据源，可按业务换成 CMS/数据库   |
 | 常用增强     | 普通图片上传、头像上传、Redis JWT 黑名单                                        | 需要用户资料图、登出立即失效时保留                             |
 | 可选增强     | 大文件分片上传、秒传、本地 `.data` 会话                                         | 适合网盘、素材、视频等场景；普通内容站或 SaaS 表单应用可以删除 |
 
 ### 用户与资料模型
 
-默认有六张核心业务表：`Users`、`UserProfiles`、`UserRefreshTokens`、`Workspaces`、`Projects`、`Documents`。`Users` 与 `UserProfiles` 是一对一关系；每个用户有一个默认 personal Workspace；每个 Project 对应一个 Document；头像仅存 `Users.avatar`，`/api/me` 与 `/api/me/profile` 读取时均来自该字段。
+默认有六张核心业务表：`Users`、`UserProfiles`、`UserRefreshTokens`、`Workspaces`、`Projects`、`Documents`。`Users` 与 `UserProfiles` 是一对一关系；每个用户有一个默认 personal Workspace；每个 Project 对应一个 Document；头像仅存 `Users.avatar`，`/api/v1/me` 与 `/api/v1/me/profile` 读取时均来自该字段。
 
 ### 大文件分片上传
 
 大文件上传走 `init -> PUT chunk -> status -> merge` 流程：
 
-- `POST /api/uploads/large/init` 提交 `fileName`、`fileSize`、`chunkSize`、`fileMd5`，如果全局 MD5 索引命中且文件仍存在，会直接秒传返回公开 URL。
-- `PUT /api/uploads/large/:uploadId/chunks/:chunkIndex` 使用 multipart 字段 `chunk` 上传分片，并通过 `X-Chunk-Md5` 校验单片内容。
-- `GET /api/uploads/large/:uploadId/status` 返回已收到且大小正确的分片下标，用于断点续传。
-- `POST /api/uploads/large/:uploadId/merge` 合并所有分片，服务端会再次校验整文件 MD5 和大小。
-- `DELETE /api/uploads/large/:uploadId` 取消任务并清理临时分片与会话。
+- `POST /api/v1/uploads/large/init` 提交 `fileName`、`fileSize`、`chunkSize`、`fileMd5`，如果全局 MD5 索引命中且文件仍存在，会直接秒传返回公开 URL。
+- `PUT /api/v1/uploads/large/:uploadId/chunks/:chunkIndex` 使用 multipart 字段 `chunk` 上传分片，并通过 `X-Chunk-Md5` 校验单片内容。
+- `GET /api/v1/uploads/large/:uploadId/status` 返回已收到且大小正确的分片下标，用于断点续传。
+- `POST /api/v1/uploads/large/:uploadId/merge` 合并所有分片，服务端会再次校验整文件 MD5 和大小。
+- `DELETE /api/v1/uploads/large/:uploadId` 取消任务并清理临时分片与会话。
 - 上传会话、完成标记和秒传索引保存在本地 `.data/`，最终文件落在 `uploads/large/` 并通过 `/uploads/...` 公开访问。
 
 当前大文件上传是本地磁盘实现，适合单实例；多实例部署前应改为对象存储或把会话/锁迁移到共享基础设施。

@@ -4,7 +4,7 @@
 
 ## 一个普通 API 请求如何流动
 
-以 `GET /api/me` 为例：
+以 `GET /api/v1/me` 为例：
 
 ```text
 浏览器 / 客户端
@@ -123,7 +123,7 @@ Cookie 认证适合同站 Web App，但有额外 CSRF 规则：
 
 它不做 CSRF 校验，因此不应该用于需要登录保护的写操作。
 
-当前脚手架提供该中间件，但**没有默认挂载示例路由**。公开内容读接口（`/api/content/news`、`/api/content/pricing`）本身无需登录，也不经过 `optionalAuthMiddleware`。
+当前脚手架提供该中间件，但**没有默认挂载示例路由**。公开内容读接口（`/api/v1/content/news`、`/api/v1/content/pricing`）本身无需登录，也不经过 `optionalAuthMiddleware`。
 
 ## asyncHandler
 

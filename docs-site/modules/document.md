@@ -7,7 +7,7 @@
 ```text
 src/modules/document/
   document.routes.ts
-    GET/PATCH /api/documents/:documentId
+    GET/PATCH /api/v1/documents/:documentId
 
   document.schema.ts
     documentId path、保存 body 的 Zod 校验
@@ -34,10 +34,10 @@ src/modules/document/
 
 所有接口都需要 `authMiddleware`。
 
-| 方法    | 路径                         | 说明             |
-| ------- | ---------------------------- | ---------------- |
-| `GET`   | `/api/documents/:documentId` | 读取当前用户文档 |
-| `PATCH` | `/api/documents/:documentId` | 保存当前用户文档 |
+| 方法    | 路径                            | 说明             |
+| ------- | ------------------------------- | ---------------- |
+| `GET`   | `/api/v1/documents/:documentId` | 读取当前用户文档 |
+| `PATCH` | `/api/v1/documents/:documentId` | 保存当前用户文档 |
 
 保存请求体字段均为可选：
 
@@ -82,12 +82,12 @@ src/modules/document/
 
 `nuxt-modern-starter` 通过 `app/apis/editor/document.ts` 调用上述接口：
 
-- `fetchEditorDocument(documentId)` → `GET /api/documents/:documentId`
-- `saveEditorDocument(documentId, payload)` → `PATCH /api/documents/:documentId`
+- `fetchEditorDocument(documentId)` → `GET /api/v1/documents/:documentId`
+- `saveEditorDocument(documentId, payload)` → `PATCH /api/v1/documents/:documentId`
 
 前端 `saveEditorDocument()` 会始终提交当前编辑器 `content`；后端 PATCH body 的 `title`/`content` 字段本身都是可选的。
 
-编辑器页面 `/app/workspace/:projectId/edit` 会先 `GET /api/projects/:projectId` 拿到 `documentId`，再加载并保存文档。预览页会对同一文档内容做 HTML 预览（`v-html`），不是 PPT 幻灯片引擎。
+编辑器页面 `/app/workspace/:projectId/edit` 会先 `GET /api/v1/projects/:projectId` 拿到 `documentId`，再加载并保存文档。预览页会对同一文档内容做 HTML 预览（`v-html`），不是 PPT 幻灯片引擎。
 
 独立 deep link 路由 `/app/editor?documentId=...` 也使用该接口，并使用 `editor` layout；未提供 `documentId` 时会重定向到 `/app/workspace`。
 

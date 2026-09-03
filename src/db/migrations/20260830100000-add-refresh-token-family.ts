@@ -21,7 +21,8 @@ export const up: MigrationFn<QueryInterface> = async ({ context }) => {
     comment: "撤销原因：rotated / logout / replay_detected / user_missing",
   });
 
-  // 历史行没有家族信息，用各自的 tokenHash 作为独立家族回填，避免旧会话被误判为同一家族。
+  // 历史行没有家族信息。MySQL 的 UUID() 是逐行求值的，因此这条 UPDATE 会给每一行发一个
+  // 不同的家族 id —— 旧会话各自独立成家族，不会被重放检测误判成同一条链而互相牵连。
   await context.sequelize.query("UPDATE `UserRefreshTokens` SET `familyId` = UUID() WHERE `familyId` IS NULL");
 
   await context.changeColumn("UserRefreshTokens", "familyId", {

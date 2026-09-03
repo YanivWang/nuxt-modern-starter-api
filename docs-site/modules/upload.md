@@ -64,16 +64,16 @@ authMiddleware
 
 普通上传：
 
-- `POST /api/uploads`
-- `POST /api/uploads/profiles`
+- `POST /api/v1/uploads`
+- `POST /api/v1/uploads/profiles`
 
 大文件上传：
 
-- `POST /api/uploads/large/init`
-- `GET /api/uploads/large/:uploadId/status`
-- `PUT /api/uploads/large/:uploadId/chunks/:chunkIndex`
-- `POST /api/uploads/large/:uploadId/merge`
-- `DELETE /api/uploads/large/:uploadId`
+- `POST /api/v1/uploads/large/init`
+- `GET /api/v1/uploads/large/:uploadId/status`
+- `PUT /api/v1/uploads/large/:uploadId/chunks/:chunkIndex`
+- `POST /api/v1/uploads/large/:uploadId/merge`
+- `DELETE /api/v1/uploads/large/:uploadId`
 
 ## 静态资源访问
 
@@ -98,7 +98,7 @@ uploads/
 接口：
 
 ```text
-POST /api/uploads
+POST /api/v1/uploads
 ```
 
 表单字段：
@@ -136,7 +136,7 @@ uploads/common/<年>/<月>/
 接口：
 
 ```text
-POST /api/uploads/profiles
+POST /api/v1/uploads/profiles
 ```
 
 限制：
@@ -151,7 +151,7 @@ POST /api/uploads/profiles
 uploads/profiles/<年>/<月>/
 ```
 
-上传成功后，前端通常会把返回 URL 通过 `PATCH /api/me/profile` 的 `avatar` 字段写入 `Users.avatar`。
+上传成功后，前端通常会把返回 URL 通过 `PATCH /api/v1/me/profile` 的 `avatar` 字段写入 `Users.avatar`。
 
 ## 文件名策略
 
@@ -201,19 +201,19 @@ uploads/profiles/<年>/<月>/
 ## 大文件上传总流程
 
 ```text
-1. POST /api/uploads/large/init
+1. POST /api/v1/uploads/large/init
    创建上传任务，或命中 MD5 秒传
 
-2. PUT /api/uploads/large/:uploadId/chunks/:chunkIndex
+2. PUT /api/v1/uploads/large/:uploadId/chunks/:chunkIndex
    上传单个分片，字段名 chunk，Header 带 X-Chunk-Md5
 
-3. GET /api/uploads/large/:uploadId/status
+3. GET /api/v1/uploads/large/:uploadId/status
    查询已经收到且大小正确的分片下标
 
-4. POST /api/uploads/large/:uploadId/merge
+4. POST /api/v1/uploads/large/:uploadId/merge
    合并所有分片，校验整文件 MD5 和大小
 
-5. DELETE /api/uploads/large/:uploadId
+5. DELETE /api/v1/uploads/large/:uploadId
    取消上传任务并清理临时分片
 ```
 
@@ -324,7 +324,7 @@ part-000002.bin
 接口：
 
 ```text
-PUT /api/uploads/large/:uploadId/chunks/:chunkIndex
+PUT /api/v1/uploads/large/:uploadId/chunks/:chunkIndex
 ```
 
 表单字段：
@@ -363,7 +363,7 @@ multer 的 `destination` 回调在写入任何字节之前先解析目录，并�
 接口：
 
 ```text
-GET /api/uploads/large/:uploadId/status
+GET /api/v1/uploads/large/:uploadId/status
 ```
 
 任务仍在上传中时返回：
@@ -391,7 +391,7 @@ GET /api/uploads/large/:uploadId/status
 接口：
 
 ```text
-POST /api/uploads/large/:uploadId/merge
+POST /api/v1/uploads/large/:uploadId/merge
 ```
 
 服务端会：
@@ -424,7 +424,7 @@ uploads/large/<年>/<月>/
 接口：
 
 ```text
-DELETE /api/uploads/large/:uploadId
+DELETE /api/v1/uploads/large/:uploadId
 ```
 
 行为：

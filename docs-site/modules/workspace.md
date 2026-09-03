@@ -7,7 +7,7 @@
 ```text
 src/modules/workspace/
   workspace.routes.ts
-    GET/POST /api/projects、GET/PATCH/DELETE /api/projects/:projectId
+    GET/POST /api/v1/projects、GET/PATCH/DELETE /api/v1/projects/:projectId
 
   workspace.schema.ts
     创建项目 body、projectId path 的 Zod 校验
@@ -36,13 +36,13 @@ src/modules/workspace/
 
 **无独立 Workspace CRUD 端点。** Workspace 在创建项目时由 `ensurePersonalWorkspace()` 内部自动创建（`type = personal`，`(ownerId, type)` 唯一）。
 
-| 方法     | 路径                       | 说明                                        |
-| -------- | -------------------------- | ------------------------------------------- |
-| `GET`    | `/api/projects`            | 分页返回当前用户的项目列表                  |
-| `POST`   | `/api/projects`            | 创建项目并初始化关联 Document               |
-| `GET`    | `/api/projects/:projectId` | 返回当前用户的项目详情                      |
-| `PATCH`  | `/api/projects/:projectId` | 更新当前用户的项目标题或描述                |
-| `DELETE` | `/api/projects/:projectId` | 删除当前用户的项目，并级联删除关联 Document |
+| 方法     | 路径                          | 说明                                        |
+| -------- | ----------------------------- | ------------------------------------------- |
+| `GET`    | `/api/v1/projects`            | 分页返回当前用户的项目列表                  |
+| `POST`   | `/api/v1/projects`            | 创建项目并初始化关联 Document               |
+| `GET`    | `/api/v1/projects/:projectId` | 返回当前用户的项目详情                      |
+| `PATCH`  | `/api/v1/projects/:projectId` | 更新当前用户的项目标题或描述                |
+| `DELETE` | `/api/v1/projects/:projectId` | 删除当前用户的项目，并级联删除关联 Document |
 
 创建项目请求体：
 
@@ -60,7 +60,7 @@ src/modules/workspace/
 
 ## 列表分页
 
-`GET /api/projects` 使用全站统一的 `limit` / `offset` 约定（定义见 `src/shared/http/pagination.ts`）：默认单页 20 条，上限 100，超出范围返回 400。
+`GET /api/v1/projects` 使用全站统一的 `limit` / `offset` 约定（定义见 `src/shared/http/pagination.ts`）：默认单页 20 条，上限 100，超出范围返回 400。
 
 ```json
 {
@@ -77,7 +77,7 @@ src/modules/workspace/
 
 > 该接口此前返回全量列表。项目数会随使用时间单调增长，无上限的查询迟早会拖垮响应与内存，因此改为强制分页。**前端需要读取 `data.projects` 并按 `pagination` 翻页。**
 
-更新项目请求体（`PATCH /api/projects/:projectId`）：
+更新项目请求体（`PATCH /api/v1/projects/:projectId`）：
 
 ```json
 {
@@ -148,13 +148,13 @@ src/modules/workspace/
 
 `nuxt-modern-starter` 通过 `app/api/workspace-project.ts` 调用上述接口：
 
-- `fetchWorkspaceProjects({ limit, offset })` → `GET /api/projects`
-- `createWorkspaceProject()` → `POST /api/projects`
-- `fetchWorkspaceProject(projectId)` → `GET /api/projects/:projectId`
-- `updateWorkspaceProject(projectId)` → `PATCH /api/projects/:projectId`
-- `deleteWorkspaceProject(projectId)` → `DELETE /api/projects/:projectId`
+- `fetchWorkspaceProjects({ limit, offset })` → `GET /api/v1/projects`
+- `createWorkspaceProject()` → `POST /api/v1/projects`
+- `fetchWorkspaceProject(projectId)` → `GET /api/v1/projects/:projectId`
+- `updateWorkspaceProject(projectId)` → `PATCH /api/v1/projects/:projectId`
+- `deleteWorkspaceProject(projectId)` → `DELETE /api/v1/projects/:projectId`
 
-请求经 `createProductApiClient()` 发送 Bearer Token。前端当前只有空白项目卡片和顶部创建按钮会调用 `POST /api/projects`；搜索/筛选 UI 尚未接后端参数。
+请求经 `createProductApiClient()` 发送 Bearer Token。前端当前只有空白项目卡片和顶部创建按钮会调用 `POST /api/v1/projects`；搜索/筛选 UI 尚未接后端参数。
 
 列表分页由 `useWorkspaceProjects` 承接：第一页走 `useAsyncData`，后续页累积并由「加载更多」按钮驱动，推进逻辑在 `performWorkspaceProjectLoadMore` 中可单测。
 
